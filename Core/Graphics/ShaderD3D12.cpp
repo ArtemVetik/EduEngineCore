@@ -5,7 +5,7 @@ namespace EduEngine
 {
 	ShaderD3D12::ShaderD3D12(std::wstring	 fileName,
 							 EDU_SHADER_TYPE type,
-							 const LPCWSTR*  defines,
+							 const LPCWSTR*	 defines,
 							 std::wstring	 entryPoint,
 							 std::wstring	 target) :
 		m_Type(type)
@@ -20,11 +20,12 @@ namespace EduEngine
 		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&pCompiler));
 
 		pUtils->CreateDefaultIncludeHandler(&pIncludeHandler);
-		
+
 		std::vector<LPCWSTR> pszArgs = {
 			fileName.c_str(),
 			L"-E", entryPoint.c_str(),
 			L"-T", target.c_str(),
+			L"-Qstrip_reflect",
 #if defined(DEBUG) | defined(_DEBUG)
 			L"-Zi",
 			L"-Qembed_debug",
@@ -32,7 +33,6 @@ namespace EduEngine
 			L"-Fo",
 			L"-O3",
 			L"-Qstrip_debug",
-			L"-Qstrip_reflect",
 #endif
 		};
 
@@ -78,6 +78,26 @@ namespace EduEngine
 		THROW_IF_FAILED(hrStatus, L"Shader Compilation Failed");
 
 		pResults->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&m_ShaderBlob), nullptr);
+
+		//
+		// Get separate reflection.
+		//
+		Microsoft::WRL::ComPtr<IDxcBlob> pReflectionData;
+		pResults->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&pReflectionData), nullptr);
+		if (pReflectionData != nullptr)
+		{
+			DxcBuffer ReflectionData;
+			ReflectionData.Encoding = DXC_CP_ACP;
+			ReflectionData.Ptr = pReflectionData->GetBufferPointer();
+			ReflectionData.Size = pReflectionData->GetBufferSize();
+
+			THROW_IF_FAILED(pUtils->CreateReflection(&ReflectionData, IID_PPV_ARGS(&m_ShaderReflection)), L"Failed to create reflection");
+
+			ShaderDesc desc = {};
+			desc.DefaultVarType = SHADER_VARIABLE_TYPE::MUTABLE;
+
+			m_ShaderResources = std::make_shared<ShaderResourcesD3D12>(m_ShaderReflection.Get(), desc);
+		}
 	}
 
 	D3D12_SHADER_BYTECODE ShaderD3D12::GetShaderBytecode() const

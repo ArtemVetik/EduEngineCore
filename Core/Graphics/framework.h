@@ -42,6 +42,11 @@ inline std::wstring AnsiToWString(const std::string& str)
         }                                                             \
     } while(false)
 #endif
+
+#ifndef ASSERT_FAILED
+#define ASSERT_FAILED(message) THROW_IF_FAILED(0, message)
+#endif
+
 #endif
 
 static constexpr DXGI_FORMAT BACK_BUFFER_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;

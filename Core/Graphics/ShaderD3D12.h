@@ -1,5 +1,6 @@
 #pragma once
 #include "framework.h"
+#include "ShaderResourcesD3D12.h"
 
 #include <dxcapi.h>
 
@@ -32,8 +33,11 @@ namespace EduEngine
 
 	private:
 		Microsoft::WRL::ComPtr<IDxcBlob> m_ShaderBlob;
+		Microsoft::WRL::ComPtr<ID3D12ShaderReflection> m_ShaderReflection;
 
 		EDU_SHADER_TYPE m_Type;
+
+		std::shared_ptr<ShaderResourcesD3D12> m_ShaderResources;
 	};
 }
 

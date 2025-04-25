@@ -159,6 +159,8 @@
     <ClInclude Include="ResourceD3D12.h" />
     <ClInclude Include="RootSignatureD3D12.h" />
     <ClInclude Include="ShaderD3D12.h" />
+    <ClInclude Include="ShaderResourceLoader.h" />
+    <ClInclude Include="ShaderResourcesD3D12.h" />
     <ClInclude Include="SwapChain.h" />
     <ClInclude Include="TextureD3D12.h" />
   </ItemGroup>
@@ -182,6 +184,7 @@
     <ClCompile Include="DxException.cpp" />
     <ClCompile Include="RootSignatureD3D12.cpp" />
     <ClCompile Include="ShaderD3D12.cpp" />
+    <ClCompile Include="ShaderResourcesD3D12.cpp" />
     <ClCompile Include="SwapChain.cpp" />
     <ClCompile Include="TextureD3D12.cpp" />
   </ItemGroup>
