@@ -7,7 +7,7 @@
 #include "Window.h"
 #include "RenderObject.h"
 
-#include "../Core/Graphics/SwapChain.h"
+#include "../../Graphics/SwapChain.h"
 
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")

@@ -2,10 +2,10 @@
 
 #include "framework.h"
 
-#include "../Core/Graphics/PipelineStateD3D12.h"
-#include "../Core/Graphics/ComputePipelineStateD3D12.h"
-#include "../Core/Graphics/CommandSignatureD3D12.h"
-#include "../Core/EduMath/SimpleMath.h"
+#include "../../Graphics/PipelineStateD3D12.h"
+#include "../../Graphics/ComputePipelineStateD3D12.h"
+#include "../../Graphics/CommandSignatureD3D12.h"
+#include "../../EduMath/SimpleMath.h"
 
 namespace EduEngine
 {

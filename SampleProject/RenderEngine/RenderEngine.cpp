@@ -2,8 +2,8 @@
 
 #include <dxgi1_6.h>
 
-#include "../Core/InputSystem/InputManager.h"
-#include "../Core/Graphics/DynamicUploadBuffer.h"
+#include "../InputSystem/InputManager.h"
+#include "../../Graphics/DynamicUploadBuffer.h"
 
 namespace EduEngine
 {

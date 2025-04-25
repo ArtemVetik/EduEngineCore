@@ -6,7 +6,7 @@
 
 #include "framework.h"
 
-#include "../Core/Graphics/BufferD3D12.h"
+#include "../../Graphics/BufferD3D12.h"
 
 namespace EduEngine
 {

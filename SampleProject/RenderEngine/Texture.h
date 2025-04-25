@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Core/Graphics/TextureD3D12.h"
+#include "../../Graphics/TextureD3D12.h"
 
 namespace EduEngine
 {

@@ -4,8 +4,8 @@
 #include "Mesh.h"
 #include "Material.h"
 
-#include "../Core/Graphics/BufferD3D12.h"
-#include "../Core/EduMath/SimpleMath.h"
+#include "../../Graphics/BufferD3D12.h"
+#include "../../EduMath/SimpleMath.h"
 
 namespace EduEngine
 {

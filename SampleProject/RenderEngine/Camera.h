@@ -5,7 +5,7 @@
 #include "framework.h"
 #include "Timer.h"
 
-#include "../Core/Graphics/RenderDeviceD3D12.h"
+#include "../../Graphics/RenderDeviceD3D12.h"
 
 namespace EduEngine
 {

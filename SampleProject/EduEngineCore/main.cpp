@@ -5,7 +5,7 @@
 #include "../RenderEngine/IRenderEngine.h"
 #include "../RenderEngine/Window.h"
 #include "../RenderEngine/Timer.h"
-#include "../Core/InputSystem/InputManager.h"
+#include "../InputSystem/InputManager.h"
 
 using namespace EduEngine;
 
