@@ -2,10 +2,10 @@
 #include <crtdbg.h>
 #include <sstream>
 
-#include "../RenderEngine/IRenderEngine.h"
-#include "../RenderEngine/Window.h"
-#include "../RenderEngine/Timer.h"
-#include "../InputSystem/InputManager.h"
+#include "../../RenderEngine/include/IRenderEngine.h"
+#include "../../RenderEngine/include/Window.h"
+#include "../../RenderEngine/include/Timer.h"
+#include "../../InputSystem/include/InputManager.h"
 
 using namespace EduEngine;
 
@@ -14,7 +14,7 @@ void UpdateWindowTitle(HWND window, int rFps, float rMspf)
 	std::wstringstream out;
 	out.precision(6);
 
-	out << "EduEngine Core (" << " fps: " << rFps << " frame time: " << rMspf << " ms)";
+	out << "EduEngine Core22 (" << " fps: " << rFps << " frame time: " << rMspf << " ms)";
 
 	SetWindowText(window, out.str().c_str());
 }

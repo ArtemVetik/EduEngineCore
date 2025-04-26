@@ -1,0 +1,135 @@
+#pragma once
+#include "framework.h"
+
+#include <vector>
+#include <d3d12shader.h>
+
+namespace EduEngine
+{
+	struct ShaderDesc; // TODO: separate
+
+	template<typename TOnResourcesCounted,
+			 typename TOnNewCB,
+			 typename TOnNewTexUAV,
+			 typename TOnNewBufUAV,
+			 typename TOnNewBufSRV,
+			 typename TOnNewSampler,
+			 typename TOnNewTexSRV>
+	void LoadD3D12ShaderResource(ID3D12ShaderReflection* reflection,
+								 TOnResourcesCounted OnResourcesCounted,
+								 TOnNewCB OnNewCB,
+								 TOnNewTexUAV OnNewTexUAV,
+								 TOnNewBufUAV OnNewBufUAV,
+								 TOnNewBufSRV OnNewBufSRV,
+								 TOnNewSampler OnNewSampler,
+								 TOnNewTexSRV OnNewTexSRV,
+								 const ShaderDesc& shaderDesc)
+	{
+		UINT numCBs = 0, numTexSRVs = 0, numTexUAVs = 0, numBufSRVs = 0, numBufUAVs = 0, numSamplers = 0;
+
+		D3D12_SHADER_DESC sDesc;
+		reflection->GetDesc(&sDesc);
+
+		std::vector<ShaderResourceAttribs> resources;
+		resources.reserve(sDesc.BoundResources);
+
+		for (UINT res = 0; res < sDesc.BoundResources; res += 1)
+		{
+			D3D12_SHADER_INPUT_BIND_DESC bindingDesc = {};
+			reflection->GetResourceBindingDesc(res, &bindingDesc);
+
+			switch (bindingDesc.Type)
+			{
+			case D3D_SIT_CBUFFER:                       ++numCBs; break;
+			case D3D_SIT_TBUFFER:                       ASSERT_FAILED(L"TBuffers are not supported"); break;
+			case D3D_SIT_TEXTURE:                       ++(bindingDesc.Dimension == D3D_SRV_DIMENSION_BUFFER ? numBufSRVs : numTexSRVs); break;
+			case D3D_SIT_SAMPLER:                       ++numSamplers; break;
+			case D3D_SIT_UAV_RWTYPED:                   ++(bindingDesc.Dimension == D3D_SRV_DIMENSION_BUFFER ? numBufUAVs : numTexUAVs); break;
+			case D3D_SIT_STRUCTURED:                    ++numBufSRVs; break;
+			case D3D_SIT_UAV_RWSTRUCTURED:              ++numBufUAVs; break;
+			case D3D_SIT_BYTEADDRESS:                   ++numBufSRVs; break;
+			case D3D_SIT_UAV_RWBYTEADDRESS:             ++numBufUAVs; break;
+			case D3D_SIT_UAV_APPEND_STRUCTURED:         ASSERT_FAILED(L"Append structured buffers are not supported"); break;
+			case D3D_SIT_UAV_CONSUME_STRUCTURED:        ASSERT_FAILED(L"Consume structured buffers are not supported"); break;
+			case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER: ASSERT_FAILED(L"RW structured buffers with counter are not supported"); break;
+			default:									ASSERT_FAILED(L"Unexpected resource type");
+			}
+
+			SHADER_VARIABLE_TYPE varType = GetShaderVariableType(bindingDesc.Name, shaderDesc);
+
+			resources.emplace_back(ShaderResourceAttribs(bindingDesc.Name, bindingDesc.BindPoint, bindingDesc.BindCount, bindingDesc.Type, varType, bindingDesc.Dimension, -1, -1));
+		}
+
+		OnResourcesCounted(numCBs, numTexSRVs, numTexUAVs, numBufSRVs, numBufUAVs, numSamplers);
+
+		std::vector<ShaderResourceAttribs> texSRVsRes;
+		texSRVsRes.reserve(numTexSRVs);
+
+		for (auto& res : resources)
+		{
+			switch (res.GetInputType())
+			{
+			case D3D_SIT_CBUFFER:
+			{
+				OnNewCB(std::move(res));
+				break;
+			}
+			case D3D_SIT_TBUFFER:
+			{
+				ASSERT_FAILED(L"TBuffers are not supported");
+				break;
+			}
+			case D3D_SIT_TEXTURE:
+			{
+				if (res.GetSRVDim() == D3D_SRV_DIMENSION_BUFFER)
+					OnNewBufSRV(std::move(res));
+				else
+					texSRVsRes.emplace_back(std::move(res));
+				break;
+			}
+			case D3D_SIT_SAMPLER:
+			{
+				OnNewSampler(std::move(res));
+				break;
+			}
+			case D3D_SIT_UAV_RWTYPED:
+			{
+				if (res.GetSRVDim() == D3D_SRV_DIMENSION_BUFFER)
+					OnNewBufUAV(std::move(res));
+				else
+					OnNewTexUAV(std::move(res));
+				break;
+			}
+			case D3D_SIT_STRUCTURED:
+			{
+				OnNewBufSRV(std::move(res));
+				break;
+			}
+			case D3D_SIT_UAV_RWSTRUCTURED:
+			{
+				OnNewBufUAV(std::move(res));
+				break;
+			}
+			case D3D_SIT_BYTEADDRESS:
+			{
+				OnNewBufSRV(std::move(res));
+				break;
+			}
+			case D3D_SIT_UAV_RWBYTEADDRESS:
+			{
+				OnNewBufUAV(std::move(res));
+				break;
+			}
+			case D3D_SIT_UAV_APPEND_STRUCTURED:         ASSERT_FAILED(L"Append structured buffers are not supported"); break;
+			case D3D_SIT_UAV_CONSUME_STRUCTURED:        ASSERT_FAILED(L"Consume structured buffers are not supported"); break;
+			case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER: ASSERT_FAILED(L"RW structured buffers with counter are not supported"); break;
+			default:									ASSERT_FAILED(L"Unexpected resource type");
+			}
+		}
+
+		for (auto &res : texSRVsRes)
+		{
+			OnNewTexSRV(std::move(res));
+		}
+	}
+}
