@@ -17,8 +17,8 @@ namespace EduEngine
                                                        ID3D12DescriptorHeap*       heap,
                                                        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
                                                        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle,
-                                                       uint32_t                    nHandles,
-                                                       uint16_t                    allocationManagerId,
+                                                       uint32                      nHandles,
+                                                       uint16                      allocationManagerId,
                                                        QueueID                     queueId) :
         m_FirstCpuHandle{ cpuHandle },
         m_FirstGpuHandle{ gpuHandle },
@@ -31,8 +31,8 @@ namespace EduEngine
         assert(m_pAllocator != nullptr && m_pDescriptorHeap != nullptr);
         auto descriptorSize = m_pAllocator->GetDescriptorSize();
 
-        assert(descriptorSize < std::numeric_limits<uint16_t>::max());
-        m_DescriptorSize = static_cast<uint16_t>(descriptorSize);
+        assert(descriptorSize < std::numeric_limits<uint16>::max());
+        m_DescriptorSize = static_cast<uint16>(descriptorSize);
     }
 
     DescriptorHeapAllocation::DescriptorHeapAllocation(DescriptorHeapAllocation&& allocation) noexcept :
@@ -81,7 +81,7 @@ namespace EduEngine
         m_DescriptorSize = 0;
     }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeapAllocation::GetCpuHandle(uint32_t offset) const
+    D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHeapAllocation::GetCpuHandle(uint32 offset) const
     {
         D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle = m_FirstCpuHandle;
         
@@ -91,7 +91,7 @@ namespace EduEngine
         return CPUHandle;
     }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE DescriptorHeapAllocation::GetGpuHandle(uint32_t offset) const
+    D3D12_GPU_DESCRIPTOR_HANDLE DescriptorHeapAllocation::GetGpuHandle(uint32 offset) const
     {
         D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle = m_FirstGpuHandle;
 

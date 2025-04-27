@@ -1,6 +1,8 @@
 #pragma once
 #include "framework.h"
 
+#include <map>
+
 namespace EduEngine
 {
 	class GRAPHICS_HEAPS_API VariableSizeMemoryAllocator

@@ -1,0 +1,9 @@
+#include <string>
+
+typedef float float32;
+typedef double float64;
+
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+
+using String = std::basic_string<char>;

@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "CommandSignatureD3D12.h"
 
 namespace EduEngine

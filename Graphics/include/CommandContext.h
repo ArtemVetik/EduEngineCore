@@ -2,6 +2,8 @@
 #include "framework.h"
 #include "CommandListManager.h"
 
+#include <vector>
+
 namespace EduEngine
 {
 	class GRAPHICS_API CommandContext

@@ -11,7 +11,7 @@ namespace EduEngine
 	{
 	public:
 		CPUDescriptorHeap(IRenderDeviceD3D12&		  deviceD3D12Impl,
-						  uint32_t                    numDescriptorsInHeap,
+						  uint32					  numDescriptorsInHeap,
 						  D3D12_DESCRIPTOR_HEAP_TYPE  type,
 						  D3D12_DESCRIPTOR_HEAP_FLAGS flags);
 
@@ -22,9 +22,9 @@ namespace EduEngine
 
 		~CPUDescriptorHeap();
 
-		virtual DescriptorHeapAllocation Allocate(QueueID queueId, uint32_t count) override;
+		virtual DescriptorHeapAllocation Allocate(QueueID queueId, uint32 count) override;
 		virtual void SafeFree(DescriptorHeapAllocation&& allocation) override;
-		virtual uint32_t GetDescriptorSize() const override { return m_DescriptorSize; }
+		virtual uint32 GetDescriptorSize() const override { return m_DescriptorSize; }
 		virtual void FreeAllocation(DescriptorHeapAllocation&& allocation) override;
 
 	private:
@@ -36,7 +36,7 @@ namespace EduEngine
 		D3D12_DESCRIPTOR_HEAP_DESC m_HeapDesc;
 		const UINT m_DescriptorSize = 0;
 
-		uint32_t m_MaxSize = 0;
-		uint32_t m_CurrentSize = 0;
+		uint32 m_MaxSize = 0;
+		uint32 m_CurrentSize = 0;
 	};
 }

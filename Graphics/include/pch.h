@@ -28,3 +28,5 @@
 #include <dxgi1_5.h>
 
 #include "framework.h"
+
+#include "../../Common/include/Asserts.h"

@@ -4,7 +4,7 @@
 namespace EduEngine
 {
 	DynamicSuballocationsManager::DynamicSuballocationsManager(GPUDescriptorHeap& parentGPUHeap,
-															   uint32_t			  dynamicChunkSize,
+															   uint32             dynamicChunkSize,
 															   char*			  managerName) :
         m_ParentGPUHeap{ parentGPUHeap },
         m_DynamicChunkSize { dynamicChunkSize },
@@ -24,7 +24,7 @@ namespace EduEngine
             m_Suballocations[i].clear();
     }
 
-    DescriptorHeapAllocation DynamicSuballocationsManager::Allocate(QueueID queueId, uint32_t count)
+    DescriptorHeapAllocation DynamicSuballocationsManager::Allocate(QueueID queueId, uint32 count)
     {
         assert(queueId >= QueueID::Direct && queueId <= QueueID::Both);
 
@@ -48,7 +48,7 @@ namespace EduEngine
             currentSuballocation.GetCpuHandle(m_CurrentSuballocationOffset[queueId]),
             currentSuballocation.GetGpuHandle(m_CurrentSuballocationOffset[queueId]),
             count,
-            static_cast<uint16_t>(managerId),
+            static_cast<uint16>(managerId),
             queueId);
         m_CurrentSuballocationOffset[queueId] += count;
 

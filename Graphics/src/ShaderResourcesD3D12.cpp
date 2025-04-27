@@ -13,12 +13,12 @@ namespace EduEngine
 			[&](UINT numCBs, UINT numTexSRVs, UINT numTexUAVs, UINT numBufSRVs, UINT numBufUAVs, UINT numSamplers)
 			{
 				// TODO: add limit asserts
-				m_TexSRVOffset = 0 + static_cast<uint16_t>(numCBs);
-				m_TexUAVOffset = m_TexSRVOffset + static_cast<uint16_t>(numTexSRVs);
-				m_BufSRVOffset = m_TexUAVOffset + static_cast<uint16_t>(numTexUAVs);
-				m_BufUAVOffset = m_BufSRVOffset + static_cast<uint16_t>(numBufSRVs);
-				m_SamplersOffset = m_BufUAVOffset + static_cast<uint16_t>(numBufUAVs);
-				m_BufferEndOffset = m_SamplersOffset + static_cast<uint16_t>(numSamplers);
+				m_TexSRVOffset = 0 + static_cast<uint16>(numCBs);
+				m_TexUAVOffset = m_TexSRVOffset + static_cast<uint16>(numTexSRVs);
+				m_BufSRVOffset = m_TexUAVOffset + static_cast<uint16>(numTexUAVs);
+				m_BufUAVOffset = m_BufSRVOffset + static_cast<uint16>(numBufSRVs);
+				m_SamplersOffset = m_BufUAVOffset + static_cast<uint16>(numBufUAVs);
+				m_BufferEndOffset = m_SamplersOffset + static_cast<uint16>(numSamplers);
 
 				if (m_BufferEndOffset)
 					m_ResourcesBuffer = static_cast<ShaderResourceAttribs*>(std::malloc(sizeof(ShaderResourceAttribs) * m_BufferEndOffset));

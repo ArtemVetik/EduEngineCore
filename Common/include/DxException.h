@@ -1,5 +1,6 @@
 #pragma once
-#include "pch.h"
+#include <windows.h>
+#include <string>
 
 namespace EduEngine
 {

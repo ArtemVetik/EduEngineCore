@@ -4,8 +4,8 @@
 namespace EduEngine
 {
     GPUDescriptorHeap::GPUDescriptorHeap(IRenderDeviceD3D12&         device,
-                                         uint32_t                    numDescriptorsInHeap,
-                                         uint32_t                    numDynamicDescriptors,
+                                         uint32                      numDescriptorsInHeap,
+                                         uint32                      numDynamicDescriptors,
                                          D3D12_DESCRIPTOR_HEAP_TYPE  type,
                                          D3D12_DESCRIPTOR_HEAP_FLAGS flags) :
         m_DeviceD3D12Impl{ device },
@@ -23,7 +23,7 @@ namespace EduEngine
     {
     }
 
-    DescriptorHeapAllocation GPUDescriptorHeap::Allocate(QueueID queueId, uint32_t count)
+    DescriptorHeapAllocation GPUDescriptorHeap::Allocate(QueueID queueId, uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_AllocMutex);
 
@@ -31,7 +31,7 @@ namespace EduEngine
         return allocation;
     }
 
-    DescriptorHeapAllocation GPUDescriptorHeap::AllocateDynamic(QueueID queueId, uint32_t count)
+    DescriptorHeapAllocation GPUDescriptorHeap::AllocateDynamic(QueueID queueId, uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_DynAllocMutex);
 

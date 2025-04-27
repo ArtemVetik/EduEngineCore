@@ -21,9 +21,9 @@ namespace EduEngine
 		{
 		}
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(uint32_t offset = 0) const { return m_Allocation.GetCpuHandle(); }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(uint32 offset = 0) const { return m_Allocation.GetCpuHandle(); }
 
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(uint32_t offset = 0) const { return m_Allocation.GetGpuHandle(); }
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(uint32 offset = 0) const { return m_Allocation.GetGpuHandle(); }
 	};
 
 	class GRAPHICS_API BufferD3D12 : public ResourceD3D12

@@ -47,23 +47,23 @@ namespace EduEngine
 	{
 	public:
 		const char* const Name;
-		const uint16_t BindPoint;
-		const uint16_t BindCount;
+		const uint16 BindPoint;
+		const uint16 BindCount;
 
 		//            4              3               4              20                1
 		// bit | 0  1  2  3   |  4   5   6   |  7  8  9  10 | 11  12 ...  30 |        31         |   
 		//     |              |              |              |                |                   |
 		//     |  InputType   | VariableType |   SRV Dim    |    SamplerId   | StaticSamplerFlag |
-		const uint32_t PackedAttribs;
+		const uint32 PackedAttribs;
 
-		ShaderResourceAttribs(const char* name,
-			uint16_t bindPoint,
-			uint16_t bindCount,
-			D3D_SHADER_INPUT_TYPE inputType,
-			SHADER_VARIABLE_TYPE variableType,
-			D3D_SRV_DIMENSION srvDimension,
-			uint32_t samplerId,
-			bool staticSampleFlag) :
+		ShaderResourceAttribs(const char*			name,
+							  uint16				bindPoint,
+							  uint16				bindCount,
+							  D3D_SHADER_INPUT_TYPE inputType,
+							  SHADER_VARIABLE_TYPE	variableType,
+							  D3D_SRV_DIMENSION		srvDimension,
+							  uint32				samplerId,
+							  bool					staticSampleFlag) :
 			Name{ name },
 			BindPoint{ bindPoint },
 			BindCount{ bindCount },
@@ -87,7 +87,7 @@ namespace EduEngine
 		D3D_SRV_DIMENSION GetSRVDim() { return static_cast<D3D_SRV_DIMENSION>((PackedAttribs >> SRVDimOffset) & SRVDimMask); }
 
 	private:
-		uint32_t PackAttribs(uint16_t inputType, uint16_t variableType, uint16_t srvDim, uint16_t samplerId, bool staticSamplerFlag)
+		uint32 PackAttribs(uint16 inputType, uint16 variableType, uint16 srvDim, uint16 samplerId, bool staticSamplerFlag)
 		{
 			return inputType |
 				(variableType << VariableTypeOffset) |
@@ -96,25 +96,25 @@ namespace EduEngine
 				((staticSamplerFlag ? 1 : 0) << StaticSamplerFlagOffset);
 		}
 
-		static constexpr uint16_t InputTypeBits = 4;
-		static constexpr uint16_t InputTypeMask = (1 << InputTypeBits) - 1;
-		static constexpr uint16_t InputTypeOffset = 0;
+		static constexpr uint16 InputTypeBits = 4;
+		static constexpr uint16 InputTypeMask = (1 << InputTypeBits) - 1;
+		static constexpr uint16 InputTypeOffset = 0;
 
-		static constexpr uint16_t VariableTypeBits = 3;
-		static constexpr uint16_t VariableTypeMask = (1 << VariableTypeBits) - 1;
-		static constexpr uint16_t VariableTypeOffset = InputTypeOffset + InputTypeBits;
+		static constexpr uint16 VariableTypeBits = 3;
+		static constexpr uint16 VariableTypeMask = (1 << VariableTypeBits) - 1;
+		static constexpr uint16 VariableTypeOffset = InputTypeOffset + InputTypeBits;
 
-		static constexpr uint16_t SRVDimBits = 4;
-		static constexpr uint16_t SRVDimMask = (1 << SRVDimBits) - 1;
-		static constexpr uint16_t SRVDimOffset = VariableTypeOffset + SRVDimBits;
+		static constexpr uint16 SRVDimBits = 4;
+		static constexpr uint16 SRVDimMask = (1 << SRVDimBits) - 1;
+		static constexpr uint16 SRVDimOffset = VariableTypeOffset + SRVDimBits;
 		
-		static constexpr uint16_t SamplerIdBits = 32 - 1 - SRVDimBits - VariableTypeBits - InputTypeBits;
-		static constexpr uint16_t SamplerIdMask = (1 << SamplerIdBits) - 1;
-		static constexpr uint16_t SamplerIdOffset = SRVDimOffset + SamplerIdBits;
+		static constexpr uint16 SamplerIdBits = 32 - 1 - SRVDimBits - VariableTypeBits - InputTypeBits;
+		static constexpr uint16 SamplerIdMask = (1 << SamplerIdBits) - 1;
+		static constexpr uint16 SamplerIdOffset = SRVDimOffset + SamplerIdBits;
 
-		static constexpr uint16_t StaticSamplerFlagBits = 1;
-		static constexpr uint16_t StaticSamplerFlagMask = (1 << StaticSamplerFlagBits) - 1;
-		static constexpr uint16_t StaticSamplerFlagOffset = SamplerIdOffset + StaticSamplerFlagBits;
+		static constexpr uint16 StaticSamplerFlagBits = 1;
+		static constexpr uint16 StaticSamplerFlagMask = (1 << StaticSamplerFlagBits) - 1;
+		static constexpr uint16 StaticSamplerFlagOffset = SamplerIdOffset + StaticSamplerFlagBits;
 	};
 
 	class ShaderResourcesD3D12
@@ -142,11 +142,11 @@ namespace EduEngine
 	private:
 		ShaderResourceAttribs* m_ResourcesBuffer;
 
-		uint16_t m_TexSRVOffset = 0;
-		uint16_t m_TexUAVOffset = 0;
-		uint16_t m_BufSRVOffset = 0;
-		uint16_t m_BufUAVOffset = 0;
-		uint16_t m_SamplersOffset = 0;
-		uint16_t m_BufferEndOffset = 0;
+		uint16 m_TexSRVOffset = 0;
+		uint16 m_TexUAVOffset = 0;
+		uint16 m_BufSRVOffset = 0;
+		uint16 m_BufUAVOffset = 0;
+		uint16 m_SamplersOffset = 0;
+		uint16 m_BufferEndOffset = 0;
 	};
 }

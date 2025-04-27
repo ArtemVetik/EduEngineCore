@@ -18,8 +18,8 @@ namespace EduEngine
                                         IDescriptorAllocator&                        pParentAllocator,
                                         size_t                                       ThisManagerId,
                                         Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> pd3d12DescriptorHeap,
-                                        uint32_t                                     FirstDescriptor,
-                                        uint32_t                                     NumDescriptors);
+                                        uint32                                       FirstDescriptor,
+                                        uint32                                       NumDescriptors);
 
         DescriptorHeapAllocationManager(DescriptorHeapAllocationManager&& rhs) noexcept;
 
@@ -27,7 +27,7 @@ namespace EduEngine
         DescriptorHeapAllocationManager(const DescriptorHeapAllocationManager&) = delete;
         DescriptorHeapAllocationManager& operator = (const DescriptorHeapAllocationManager&) = delete;
 
-        DescriptorHeapAllocation Allocate(QueueID queueId, uint32_t count);
+        DescriptorHeapAllocation Allocate(QueueID queueId, uint32 count);
         void FreeAllocation(DescriptorHeapAllocation&& allocation);
 
         size_t GetNumAvailableDescriptors() const { return m_FreeBlockManager.GetFreeSize(); }
@@ -45,7 +45,7 @@ namespace EduEngine
 
         UINT m_DescriptorSize = 0;
 
-        uint32_t m_NumDescriptorsInAllocation = 0;
+        uint32 m_NumDescriptorsInAllocation = 0;
 
         std::mutex m_AllocationMutex;
         IRenderDeviceD3D12& m_DeviceD3D12Impl;

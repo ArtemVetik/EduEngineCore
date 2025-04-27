@@ -3,6 +3,8 @@
 #include "GPURingBuffer.h"
 #include "IRenderDeviceD3D12.h"
 
+#include <vector>
+
 namespace EduEngine
 {
 #define DEFAULT_ALIGN 256

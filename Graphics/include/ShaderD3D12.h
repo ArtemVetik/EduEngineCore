@@ -2,6 +2,7 @@
 #include "framework.h"
 #include "ShaderResourcesD3D12.h"
 
+#include <wrl.h>
 #include <dxcapi.h>
 
 #pragma comment(lib,"dxcompiler.lib")

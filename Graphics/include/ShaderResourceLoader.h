@@ -4,6 +4,8 @@
 #include <vector>
 #include <d3d12shader.h>
 
+#include "../../Common/include/Asserts.h"
+
 namespace EduEngine
 {
 	struct ShaderDesc; // TODO: separate

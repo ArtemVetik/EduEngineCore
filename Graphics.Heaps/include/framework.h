@@ -5,6 +5,8 @@
 
 #include <windows.h>
 
+#include "../../Common/include/EngineTypes.h"
+
 #ifdef GRAPHICSHEAPS_STATIC
 #define GRAPHICS_HEAPS_API
 #else

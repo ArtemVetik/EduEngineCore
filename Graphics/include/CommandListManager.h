@@ -1,6 +1,10 @@
 #pragma once
 #include "framework.h"
 
+#include <wrl.h>
+#include <deque>
+#include <mutex>
+
 namespace EduEngine
 {
 	class GRAPHICS_API RenderDeviceD3D12;

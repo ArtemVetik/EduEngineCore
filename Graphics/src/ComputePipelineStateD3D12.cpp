@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "ComputePipelineStateD3D12.h"
 
 namespace EduEngine

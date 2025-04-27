@@ -1,7 +1,6 @@
+#include "pch.h"
 #include "QueryHeap.h"
 #include "BufferD3D12.h"
-
-#include <cassert>
 
 namespace EduEngine
 {

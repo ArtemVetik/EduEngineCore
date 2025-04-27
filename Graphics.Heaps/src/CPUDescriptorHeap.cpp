@@ -4,7 +4,7 @@
 namespace EduEngine
 {
     CPUDescriptorHeap::CPUDescriptorHeap(IRenderDeviceD3D12&         deviceD3D12Impl,
-                                         uint32_t                    numDescriptorsInHeap,
+                                         uint32                      numDescriptorsInHeap,
                                          D3D12_DESCRIPTOR_HEAP_TYPE  type,
                                          D3D12_DESCRIPTOR_HEAP_FLAGS flags) :
         m_DeviceD3D12Impl{ deviceD3D12Impl },
@@ -27,7 +27,7 @@ namespace EduEngine
         assert(m_AvailableHeaps.size() == m_HeapPool.size()); // Not all descriptor heap pools are released
     }
 
-    DescriptorHeapAllocation CPUDescriptorHeap::Allocate(QueueID queueId, uint32_t count)
+    DescriptorHeapAllocation CPUDescriptorHeap::Allocate(QueueID queueId, uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_HeapPoolMutex);
 
@@ -87,7 +87,7 @@ namespace EduEngine
         std::lock_guard<std::mutex> LockGuard(m_HeapPoolMutex);
 
         auto ManagerId = allocation.GetAllocationManagerId();
-        m_CurrentSize -= static_cast<uint32_t>(allocation.GetNumHandles());
+        m_CurrentSize -= static_cast<uint32>(allocation.GetNumHandles());
         m_HeapPool[ManagerId].FreeAllocation(std::move(allocation));
         m_AvailableHeaps.insert(ManagerId);
     }

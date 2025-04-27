@@ -22,8 +22,8 @@ namespace EduEngine
 																	 IDescriptorAllocator&						  parentAllocator,
 																	 size_t										  thisManagerId,
 																	 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> d3d12DescriptorHeap,
-																	 uint32_t									  firstDescriptor,
-																	 uint32_t									  numDescriptors) :
+																	 uint32										  firstDescriptor,
+																	 uint32										  numDescriptors) :
 		m_ParentAllocator(parentAllocator),
 		m_DeviceD3D12Impl(deviceD3D12Impl),
 		m_ThisManagerId(thisManagerId),
@@ -63,7 +63,7 @@ namespace EduEngine
 		rhs.m_FirstGPUHandle.ptr = 0;
 	}
 
-	DescriptorHeapAllocation DescriptorHeapAllocationManager::Allocate(QueueID queueId, uint32_t count)
+	DescriptorHeapAllocation DescriptorHeapAllocationManager::Allocate(QueueID queueId, uint32 count)
 	{
 		std::lock_guard<std::mutex> LockGuard(m_AllocationMutex);
 
@@ -79,7 +79,7 @@ namespace EduEngine
 		if (m_HeapDesc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
 			GPUHandle.ptr += descriptorHandleOffset * m_DescriptorSize;
 
-		return DescriptorHeapAllocation(m_ParentAllocator, m_pDescriptorHeap.Get(), CPUHandle, GPUHandle, count, static_cast<uint16_t>(m_ThisManagerId), queueId);
+		return DescriptorHeapAllocation(m_ParentAllocator, m_pDescriptorHeap.Get(), CPUHandle, GPUHandle, count, static_cast<uint16>(m_ThisManagerId), queueId);
 	}
 
 	void DescriptorHeapAllocationManager::FreeAllocation(DescriptorHeapAllocation&& allocation)

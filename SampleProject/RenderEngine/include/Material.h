@@ -1,7 +1,8 @@
 #pragma once
-
 #include "framework.h"
 #include "Texture.h"
+
+#include "DirectXMath.h"
 
 namespace EduEngine
 {

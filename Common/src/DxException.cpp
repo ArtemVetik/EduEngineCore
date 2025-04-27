@@ -1,5 +1,6 @@
-#include "pch.h"
 #include "DxException.h"
+
+#include <comdef.h>
 
 namespace EduEngine
 {
