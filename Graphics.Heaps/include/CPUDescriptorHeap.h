@@ -1,7 +1,9 @@
 #pragma once
-#include "pch.h"
+#include "framework.h"
 #include "DescriptorHeapAllocationManager.h"
 #include "ReleaseResourceWrapper.h"
+
+#include <set>
 
 namespace EduEngine
 {

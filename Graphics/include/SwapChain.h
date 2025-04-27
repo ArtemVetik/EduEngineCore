@@ -1,7 +1,8 @@
 #pragma once
-#include "pch.h"
+#include "framework.h"
 #include "RenderDeviceD3D12.h"
 #include "TextureD3D12.h"
+
 #include <dcomp.h>
 
 #pragma comment(lib,"dcomp.lib")

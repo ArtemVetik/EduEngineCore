@@ -12,7 +12,6 @@ target_include_directories(Graphics PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
-# Ensure UNICODE build so LPCTSTR maps to wchar_t*
 target_compile_definitions(Graphics PRIVATE UNICODE _UNICODE GRAPHICS_EXPORTS)
 
 target_link_libraries(Graphics PUBLIC
@@ -23,3 +22,5 @@ target_link_libraries(Graphics PUBLIC
     d3dcompiler
     dxguid
 )
+
+target_precompile_headers(GraphicsHeaps PRIVATE include/pch.h)

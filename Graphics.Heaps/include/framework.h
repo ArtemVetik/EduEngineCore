@@ -5,8 +5,14 @@
 
 #include <windows.h>
 
-#ifdef GRAPHICSHEAPS_EXPORTS
-#define GRAPHICS_HEAPS_API //__declspec(dllexport)
+#ifdef GRAPHICSHEAPS_STATIC
+#define GRAPHICS_HEAPS_API
 #else
-#define GRAPHICS_HEAPS_API //__declspec(dllimport)
+
+#ifdef GRAPHICSHEAPS_EXPORTS
+#define GRAPHICS_HEAPS_API __declspec(dllexport)
+#else
+#define GRAPHICS_HEAPS_API __declspec(dllimport)
+#endif
+
 #endif

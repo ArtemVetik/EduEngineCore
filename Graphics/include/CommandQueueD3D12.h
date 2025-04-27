@@ -1,8 +1,9 @@
 #pragma once
-#include "pch.h"
+#include "framework.h"
+#include "CommandContext.h"
+
 #include "../../Graphics.Heaps/include/DynamicUploadHeap.h"
 #include "../../Graphics.Heaps/include/ReleaseResourceWrapper.h"
-#include "CommandContext.h"
 
 namespace EduEngine
 {

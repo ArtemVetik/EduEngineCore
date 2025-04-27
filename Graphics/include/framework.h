@@ -13,10 +13,16 @@
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 
+#ifdef GRAPHICS_STATIC
+#define GRAPHICS_API
+#else
+
 #ifdef GRAPHICS_EXPORTS
 #define GRAPHICS_API __declspec(dllexport)
 #else
 #define GRAPHICS_API __declspec(dllimport)
+#endif
+
 #endif
 
 //#ifdef GRAPHICS_EXPORTS

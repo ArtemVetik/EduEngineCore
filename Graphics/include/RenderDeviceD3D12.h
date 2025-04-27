@@ -1,13 +1,14 @@
 #pragma once
-#include "pch.h"
+#include "framework.h"
+#include "CommandQueueD3D12.h"
+#include "QueryHeap.h"
+
 #include "../../Graphics.Heaps/include/IRenderDeviceD3D12.h"
 #include "../../Graphics.Heaps/include/CPUDescriptorHeap.h"
 #include "../../Graphics.Heaps/include/GPUDescriptorHeap.h"
 #include "../../Graphics.Heaps/include/DynamicSuballocationsManager.h"
 #include "../../Graphics.Heaps/include/ReleaseResourceWrapper.h"
 #include "../../Graphics.Heaps/include/QueueID.h"
-#include "CommandQueueD3D12.h"
-#include "QueryHeap.h"
 
 namespace EduEngine
 {

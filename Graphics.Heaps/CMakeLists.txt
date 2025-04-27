@@ -12,4 +12,6 @@ target_include_directories(GraphicsHeaps PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
-target_compile_definitions(GraphicsHeaps PUBLIC UNICODE _UNICODE)
+target_compile_definitions(GraphicsHeaps PUBLIC UNICODE _UNICODE GRAPHICSHEAPS_STATIC)
+
+target_precompile_headers(GraphicsHeaps PRIVATE include/pch.h)

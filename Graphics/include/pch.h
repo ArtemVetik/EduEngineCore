@@ -18,8 +18,6 @@
 #include <DirectXColors.h>
 #include <DirectXCollision.h>
 #include <memory>
-#include <algorithm>
-#include <vector>
 #include <array>
 #include <deque>
 #include <unordered_map>
