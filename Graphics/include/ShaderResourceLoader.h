@@ -1,5 +1,6 @@
 #pragma once
 #include "framework.h"
+#include "ShaderAPI.h"
 
 #include <vector>
 #include <d3d12shader.h>
@@ -8,8 +9,6 @@
 
 namespace EduEngine
 {
-	struct ShaderDesc; // TODO: separate
-
 	template<typename TOnResourcesCounted,
 			 typename TOnNewCB,
 			 typename TOnNewTexUAV,
@@ -58,7 +57,6 @@ namespace EduEngine
 			}
 
 			SHADER_VARIABLE_TYPE varType = GetShaderVariableType(bindingDesc.Name, shaderDesc);
-
 			resources.emplace_back(ShaderResourceAttribs(bindingDesc.Name, bindingDesc.BindPoint, bindingDesc.BindCount, bindingDesc.Type, varType, bindingDesc.Dimension, -1, -1));
 		}
 

@@ -45,7 +45,7 @@ namespace EduEngine
 
 		THROW_IF_FAILED(hr, L"Failed to create resource in default heap");
 
-		m_d3d12Resource->SetName(L"BufferD3D12"); // TODO: set buffer name
+		m_d3d12Resource->SetName(L"BufferD3D12");
 
 		LoadData(initData);
 	}

@@ -1,8 +1,11 @@
 #include "ShaderResourcesD3D12.h"
 
+#include "../../Common/include/StringUtils.h"
+
 namespace EduEngine
 {
-	ShaderResourcesD3D12::ShaderResourcesD3D12(ID3D12ShaderReflection* reflection, const ShaderDesc& shaderDesc)
+	ShaderResourcesD3D12::ShaderResourcesD3D12(ID3D12ShaderReflection* reflection, const ShaderDesc& shaderDesc) :
+		m_ResourcesBuffer{nullptr}
 	{
 		UINT currCB = 0, currTexSRV = 0, currTexUAV = 0, currBufSRV = 0, currBufUAV = 0, currSampler = 0;
 
@@ -12,7 +15,6 @@ namespace EduEngine
 			// OnResourceCounted
 			[&](UINT numCBs, UINT numTexSRVs, UINT numTexUAVs, UINT numBufSRVs, UINT numBufUAVs, UINT numSamplers)
 			{
-				// TODO: add limit asserts
 				m_TexSRVOffset = 0 + static_cast<uint16>(numCBs);
 				m_TexUAVOffset = m_TexSRVOffset + static_cast<uint16>(numTexSRVs);
 				m_BufSRVOffset = m_TexUAVOffset + static_cast<uint16>(numTexUAVs);
@@ -51,13 +53,29 @@ namespace EduEngine
 			// OnNewSampler
 			[&](ShaderResourceAttribs& attribs)
 			{
+				VERIFY_EXPR(StrHasSuff(attribs.Name, SamplerSuffix), "Sampler must have suffix \"_sampler\"");
 				new (&GetSampler(currSampler++)) ShaderResourceAttribs(std::move(attribs));
 			},
 
 			// OnNewTexSRV
 			[&](ShaderResourceAttribs& attribs)
 			{
-				new (&GetTexSRV(currTexSRV++)) ShaderResourceAttribs(std::move(attribs));
+				VERIFY_EXPR(currSampler == GetNumSamplers(), "All samplers must be initialized before texture SRVs");
+
+				auto numSamplers = GetNumSamplers();
+				uint32 samplerId = ShaderResourceAttribs::InvalidSamplerId;
+
+				for (uint16 i = 0; i < numSamplers; i++)
+				{
+					auto& sampler = GetSampler(i);
+					if (StrCmpSuff(sampler.Name, attribs.Name, SamplerSuffix))
+					{
+						samplerId = static_cast<uint32>(i);
+						break;
+					}
+				}
+
+				new (&GetTexSRV(currTexSRV++)) ShaderResourceAttribs(std::move(attribs), samplerId);
 			},
 
 			shaderDesc

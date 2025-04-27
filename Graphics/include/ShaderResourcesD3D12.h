@@ -7,42 +7,6 @@
 
 namespace EduEngine
 {
-	enum SHADER_VARIABLE_TYPE
-	{
-		STATIC = 0,
-		MUTABLE = 1,
-		DYNAMIC = 2
-	};
-
-	struct ShaderVariableDesc
-	{
-		const char* Name;
-		SHADER_VARIABLE_TYPE Type;
-
-		ShaderVariableDesc(const char* name, SHADER_VARIABLE_TYPE type) :
-			Name(name), Type(type)
-		{
-		}
-	};
-
-	struct ShaderDesc
-	{
-		SHADER_VARIABLE_TYPE DefaultVarType;
-		ShaderVariableDesc* VarDesc;
-		UINT numVarDesc;
-	};
-
-	inline SHADER_VARIABLE_TYPE GetShaderVariableType(const char* name, const ShaderDesc& shaderDesc)
-	{
-		for (UINT i = 0; i < shaderDesc.numVarDesc; i++)
-		{
-			if (strcmp(name, shaderDesc.VarDesc[i].Name) == 0)
-				return shaderDesc.VarDesc[i].Type;
-		}
-
-		return shaderDesc.DefaultVarType;
-	}
-
 	struct ShaderResourceAttribs
 	{
 	public:
@@ -55,6 +19,8 @@ namespace EduEngine
 		//     |              |              |              |                |                   |
 		//     |  InputType   | VariableType |   SRV Dim    |    SamplerId   | StaticSamplerFlag |
 		const uint32 PackedAttribs;
+
+		static constexpr uint32 InvalidSamplerId = static_cast<uint32>(-1);
 
 		ShaderResourceAttribs(const char*			name,
 							  uint16				bindPoint,
@@ -79,15 +45,25 @@ namespace EduEngine
 		{
 		};
 
+		ShaderResourceAttribs(ShaderResourceAttribs&& rhs, uint32 samplerId) :
+			Name(rhs.Name),
+			BindPoint(rhs.BindPoint),
+			BindCount(rhs.BindCount),
+			PackedAttribs(PackAttribs(rhs.GetInputType(), rhs.GetVarType(), rhs.GetSRVDim(), samplerId, false))
+		{
+		};
+
 		ShaderResourceAttribs(const ShaderResourceAttribs&) = delete;
 		ShaderResourceAttribs& operator = (const ShaderResourceAttribs&) = delete;
 		ShaderResourceAttribs& operator = (ShaderResourceAttribs&&) = delete;
 
 		D3D_SHADER_INPUT_TYPE GetInputType() { return static_cast<D3D_SHADER_INPUT_TYPE>((PackedAttribs >> InputTypeOffset) & InputTypeMask); }
+		SHADER_VARIABLE_TYPE GetVarType() { return static_cast<SHADER_VARIABLE_TYPE>((PackedAttribs >> VariableTypeOffset) & VariableTypeMask); }
 		D3D_SRV_DIMENSION GetSRVDim() { return static_cast<D3D_SRV_DIMENSION>((PackedAttribs >> SRVDimOffset) & SRVDimMask); }
+		uint16 GetSamplerId() { return static_cast<D3D_SRV_DIMENSION>((PackedAttribs >> SRVDimOffset) & SRVDimMask); }
 
 	private:
-		uint32 PackAttribs(uint16 inputType, uint16 variableType, uint16 srvDim, uint16 samplerId, bool staticSamplerFlag)
+		uint32 PackAttribs(uint16 inputType, uint16 variableType, uint16 srvDim, uint32 samplerId, bool staticSamplerFlag)
 		{
 			return inputType |
 				(variableType << VariableTypeOffset) |
@@ -138,6 +114,10 @@ namespace EduEngine
 		ShaderResourceAttribs& GetBufSRV(UINT n) { return GetResAttribs(n, m_BufSRVOffset); }
 		ShaderResourceAttribs& GetBufUAV(UINT n) { return GetResAttribs(n, m_BufUAVOffset); }
 		ShaderResourceAttribs& GetSampler(UINT n) { return GetResAttribs(n, m_SamplersOffset); }
+
+		uint16 GetNumSamplers() const { return m_BufferEndOffset - m_SamplersOffset; }
+
+		const char* const SamplerSuffix = "_sampler";
 
 	private:
 		ShaderResourceAttribs* m_ResourcesBuffer;

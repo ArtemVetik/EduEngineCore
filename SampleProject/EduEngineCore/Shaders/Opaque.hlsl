@@ -1,10 +1,4 @@
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-SamplerComparisonState gsamShadow : register(s6);
+SamplerState gAlbedo_sampler : register(s3);
 
 Texture2D gAlbedo : register(t0);
 
@@ -46,7 +40,7 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    return gAlbedo.Sample(gsamLinearClamp, pin.TexC);
+    return gAlbedo.Sample(gAlbedo_sampler, pin.TexC);
 }
 
 
