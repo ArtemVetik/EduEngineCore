@@ -27,11 +27,7 @@
 #include <DirectXPackedVector.h>
 #include <DirectXCollision.h>
 
-#ifdef EDUMATH_EXPORTS
-#define EDUMATH_API //__declspec(dllexport)
-#else
-#define EDUMATH_API //__declspec(dllimport)
-#endif
+#include "framework.h"
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -45,15 +41,15 @@ namespace DirectX
 {
     namespace SimpleMath
     {
-        struct EDUMATH_API Vector2;
-        struct EDUMATH_API Vector4;
-        struct EDUMATH_API Matrix;
-        struct EDUMATH_API Quaternion;
-        struct EDUMATH_API Plane;
+        struct COMMON_API Vector2;
+        struct COMMON_API Vector4;
+        struct COMMON_API Matrix;
+        struct COMMON_API Quaternion;
+        struct COMMON_API Plane;
 
         //------------------------------------------------------------------------------
         // 2D rectangle
-        struct EDUMATH_API Rectangle
+        struct COMMON_API Rectangle
         {
             long x;
             long y;
@@ -118,7 +114,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // 2D vector
-        struct EDUMATH_API Vector2 : public XMFLOAT2
+        struct COMMON_API Vector2 : public XMFLOAT2
         {
             Vector2() noexcept : XMFLOAT2(0.f, 0.f) {}
             constexpr explicit Vector2(float ix) noexcept : XMFLOAT2(ix, ix) {}
@@ -231,7 +227,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // 3D vector
-        struct EDUMATH_API Vector3 : public XMFLOAT3
+        struct COMMON_API Vector3 : public XMFLOAT3
         {
             Vector3() noexcept : XMFLOAT3(0.f, 0.f, 0.f) {}
             constexpr explicit Vector3(float ix) noexcept : XMFLOAT3(ix, ix, ix) {}
@@ -351,7 +347,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // 4D vector
-        struct EDUMATH_API Vector4 : public XMFLOAT4
+        struct COMMON_API Vector4 : public XMFLOAT4
         {
             Vector4() noexcept : XMFLOAT4(0.f, 0.f, 0.f, 0.f) {}
             constexpr explicit Vector4(float ix) noexcept : XMFLOAT4(ix, ix, ix, ix) {}
@@ -465,7 +461,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // 4x4 Matrix (assumes right-handed cooordinates)
-        struct EDUMATH_API Matrix : public XMFLOAT4X4
+        struct COMMON_API Matrix : public XMFLOAT4X4
         {
             Matrix() noexcept
                 : XMFLOAT4X4(1.f, 0, 0, 0,
@@ -634,7 +630,7 @@ namespace DirectX
 
         //-----------------------------------------------------------------------------
         // Plane
-        struct EDUMATH_API Plane : public XMFLOAT4
+        struct COMMON_API Plane : public XMFLOAT4
         {
             Plane() noexcept : XMFLOAT4(0.f, 1.f, 0.f, 0.f) {}
             constexpr Plane(float ix, float iy, float iz, float iw) noexcept : XMFLOAT4(ix, iy, iz, iw) {}
@@ -688,7 +684,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // Quaternion
-        struct EDUMATH_API Quaternion : public XMFLOAT4
+        struct COMMON_API Quaternion : public XMFLOAT4
         {
             Quaternion() noexcept : XMFLOAT4(0, 0, 0, 1.f) {}
             constexpr Quaternion(float ix, float iy, float iz, float iw) noexcept : XMFLOAT4(ix, iy, iz, iw) {}
@@ -785,7 +781,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // Color
-        struct EDUMATH_API Color : public XMFLOAT4
+        struct COMMON_API Color : public XMFLOAT4
         {
             Color() noexcept : XMFLOAT4(0, 0, 0, 1.f) {}
             constexpr Color(float _r, float _g, float _b) noexcept : XMFLOAT4(_r, _g, _b, 1.f) {}
@@ -883,7 +879,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // Ray
-        class EDUMATH_API Ray
+        class COMMON_API Ray
         {
         public:
             Vector3 position;
@@ -911,7 +907,7 @@ namespace DirectX
 
         //------------------------------------------------------------------------------
         // Viewport
-        class EDUMATH_API Viewport
+        class COMMON_API Viewport
         {
         public:
             float x;

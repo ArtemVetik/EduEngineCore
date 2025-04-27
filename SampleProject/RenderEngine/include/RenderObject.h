@@ -5,7 +5,7 @@
 #include "Material.h"
 
 #include "../../Graphics/include/BufferD3D12.h"
-#include "../../EduMath/include/SimpleMath.h"
+#include "../../Common/include/SimpleMath.h"
 
 namespace EduEngine
 {

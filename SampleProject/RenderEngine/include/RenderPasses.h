@@ -5,7 +5,7 @@
 #include "../../Graphics/include/PipelineStateD3D12.h"
 #include "../../Graphics/include/ComputePipelineStateD3D12.h"
 #include "../../Graphics/include/CommandSignatureD3D12.h"
-#include "../../EduMath/include/SimpleMath.h"
+#include "../../Common/include/SimpleMath.h"
 
 namespace EduEngine
 {

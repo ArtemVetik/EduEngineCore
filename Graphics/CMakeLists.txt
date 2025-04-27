@@ -16,7 +16,7 @@ target_compile_definitions(Graphics PRIVATE UNICODE _UNICODE GRAPHICS_EXPORTS)
 
 target_link_libraries(Graphics PUBLIC
     GraphicsHeaps
-    EduMath
+    Common
     d3d12
     dxgi
     d3dcompiler

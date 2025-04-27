@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-add_subdirectory(EduMath)
+add_subdirectory(Common)
 add_subdirectory(Graphics.Heaps)
 add_subdirectory(Graphics)
 add_subdirectory(SampleProject/InputSystem)

@@ -27,6 +27,6 @@ endif()
 
 target_link_libraries(RenderEngine PUBLIC
     Graphics
-    EduMath
+    Common
     ${ASSIMP_LIB}
 )
