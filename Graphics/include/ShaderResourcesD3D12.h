@@ -37,7 +37,7 @@ namespace EduEngine
 		{
 		};
 
-		ShaderResourceAttribs(ShaderResourceAttribs&& rhs) :
+		ShaderResourceAttribs(ShaderResourceAttribs&& rhs) noexcept :
 			Name(rhs.Name),
 			BindPoint(rhs.BindPoint),
 			BindCount(rhs.BindCount),
@@ -57,40 +57,46 @@ namespace EduEngine
 		ShaderResourceAttribs& operator = (const ShaderResourceAttribs&) = delete;
 		ShaderResourceAttribs& operator = (ShaderResourceAttribs&&) = delete;
 
-		D3D_SHADER_INPUT_TYPE GetInputType() { return static_cast<D3D_SHADER_INPUT_TYPE>((PackedAttribs >> InputTypeOffset) & InputTypeMask); }
-		SHADER_VARIABLE_TYPE GetVarType() { return static_cast<SHADER_VARIABLE_TYPE>((PackedAttribs >> VariableTypeOffset) & VariableTypeMask); }
-		D3D_SRV_DIMENSION GetSRVDim() { return static_cast<D3D_SRV_DIMENSION>((PackedAttribs >> SRVDimOffset) & SRVDimMask); }
-		uint16 GetSamplerId() { return static_cast<D3D_SRV_DIMENSION>((PackedAttribs >> SRVDimOffset) & SRVDimMask); }
+		D3D_SHADER_INPUT_TYPE GetInputType() const { return static_cast<D3D_SHADER_INPUT_TYPE>((PackedAttribs >> InputTypeOffset) & InputTypeMask); }
+		SHADER_VARIABLE_TYPE GetVarType() const  { return static_cast<SHADER_VARIABLE_TYPE>((PackedAttribs >> VariableTypeOffset) & VariableTypeMask); }
+		D3D_SRV_DIMENSION GetSRVDim() const  { return static_cast<D3D_SRV_DIMENSION>((PackedAttribs >> SRVDimOffset) & SRVDimMask); }
+		uint16 GetSamplerId() const { return static_cast<D3D_SRV_DIMENSION>((PackedAttribs >> SamplerIdOffset) & SamplerIdMask); }
+		bool HasValidSampler() const { return GetSamplerId() != InvalidSamplerId; }
+		bool IsStaticSampler() const { return (PackedAttribs & (1 << StaticSamplerFlagOffset)) != 0; }
+		bool IsValidSampler() const { return GetSamplerId() != InvalidSamplerId; }
+		bool IsValidBindPoint() const { return BindPoint != InvalidBindPoint; }
 
 	private:
 		uint32 PackAttribs(uint16 inputType, uint16 variableType, uint16 srvDim, uint32 samplerId, bool staticSamplerFlag)
 		{
-			return inputType |
-				(variableType << VariableTypeOffset) |
-				(srvDim << SRVDimOffset) |
-				(samplerId << SamplerIdOffset) |
+			return ((inputType & InputTypeMask) << InputTypeOffset) |
+				((variableType & VariableTypeMask) << VariableTypeOffset) |
+				((srvDim & SRVDimMask) << SRVDimOffset) |
+				((samplerId & SamplerIdMask) << SamplerIdOffset) |
 				((staticSamplerFlag ? 1 : 0) << StaticSamplerFlagOffset);
 		}
 
-		static constexpr uint16 InputTypeBits = 4;
-		static constexpr uint16 InputTypeMask = (1 << InputTypeBits) - 1;
-		static constexpr uint16 InputTypeOffset = 0;
+		static constexpr uint32 InputTypeBits = 4;
+		static constexpr uint32 InputTypeMask = (1 << InputTypeBits) - 1;
+		static constexpr uint32 InputTypeOffset = 0;
 
-		static constexpr uint16 VariableTypeBits = 3;
-		static constexpr uint16 VariableTypeMask = (1 << VariableTypeBits) - 1;
-		static constexpr uint16 VariableTypeOffset = InputTypeOffset + InputTypeBits;
+		static constexpr uint32 VariableTypeBits = 3;
+		static constexpr uint32 VariableTypeMask = (1 << VariableTypeBits) - 1;
+		static constexpr uint32 VariableTypeOffset = InputTypeOffset + InputTypeBits;
 
-		static constexpr uint16 SRVDimBits = 4;
-		static constexpr uint16 SRVDimMask = (1 << SRVDimBits) - 1;
-		static constexpr uint16 SRVDimOffset = VariableTypeOffset + SRVDimBits;
-		
-		static constexpr uint16 SamplerIdBits = 32 - 1 - SRVDimBits - VariableTypeBits - InputTypeBits;
-		static constexpr uint16 SamplerIdMask = (1 << SamplerIdBits) - 1;
-		static constexpr uint16 SamplerIdOffset = SRVDimOffset + SamplerIdBits;
+		static constexpr uint32 SRVDimBits = 4;
+		static constexpr uint32 SRVDimMask = (1 << SRVDimBits) - 1;
+		static constexpr uint32 SRVDimOffset = VariableTypeOffset + VariableTypeBits;
 
-		static constexpr uint16 StaticSamplerFlagBits = 1;
-		static constexpr uint16 StaticSamplerFlagMask = (1 << StaticSamplerFlagBits) - 1;
-		static constexpr uint16 StaticSamplerFlagOffset = SamplerIdOffset + StaticSamplerFlagBits;
+		static constexpr uint32 SamplerIdBits = 32 - 1 - SRVDimBits - VariableTypeBits - InputTypeBits;
+		static constexpr uint32 SamplerIdMask = (1 << SamplerIdBits) - 1;
+		static constexpr uint32 SamplerIdOffset = SRVDimOffset + SRVDimBits;
+
+		static constexpr uint32 StaticSamplerFlagBits = 1;
+		static constexpr uint32 StaticSamplerFlagMask = (1 << StaticSamplerFlagBits) - 1;
+		static constexpr uint32 StaticSamplerFlagOffset = SamplerIdOffset + SamplerIdBits;
+
+		static const uint16 InvalidBindPoint = std::numeric_limits<uint16>::max();
 	};
 
 	class ShaderResourcesD3D12
@@ -104,22 +110,95 @@ namespace EduEngine
 		ShaderResourcesD3D12& operator = (const ShaderResourcesD3D12&) = delete;
 		ShaderResourcesD3D12& operator = (ShaderResourcesD3D12&&) = delete;
 
-	private:
+		uint32 GetNumCBs()      const noexcept { return (m_TexSRVOffset - 0); }
+		uint32 GetNumTexSRV()   const noexcept { return (m_TexUAVOffset - m_TexSRVOffset); }
+		uint32 GetNumTexUAV()   const noexcept { return (m_BufSRVOffset - m_TexUAVOffset); }
+		uint32 GetNumBufSRV()   const noexcept { return (m_BufUAVOffset - m_BufSRVOffset); }
+		uint32 GetNumBufUAV()   const noexcept { return (m_SamplersOffset - m_BufUAVOffset); }
+		uint32 GetNumSamplers() const noexcept { return (m_BufferEndOffset - m_SamplersOffset); }
 
-		ShaderResourceAttribs& GetResAttribs(UINT n, UINT offset) { return m_ResourcesBuffer[offset + n]; }
+		ShaderResourceAttribs& GetResAttribs(UINT n, UINT offset) const { return m_ResourcesBuffer[offset + n]; }
 
-		ShaderResourceAttribs& GetCB(UINT n) { return GetResAttribs(n, 0); }
-		ShaderResourceAttribs& GetTexSRV(UINT n) { return GetResAttribs(n, m_TexSRVOffset); }
-		ShaderResourceAttribs& GetTexUAV(UINT n) { return GetResAttribs(n, m_TexUAVOffset); }
-		ShaderResourceAttribs& GetBufSRV(UINT n) { return GetResAttribs(n, m_BufSRVOffset); }
-		ShaderResourceAttribs& GetBufUAV(UINT n) { return GetResAttribs(n, m_BufUAVOffset); }
-		ShaderResourceAttribs& GetSampler(UINT n) { return GetResAttribs(n, m_SamplersOffset); }
+		ShaderResourceAttribs& GetCB(UINT n) const noexcept { return GetResAttribs(n, 0); }
+		ShaderResourceAttribs& GetTexSRV(UINT n) const noexcept { return GetResAttribs(n, m_TexSRVOffset); }
+		ShaderResourceAttribs& GetTexUAV(UINT n) const noexcept { return GetResAttribs(n, m_TexUAVOffset); }
+		ShaderResourceAttribs& GetBufSRV(UINT n) const noexcept { return GetResAttribs(n, m_BufSRVOffset); }
+		ShaderResourceAttribs& GetBufUAV(UINT n) const noexcept { return GetResAttribs(n, m_BufUAVOffset); }
+		ShaderResourceAttribs& GetSampler(UINT n) const noexcept { return GetResAttribs(n, m_SamplersOffset); }
 
-		uint16 GetNumSamplers() const { return m_BufferEndOffset - m_SamplersOffset; }
+		EDU_SHADER_TYPE GetShaderType() const { return m_ShaderType; }
+
+#ifdef _DEBUG
+		void DebugPrint();
+#endif
 
 		const char* const SamplerSuffix = "_sampler";
 
+		template<typename THandleCB,
+				 typename THandleTexSRV,
+				 typename THandleTexUAV,
+				 typename THandleBufSRV,
+				 typename THandleBufUAV>
+		void ProcessResources(const SHADER_VARIABLE_TYPE* allowedVarTypes,
+							  uint32		numAllowedTypes,
+							  THandleCB		HandleCB,
+							  THandleTexSRV HandleTexSRV,
+							  THandleTexUAV HandleTexUAV,
+							  THandleBufSRV HandleBufSRV,
+							  THandleBufUAV HandleBufUAV) const
+		{
+			uint32 allowedTypeBits = 0;
+
+			if (!numAllowedTypes || !allowedVarTypes)
+				allowedTypeBits = ~0;
+
+			for (uint32 i = 0; i < numAllowedTypes; i++)
+				allowedTypeBits |= (1 << allowedVarTypes[i]);
+
+			auto IsAllowed = [&](SHADER_VARIABLE_TYPE type)
+				{
+					return (1 << type) & allowedTypeBits;
+				};
+
+			for (uint32 n = 0; n < GetNumCBs(); ++n)
+			{
+				const auto& CB = GetCB(n);
+				if (IsAllowed(CB.GetVarType()))
+					HandleCB(CB);
+			}
+
+			for (uint32 n = 0; n < GetNumTexSRV(); ++n)
+			{
+				const auto& TexSRV = GetTexSRV(n);
+				if (IsAllowed(TexSRV.GetVarType()))
+					HandleTexSRV(TexSRV);
+			}
+
+			for (uint32 n = 0; n < GetNumTexUAV(); ++n)
+			{
+				const auto& TexUAV = GetTexUAV(n);
+				if (IsAllowed(TexUAV.GetVarType()))
+					HandleTexUAV(TexUAV);
+			}
+
+			for (uint32 n = 0; n < GetNumBufSRV(); ++n)
+			{
+				const auto& BufSRV = GetBufSRV(n);
+				if (IsAllowed(BufSRV.GetVarType()))
+					HandleBufSRV(BufSRV);
+			}
+
+			for (uint32 n = 0; n < GetNumBufUAV(); ++n)
+			{
+				const auto& BufUAV = GetBufUAV(n);
+				if (IsAllowed(BufUAV.GetVarType()))
+					HandleBufUAV(BufUAV);
+			}
+		}
+
 	private:
+		EDU_SHADER_TYPE m_ShaderType;
+
 		ShaderResourceAttribs* m_ResourcesBuffer;
 
 		uint16 m_TexSRVOffset = 0;

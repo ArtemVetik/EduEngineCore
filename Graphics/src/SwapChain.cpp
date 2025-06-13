@@ -131,7 +131,7 @@ namespace EduEngine
 			m_SwapChain->GetBuffer(i, IID_PPV_ARGS(backBuffer.GetAddressOf()));
 
 			m_SwapChainBuffers[i] = std::make_unique<TextureD3D12>(m_Device, backBuffer, QueueID::Direct);
-			m_SwapChainBuffers[i]->CreateRTVView(nullptr, true);
+			m_SwapChainBuffers[i]->CreateRTV(nullptr, true);
 			m_SwapChainBuffers[i]->SetName(L"SwapChain");
 		}
 
@@ -161,7 +161,7 @@ namespace EduEngine
 
 		m_DepthStencilTexture = std::make_unique<TextureD3D12>(m_Device, dsDesc, &dsClear, QueueID::Direct);
 		m_DepthStencilTexture->SetName(L"MainDepthStencil");
-		m_DepthStencilTexture->CreateDSVView(&dsvDesc, true);
+		m_DepthStencilTexture->CreateDSV(&dsvDesc, true);
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvDesc = {};
 		depthSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -171,7 +171,7 @@ namespace EduEngine
 		depthSrvDesc.Texture2D.MipLevels = 1;
 		depthSrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		depthSrvDesc.Texture2D.PlaneSlice = 0;
-		m_DepthStencilTexture->CreateSRVView(&depthSrvDesc, false);
+		m_DepthStencilTexture->CreateSRV(&depthSrvDesc, false);
 
 		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).ResourceBarrier(
 			CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilTexture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));

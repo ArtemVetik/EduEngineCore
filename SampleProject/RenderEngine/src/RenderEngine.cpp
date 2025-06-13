@@ -70,7 +70,6 @@ namespace EduEngine
 
 		pAdapter->Release();
 		pFactory->Release();
-
 		m_Device = std::make_unique<RenderDeviceD3D12>(device);
 
 		m_SwapChain = std::make_unique<SwapChain>(m_Device.get(),
@@ -82,12 +81,10 @@ namespace EduEngine
 
 		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).Reset();
 
-		m_ColorPass = std::make_unique<ColorPass>(m_Device.get());
-
 		m_Mesh = std::make_shared<Mesh>(m_Device.get(), "Models\\joseph.fbx");
 		m_Mesh->Load();
 
-		m_Texture = std::make_unique<Texture>(m_Device.get(), L"Textures\\principledshader_albedo.dds");
+		m_Texture = std::make_shared<Texture>(m_Device.get(), L"Textures\\principledshader_albedo.dds");
 		m_Material = std::make_shared<Material>();
 		m_Material->SetMainTexture(m_Texture.get());
 		m_Material->Load();
@@ -95,6 +92,10 @@ namespace EduEngine
 		m_RenderObject = std::make_shared<RenderObject>();
 		m_RenderObject->SetMaterial(m_Material.get());
 		m_RenderObject->SetMesh(m_Mesh.get());
+
+		m_ColorPass = std::make_unique<ColorPass>(m_Device.get());
+		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_Texture->GetD3D12Texture());
+		m_ColorPass->Build(m_Device.get());
 
 		return true;
 	}
@@ -125,6 +126,9 @@ namespace EduEngine
 		if (InputManager::GetInstance().IsKeyPressed(DIK_Q))
 			m_Camera->Move(-upVector * moveScale * timer.GetDeltaTime());
 
+		if (InputManager::GetInstance().IsKeyDown(DIK_P))
+			m_ColorPass->GetPipelineState().DebugPrint();
+
 		auto mouseState = InputManager::GetInstance().GetMouseState();
 
 		static XMFLOAT2 currentDelta = { 0, 0 };
@@ -153,7 +157,7 @@ namespace EduEngine
 
 	void RenderEngine::Render()
 	{
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap() };
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
 
 		auto& dCommandContext = m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto& dCommandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -172,9 +176,6 @@ namespace EduEngine
 		dCommandContext.GetCmdList()->ClearRenderTargetView(m_SwapChain->CurrentBackBufferView(), clear, 0, nullptr);
 		dCommandContext.GetCmdList()->ClearDepthStencilView(m_SwapChain->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-		dCommandContext.GetCmdList()->SetPipelineState(m_ColorPass->GetD3D12PipelineState());
-		dCommandContext.GetCmdList()->SetGraphicsRootSignature(m_ColorPass->GetD3D12RootSignature());
-	
 		ColorPass::ObjectConstants objConstants;
 		objConstants.World = (SimpleMath::Matrix::CreateScale(0.1f) * SimpleMath::Matrix::CreateRotationY(XM_PI)).Transpose();
 
@@ -187,11 +188,9 @@ namespace EduEngine
 		DynamicUploadBuffer passBuffer(m_Device.get(), QueueID::Direct);
 		passBuffer.LoadData(passConstants);
 
-		D3D12_GPU_DESCRIPTOR_HANDLE albedoTex = {};
-		albedoTex.ptr = reinterpret_cast<UINT64>(m_Texture->GetGPUPtr());
-		dCommandContext.GetCmdList()->SetGraphicsRootDescriptorTable(0, albedoTex);
-		dCommandContext.GetCmdList()->SetGraphicsRootConstantBufferView(1, objBuffer.GetAllocation().GPUAddress);
-		dCommandContext.GetCmdList()->SetGraphicsRootConstantBufferView(2, passBuffer.GetAllocation().GPUAddress);
+		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_VERTEX, "cbPerObject", objBuffer.GetAllocation());
+		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_VERTEX, "cbPerPass", passBuffer.GetAllocation());
+		m_ColorPass->GetPipelineState().CommitAll();
 
 		dCommandContext.GetCmdList()->IASetVertexBuffers(0, 1, &(m_RenderObject->GetVertexBuffer()->GetView()));
 		dCommandContext.GetCmdList()->IASetIndexBuffer(&(m_RenderObject->GetIndexBuffer()->GetView()));

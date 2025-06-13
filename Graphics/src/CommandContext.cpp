@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "CommandContext.h"
+#include "ResourceD3D12.h"
 
 namespace EduEngine
 {
@@ -53,6 +54,50 @@ namespace EduEngine
     void CommandContext::UpdateSubresource(ID3D12Resource* dest, ID3D12Resource* intermediate, D3D12_SUBRESOURCE_DATA* pSrcData)
     {
         UpdateSubresources<1>(m_pCommandList.Get(), dest, intermediate, 0, 0, 1, pSrcData);
+    }
+
+    void CommandContext::TransitionResource(ResourceD3D12* resource, D3D12_RESOURCE_STATES newState, bool flushImmediate)
+    {
+        D3D12_RESOURCE_STATES oldState = resource->GetState();
+
+        // Check if required state is already set
+        if ((oldState & newState) != newState)
+        {
+            // If both old state and new state are read-only states, combine the two
+            if ((oldState & D3D12_RESOURCE_STATE_GENERIC_READ) == oldState &&
+                (newState & D3D12_RESOURCE_STATE_GENERIC_READ) == newState)
+                newState |= oldState;
+
+            m_PendingResourceBarriers.emplace_back();
+            D3D12_RESOURCE_BARRIER& barrierDesc = m_PendingResourceBarriers.back();
+
+            barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrierDesc.Transition.pResource = resource->GetD3D12Resource();
+            barrierDesc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            barrierDesc.Transition.StateBefore = oldState;
+            barrierDesc.Transition.StateAfter = newState;
+            barrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+            resource->SetState(newState);
+        }
+        else if (newState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+            InsertUAVBarrier(resource, flushImmediate);
+
+        if (flushImmediate || m_PendingResourceBarriers.size() >= MaxPendingBarriers)
+            FlushResourceBarriers();
+    }
+
+    void CommandContext::InsertUAVBarrier(ResourceD3D12* resource, bool flushImmediate)
+    {
+        m_PendingResourceBarriers.emplace_back();
+        D3D12_RESOURCE_BARRIER& barrierDesc = m_PendingResourceBarriers.back();
+
+        barrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        barrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        barrierDesc.UAV.pResource = resource->GetD3D12Resource();
+
+        if (flushImmediate)
+            FlushResourceBarriers();
     }
 
     void CommandContext::ResourceBarrier(const D3D12_RESOURCE_BARRIER& barrier)

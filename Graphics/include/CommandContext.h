@@ -25,6 +25,8 @@ namespace EduEngine
 
 		void UpdateSubresource(ID3D12Resource* dest, ID3D12Resource* intermediate, D3D12_SUBRESOURCE_DATA* pSrcData);
 
+		void TransitionResource(class ResourceD3D12* resource, D3D12_RESOURCE_STATES newState, bool flushImmediate = false);
+		void InsertUAVBarrier(class ResourceD3D12* resource, bool flushImmediate = false);
 		void ResourceBarrier(const D3D12_RESOURCE_BARRIER& barrier);
 		void FlushResourceBarriers();
 
@@ -33,6 +35,8 @@ namespace EduEngine
 		D3D12_COMMAND_LIST_TYPE GetType() const;
 
 	private:
+		static const int MaxPendingBarriers = 16;
+
 		CommandListManager m_CommandListManager;
 
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> m_pCommandList;

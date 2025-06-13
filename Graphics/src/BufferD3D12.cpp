@@ -6,7 +6,7 @@ namespace EduEngine
 	BufferD3D12::BufferD3D12(RenderDeviceD3D12*			pDevice,
 							 const D3D12_RESOURCE_DESC& desc,
 							 QueueID					queueId) :
-		ResourceD3D12(pDevice, queueId)
+		ResourceViewD3D12(pDevice, queueId)
 	{
 		// Create the actual default buffer resource.
 		HRESULT hr = m_Device->GetD3D12Device()->CreateCommittedResource(
@@ -32,7 +32,7 @@ namespace EduEngine
 							 const D3D12_RESOURCE_DESC& desc,
 							 const void*				initData,
 							 QueueID					queueId) :
-		ResourceD3D12(pDevice, queueId)
+		ResourceViewD3D12(pDevice, queueId)
 	{
 		// Create the actual default buffer resource.
 		HRESULT hr = m_Device->GetD3D12Device()->CreateCommittedResource(
@@ -80,48 +80,6 @@ namespace EduEngine
 		cmdContext.FlushResourceBarriers();
 	}
 
-	void BufferD3D12::CreateCBV()
-	{
-		DescriptorHeapAllocation allocation = m_Device->AllocateGPUDescriptor(m_QueueId, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-
-		D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-		desc.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
-		desc.SizeInBytes = m_d3d12Resource->GetDesc().Width;
-
-		m_Device->GetD3D12Device()->CreateConstantBufferView(&desc, allocation.GetCpuHandle());
-		m_CbvView = std::make_unique<BufferHeapView>(std::move(allocation));
-	}
-
-	void BufferD3D12::CreateSRV(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc)
-	{
-		DescriptorHeapAllocation allocation = m_Device->AllocateGPUDescriptor(m_QueueId, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-		m_Device->GetD3D12Device()->CreateShaderResourceView(m_d3d12Resource.Get(), srvDesc, allocation.GetCpuHandle());
-		m_SrvView = std::make_unique<BufferHeapView>(std::move(allocation));
-	}
-
-	void BufferD3D12::CreateUAV(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc)
-	{
-		auto counter = uavDesc->Buffer.CounterOffsetInBytes == 0 ? nullptr : m_d3d12Resource.Get();
-		DescriptorHeapAllocation allocation = m_Device->AllocateGPUDescriptor(m_QueueId, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-		m_Device->GetD3D12Device()->CreateUnorderedAccessView(m_d3d12Resource.Get(), counter, uavDesc, allocation.GetCpuHandle());
-		m_UavView = std::make_unique<BufferHeapView>(std::move(allocation));
-	}
-
-	BufferHeapView* BufferD3D12::GetCBVView() const
-	{
-		return m_CbvView.get();
-	}
-
-	BufferHeapView* BufferD3D12::GetSRVView() const
-	{
-		return m_SrvView.get();
-	}
-
-	BufferHeapView* BufferD3D12::GetUAVView() const
-	{
-		return m_UavView.get();
-	}
-
 	ReadBackBufferD3D12::ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,
 											 UINT64				numElements,
 											 QueueID			queueId) :
@@ -167,17 +125,5 @@ namespace EduEngine
 		m_d3d12Resource->Map(0, nullptr, (void**)&pData);
 		memcpy(pData, data, m_d3d12Resource->GetDesc().Width);
 		m_d3d12Resource->Unmap(0, nullptr);
-	}
-
-	void UploadBufferD3D12::CreateCBV()
-	{
-		DescriptorHeapAllocation allocation = m_Device->AllocateGPUDescriptor(m_QueueId, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-
-		D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-		desc.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
-		desc.SizeInBytes = m_d3d12Resource->GetDesc().Width;
-
-		m_Device->GetD3D12Device()->CreateConstantBufferView(&desc, allocation.GetCpuHandle());
-		m_CbvView = std::make_unique<BufferHeapView>(std::move(allocation));
 	}
 }

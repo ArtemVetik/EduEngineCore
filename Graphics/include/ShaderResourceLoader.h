@@ -5,6 +5,8 @@
 #include <vector>
 #include <d3d12shader.h>
 
+#include "StringUtils.h"
+
 #include "../../Common/include/Asserts.h"
 
 namespace EduEngine
@@ -39,6 +41,35 @@ namespace EduEngine
 			D3D12_SHADER_INPUT_BIND_DESC bindingDesc = {};
 			reflection->GetResourceBindingDesc(res, &bindingDesc);
 
+			SHADER_VARIABLE_TYPE varType = SHADER_VARIABLE_TYPE_NUM_TYPES;
+			bool isStaticSampler = false;
+			if (bindingDesc.Type == D3D_SIT_SAMPLER)
+			{
+				for (uint32 s = 0; s < shaderDesc.NumStaticSamplers; ++s)
+				{
+					if (StrCmpSuff(bindingDesc.Name, shaderDesc.StaticSamplers[s].TextureName, "_sampler")) // TODO: create suffix variable
+					{
+						isStaticSampler = true;
+						break;
+					}
+				}
+
+				varType = shaderDesc.DefaultVarType;
+
+				for (UINT i = 0; i < shaderDesc.NumVarDesc; i++)
+				{
+					if (StrCmpSuff(bindingDesc.Name, shaderDesc.VarDesc[i].Name, "_sampler")) // TODO: create suffix variable
+					{
+						varType = shaderDesc.VarDesc[i].Type;
+						break;
+					}
+				}
+			}
+			else
+			{
+				varType = GetShaderVariableType(bindingDesc.Name, shaderDesc);
+			}
+
 			switch (bindingDesc.Type)
 			{
 			case D3D_SIT_CBUFFER:                       ++numCBs; break;
@@ -56,8 +87,7 @@ namespace EduEngine
 			default:									ASSERT_FAILED(L"Unexpected resource type");
 			}
 
-			SHADER_VARIABLE_TYPE varType = GetShaderVariableType(bindingDesc.Name, shaderDesc);
-			resources.emplace_back(ShaderResourceAttribs(bindingDesc.Name, bindingDesc.BindPoint, bindingDesc.BindCount, bindingDesc.Type, varType, bindingDesc.Dimension, -1, -1));
+			resources.emplace_back(ShaderResourceAttribs(bindingDesc.Name, bindingDesc.BindPoint, bindingDesc.BindCount, bindingDesc.Type, varType, bindingDesc.Dimension, -1, isStaticSampler));
 		}
 
 		OnResourcesCounted(numCBs, numTexSRVs, numTexUAVs, numBufSRVs, numBufUAVs, numSamplers);

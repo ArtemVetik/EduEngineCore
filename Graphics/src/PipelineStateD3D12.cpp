@@ -4,7 +4,7 @@
 namespace EduEngine
 {
 	PipelineStateD3D12::PipelineStateD3D12() :
-		m_Device(nullptr)
+		PipelineStateD3D12Base(QueueID::Direct)
 	{
 		ZeroMemory(&m_Desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 
@@ -18,17 +18,6 @@ namespace EduEngine
 		m_Desc.SampleDesc.Count = 1;
 		m_Desc.SampleDesc.Quality = 0;
 		m_Desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	}
-
-	PipelineStateD3D12::~PipelineStateD3D12()
-	{
-		if (!m_Device)
-			return;
-
-		ReleaseResourceWrapper staleResource = {};
-		staleResource.AddPageable(std::move(m_PSO));
-
-		m_Device->SafeReleaseObject(QueueID::Direct, std::move(staleResource));
 	}
 
 	void PipelineStateD3D12::SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology)
@@ -81,20 +70,8 @@ namespace EduEngine
 		m_Desc.DSVFormat = format;
 	}
 
-	void PipelineStateD3D12::SetRootSignature(RootSignatureD3D12* rootSignature)
+	void PipelineStateD3D12::SetShader(const std::shared_ptr<ShaderD3D12>& shader)
 	{
-		m_Desc.pRootSignature = rootSignature->GetD3D12RootSignature();
-	}
-
-	void PipelineStateD3D12::SetRootSignature(ID3D12RootSignature* rootSignature)
-	{
-		m_Desc.pRootSignature = rootSignature;
-	}
-
-	void PipelineStateD3D12::SetShader(ShaderD3D12* shader)
-	{
-		assert(shader != nullptr);
-
 		switch (shader->GetShaderType())
 		{
 		case EDU_SHADER_TYPE_VERTEX:
@@ -106,28 +83,18 @@ namespace EduEngine
 		case EDU_SHADER_TYPE_PIXEL:
 			m_Desc.PS = shader->GetShaderBytecode();
 			break;
+		default:
+			ASSERT_FAILED("Unexpected shader type");
 		}
 
-		assert(1);
+		SetShaderBase(shader);
 	}
 
-	void PipelineStateD3D12::Build(RenderDeviceD3D12* pDevice)
+	void PipelineStateD3D12::BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso)
 	{
-		assert(m_Device == nullptr);
+		m_Desc.pRootSignature = rootSignature;
 
-		m_Device = pDevice;
-		HRESULT hr = pDevice->GetD3D12Device()->CreateGraphicsPipelineState(&m_Desc, IID_PPV_ARGS(&m_PSO));
-
+		HRESULT hr = device->CreateGraphicsPipelineState(&m_Desc, IID_PPV_ARGS(&pso));
 		THROW_IF_FAILED(hr, L"Failed to create PSO");
-	}
-
-	void PipelineStateD3D12::SetName(const wchar_t* name)
-	{
-		m_PSO->SetName(name);
-	}
-
-	ID3D12PipelineState* PipelineStateD3D12::GetD3D12PipelineState() const
-	{
-		return m_PSO.Get();
 	}
 }

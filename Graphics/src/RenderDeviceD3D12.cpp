@@ -139,6 +139,15 @@ namespace EduEngine
 			m_CommandQueues[i].Flush();
 	}
 
+	ID3D12DescriptorHeap* RenderDeviceD3D12::GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type) const
+	{
+		VERIFY_EXPR(type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, "Incorrect heap type");
+
+		return type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ?
+			m_GPUDescriptorHeaps[0].GetD3D12Heap() :
+			m_GPUDescriptorHeaps[1].GetD3D12Heap();
+	}
+
 	void RenderDeviceD3D12::SafeReleaseObject(ReleaseResourceWrapper&& wrapper)
 	{
 		uint64_t directNum = m_CommandQueues[0].GetNextCmdListNum();

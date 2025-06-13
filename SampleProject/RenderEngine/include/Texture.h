@@ -16,6 +16,7 @@ namespace EduEngine
 		void Load(D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc = nullptr);
 		void Free();
 
+		std::shared_ptr<TextureD3D12>& GetD3D12Texture() { return m_Texture; }
 		const wchar_t* GetFilePath() const { return m_FilePath; }
 		int GetRefCount() const { return m_RefCount; }
 

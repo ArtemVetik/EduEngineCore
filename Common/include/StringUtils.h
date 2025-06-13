@@ -19,7 +19,7 @@ inline bool StrCmpSuff(const char* str, const char* cmp, const char* suff)
 		c++;
 	}
 
-	return !strcmp(s, suff);
+	return strcmp(s, suff) == 0;
 }
 
 inline bool StrHasSuff(const char* str, const char* suff)

@@ -3,67 +3,33 @@
 
 namespace EduEngine
 {
-	ComputePipelineStateD3D12::ComputePipelineStateD3D12() :
-		m_Device(nullptr),
-		m_QueueId{}
+	ComputePipelineStateD3D12::ComputePipelineStateD3D12(QueueID queueId) :
+		PipelineStateD3D12Base(queueId)
 	{
 		ZeroMemory(&m_Desc, sizeof(D3D12_COMPUTE_PIPELINE_STATE_DESC));
 		m_Desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	}
 
-	ComputePipelineStateD3D12::~ComputePipelineStateD3D12()
+	void ComputePipelineStateD3D12::SetShader(const std::shared_ptr<ShaderD3D12>& shader)
 	{
-		if (!m_Device)
-			return;
-
-		ReleaseResourceWrapper staleResource = {};
-		staleResource.AddPageable(std::move(m_PSO));
-
-		m_Device->SafeReleaseObject(m_QueueId, std::move(staleResource));
-	}
-
-	void ComputePipelineStateD3D12::SetRootSignature(RootSignatureD3D12* rootSignature)
-	{
-		m_Desc.pRootSignature = rootSignature->GetD3D12RootSignature();
-	}
-
-	void ComputePipelineStateD3D12::SetRootSignature(ID3D12RootSignature* rootSignature)
-	{
-		m_Desc.pRootSignature = rootSignature;
-	}
-
-	void ComputePipelineStateD3D12::SetShader(ShaderD3D12* shader)
-	{
-		assert(shader != nullptr);
-
+		VERIFY_EXPR(shader != nullptr, "");
+		
 		switch (shader->GetShaderType())
 		{
 		case EDU_SHADER_TYPE_COMPUTE:
 			m_Desc.CS = shader->GetShaderBytecode();
 			break;
+		default:
+			ASSERT_FAILED("Expected COMPUTE shader");
 		}
 
-		assert(1);
+		SetShaderBase(shader);
 	}
 
-	void ComputePipelineStateD3D12::Build(RenderDeviceD3D12* pDevice, QueueID queueId)
+	void ComputePipelineStateD3D12::BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso)
 	{
-		assert(m_Device == nullptr);
-
-		m_Device = pDevice;
-		m_QueueId = queueId;
-		HRESULT hr = pDevice->GetD3D12Device()->CreateComputePipelineState(&m_Desc, IID_PPV_ARGS(&m_PSO));
+		HRESULT hr = device->CreateComputePipelineState(&m_Desc, IID_PPV_ARGS(&pso));
 
 		THROW_IF_FAILED(hr, L"Failed to create PSO");
-	}
-
-	void ComputePipelineStateD3D12::SetName(const wchar_t* name)
-	{
-		m_PSO->SetName(name);
-	}
-
-	ID3D12PipelineState* ComputePipelineStateD3D12::GetD3D12PipelineState() const
-	{
-		return m_PSO.Get();
 	}
 }

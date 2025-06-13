@@ -1,10 +1,12 @@
 #include "ShaderResourcesD3D12.h"
+#include "DebugEnumPrint.h"
 
 #include "../../Common/include/StringUtils.h"
 
 namespace EduEngine
 {
 	ShaderResourcesD3D12::ShaderResourcesD3D12(ID3D12ShaderReflection* reflection, const ShaderDesc& shaderDesc) :
+		m_ShaderType(shaderDesc.ShaderType),
 		m_ResourcesBuffer{nullptr}
 	{
 		UINT currCB = 0, currTexSRV = 0, currTexUAV = 0, currBufSRV = 0, currBufUAV = 0, currSampler = 0;
@@ -90,6 +92,56 @@ namespace EduEngine
 
 	ShaderResourcesD3D12::~ShaderResourcesD3D12()
 	{
+		for (uint32 i = 0; i < m_BufferEndOffset; i++)
+			m_ResourcesBuffer[i].~ShaderResourceAttribs();
+
 		std::free(m_ResourcesBuffer);
 	}
+
+#ifdef _DEBUG
+	void ShaderResourcesD3D12::DebugPrint()
+	{
+		printf("-------------------------------------------------------------\n");
+		printf("----------------- [%s] ShaderResources -----------------\n", ShaderTypeStr(m_ShaderType));
+		printf("-------------------------------------------------------------\n");
+		ProcessResources(
+			nullptr, 0,
+			[&](const ShaderResourceAttribs& a)
+			{
+				printf("[CB] Name: %s\tBindPoint: %d\tBindCount: %d\tVarType: %s\tInputType: %s\tSrvDim: %s\tSamplerId: %d\n",
+					a.Name, a.BindPoint, a.BindCount, VarTypeStr(a.GetVarType()), InputTypeStr(a.GetInputType()), SrvDimStr(a.GetSRVDim()), a.GetSamplerId());
+			},
+			[&](const ShaderResourceAttribs& a)
+			{
+				printf("[TexSRV] Name: %s\tBindPoint: %d\tBindCount: %d\tVarType: %s\tInputType: %s\tSrvDim: %s\tSamplerId: %d\n",
+					a.Name, a.BindPoint, a.BindCount, VarTypeStr(a.GetVarType()), InputTypeStr(a.GetInputType()), SrvDimStr(a.GetSRVDim()), a.GetSamplerId());
+
+				if (a.HasValidSampler())
+				{
+					auto samplerId = a.GetSamplerId();
+					const auto& samplerAttribs = GetSampler(samplerId);
+					
+					printf("[Sampler %s] Name: %s\tBindPoint: %d\tBindCount: %d\tVarType: %s\tInputType: %s\tSrvDim: %s\tSamplerId: %d\n",
+						samplerAttribs.IsStaticSampler() ? "Static" : "Mutable",
+						samplerAttribs.Name, samplerAttribs.BindPoint, samplerAttribs.BindCount, VarTypeStr(samplerAttribs.GetVarType()), InputTypeStr(samplerAttribs.GetInputType()), SrvDimStr(samplerAttribs.GetSRVDim()), samplerAttribs.GetSamplerId());
+				}
+			},
+			[&](const ShaderResourceAttribs& a)
+			{
+				printf("[TexUAV] Name: %s\tBindPoint: %d\tBindCount: %d\tVarType: %s\tInputType: %s\tSrvDim: %s\tSamplerId: %d\n",
+					a.Name, a.BindPoint, a.BindCount, VarTypeStr(a.GetVarType()), InputTypeStr(a.GetInputType()), SrvDimStr(a.GetSRVDim()), a.GetSamplerId());
+			},
+			[&](const ShaderResourceAttribs& a)
+			{
+				printf("[BuffSRV] Name: %s\tBindPoint: %d\tBindCount: %d\tVarType: %s\tInputType: %s\tSrvDim: %s\tSamplerId: %d\n",
+					a.Name, a.BindPoint, a.BindCount, VarTypeStr(a.GetVarType()), InputTypeStr(a.GetInputType()), SrvDimStr(a.GetSRVDim()), a.GetSamplerId());
+			},
+			[&](const ShaderResourceAttribs& a)
+			{
+				printf("[BuffUAV] Name: %s\tBindPoint: %d\tBindCount: %d\tVarType: %d\tInputType: %s\tSrvDim: %s\tSamplerId: %d\n",
+					a.Name, a.BindPoint, a.BindCount, VarTypeStr(a.GetVarType()), InputTypeStr(a.GetInputType()), SrvDimStr(a.GetSRVDim()), a.GetSamplerId());
+			}
+		);
+	}
+#endif
 }

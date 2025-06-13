@@ -3,12 +3,14 @@
 
 namespace EduEngine
 {
-	ShaderD3D12::ShaderD3D12(std::wstring	 fileName,
-							 EDU_SHADER_TYPE type,
-							 const LPCWSTR*	 defines,
-							 std::wstring	 entryPoint,
-							 std::wstring	 target) :
-		m_Type(type)
+	ShaderD3D12::ShaderD3D12(std::wstring		fileName,
+							 const LPCWSTR*		defines,
+							 std::wstring		entryPoint,
+							 std::wstring		target,
+							 RenderDeviceD3D12* device,
+							 const ShaderDesc&	desc) :
+		m_Desc(desc),
+		m_ShaderReflection(nullptr)
 	{
 		// https://github.com/Microsoft/DirectXShaderCompiler/wiki/Using-dxc.exe-and-dxcompiler.dll
 
@@ -84,20 +86,31 @@ namespace EduEngine
 		//
 		Microsoft::WRL::ComPtr<IDxcBlob> pReflectionData;
 		pResults->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&pReflectionData), nullptr);
-		if (pReflectionData != nullptr)
-		{
-			DxcBuffer ReflectionData;
-			ReflectionData.Encoding = DXC_CP_ACP;
-			ReflectionData.Ptr = pReflectionData->GetBufferPointer();
-			ReflectionData.Size = pReflectionData->GetBufferSize();
 
-			THROW_IF_FAILED(pUtils->CreateReflection(&ReflectionData, IID_PPV_ARGS(&m_ShaderReflection)), L"Failed to create reflection");
+		VERIFY_EXPR(pReflectionData != nullptr, "");
 
-			ShaderDesc desc = {};
-			desc.DefaultVarType = SHADER_VARIABLE_TYPE::MUTABLE;
+		DxcBuffer ReflectionData;
+		ReflectionData.Encoding = DXC_CP_ACP;
+		ReflectionData.Ptr = pReflectionData->GetBufferPointer();
+		ReflectionData.Size = pReflectionData->GetBufferSize();
 
-			m_ShaderResources = std::make_shared<ShaderResourcesD3D12>(m_ShaderReflection.Get(), desc);
-		}
+		THROW_IF_FAILED(pUtils->CreateReflection(&ReflectionData, IID_PPV_ARGS(&m_ShaderReflection)), L"Failed to create reflection");
+
+		m_ShaderResources = std::make_shared<ShaderResourcesD3D12>(m_ShaderReflection.Get(), desc);
+		
+		//
+		// Initialize static layout
+		//
+		m_StaticCache = std::make_shared<ShaderResourceCacheD3D12>();
+		m_StaticLayout = std::make_shared<ShaderResourceLayoutD3D12>();
+
+		SHADER_VARIABLE_TYPE allowedTypes[1] = { SHADER_VARIABLE_TYPE_STATIC };
+		m_StaticLayout->Initialize(device->GetD3D12Device(), m_ShaderResources, allowedTypes, 1, m_StaticCache.get(), nullptr, true);
+
+#ifdef _DEBUG
+		m_FileName = fileName;
+		m_EntryPoint = entryPoint;
+#endif
 	}
 
 	D3D12_SHADER_BYTECODE ShaderD3D12::GetShaderBytecode() const
@@ -109,8 +122,16 @@ namespace EduEngine
 		};
 	}
 
-	EDU_SHADER_TYPE ShaderD3D12::GetShaderType() const
+#ifdef _DEBUG
+	void ShaderD3D12::DebugPrint()
 	{
-		return m_Type;
+		printf("=================================================================\n");
+		wprintf(L"========== Shader \"%s\" |%s| ==========\n", m_FileName.c_str(), m_EntryPoint.c_str());
+		printf("=================================================================\n\n");
+		m_ShaderResources->DebugPrint();
+		m_StaticLayout->DebugPrint();
+		m_StaticCache->DebugPrint();
+		printf("\n\n");
 	}
+#endif
 }

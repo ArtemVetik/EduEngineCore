@@ -1,47 +1,94 @@
 #pragma once
+
 #include "framework.h"
+#include "ShaderAPI.h"
 #include "RenderDeviceD3D12.h"
+#include "RootParamsManager.h"
+
+#include <ShaderD3D12.h>
+#include <ShaderResourceLayoutD3D12.h>
 
 namespace EduEngine
 {
-	class GRAPHICS_API RootSignatureD3D12
+	class RootSignatureD3D12_1
 	{
 	public:
-		RootSignatureD3D12();
-		~RootSignatureD3D12();
+		RootSignatureD3D12_1();
 
-		void AddConstantBufferView(UINT shaderRegister,
-								   UINT registerSpace = 0,
-								   D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
+		void AllocateResourceSlot(EDU_SHADER_TYPE			   shaderType,
+								  const ShaderResourceAttribs& shaderResAttribs,
+								  D3D12_DESCRIPTOR_RANGE_TYPE  rangeType,
+								  uint32&					   rootIndexOut,
+								  uint32&					   offsetFromTableStartOut);
 
-		void AddShaderResourceView(UINT shaderRegister,
-								   UINT registerSpace = 0,
-								   D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
+		void AllocateStaticSamplers(const ShaderD3D12** shaders, uint32 numShaders);
+		void InitStaticSampler(EDU_SHADER_TYPE shaderType, const String& textureName, const ShaderResourceAttribs& samplerAttribs);
 
-		void AddDescriptorParameter(UINT					  size,
-									CD3DX12_DESCRIPTOR_RANGE* rangeParameters,
-									D3D12_SHADER_VISIBILITY	  visibility = D3D12_SHADER_VISIBILITY_ALL);
+		void CommitRootViews(ShaderResourceCacheD3D12& resourceCache,
+							 class CommandContext& ctx,
+							 bool isCompute) const;
 
-		void AddConstants(UINT num32BitValues,
-						  UINT shaderRegister,
-						  UINT registerSpace = 0,
-						  D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
+		void CommitDescriptorHandles(RenderDeviceD3D12* device,
+									 ShaderResourceCacheD3D12& resourceCache,
+									 class CommandContext& ctx,
+									 bool isCompute,
+									 bool transitionResources) const;
 
-		void Build(RenderDeviceD3D12* pDevice, QueueID queueId, bool isLocal = false);
+		void Build(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache);
 
-		void SetName(const wchar_t* name);
+		ID3D12RootSignature* GetD3D12RootSignature() const { return m_d3d12RootSignature.Get(); }
 
-		ID3D12RootSignature* GetD3D12RootSignature() const;
+#ifdef _DEBUG
+		void DebugPrint();
+#endif
 
 	private:
-		std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
+		void InitResourceCache(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache);
+
+		void CommitDescriptorHandlesInternal_SM(RenderDeviceD3D12* pRenderDeviceD3D12,
+												ShaderResourceCacheD3D12& ResourceCache,
+												class CommandContext& Ctx,
+												bool IsCompute,
+												bool transitionResources) const;
+
+		void CommitDescriptorHandlesInternal_SMD(RenderDeviceD3D12* pRenderDeviceD3D12,
+												 ShaderResourceCacheD3D12& ResourceCache,
+												 class CommandContext& Ctx,
+												 bool IsCompute,
+												 bool transitionResources) const;
 
 	private:
-		std::vector<CD3DX12_ROOT_PARAMETER> m_SlotParameters;
-		Microsoft::WRL::ComPtr<ID3D12RootSignature> m_Signature;
+		bool m_DynamicSignature;
 
-		RenderDeviceD3D12* m_Device;
-		QueueID m_QueueId;
+		uint32 m_TotalSrvCbvUavSlots[SHADER_VARIABLE_TYPE_NUM_TYPES];
+		uint32 m_TotalSamplerSlots[SHADER_VARIABLE_TYPE_NUM_TYPES];
+
+		static const uint8 InvalidRootTableIndex = static_cast<uint8>(-1);
+
+		// ( [STATIC / MUTABLE] | [DYNAMIC] ) * ( EDU_SHADER_TYPE_NUM_TYPES )
+		uint8 m_SrvCbvUavRootTablesMap[2 * EDU_SHADER_TYPE_NUM_TYPES];
+		uint8 m_SamplerRootTablesMap[2 * EDU_SHADER_TYPE_NUM_TYPES];
+
+		struct StaticSamplerAttribs
+		{
+			StaticSamplerDesc SamplerDesc;
+			UINT ArraySize = 0;
+
+			StaticSamplerAttribs() {}
+			StaticSamplerAttribs(const StaticSamplerDesc& samDesc, D3D12_SHADER_VISIBILITY visibility) :
+				SamplerDesc(samDesc)
+			{
+				SamplerDesc.Desc.ShaderVisibility = visibility;
+			}
+		};
+
+		D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+		std::vector<D3D12_ROOT_PARAMETER> m_RootParamsD3D12;
+		std::vector<D3D12_STATIC_SAMPLER_DESC> m_d3d12StaticSamplers;
+
+		std::vector<StaticSamplerAttribs> m_StaticSamplers;
+		RootParamsManager m_RootParams;
+
+		Microsoft::WRL::ComPtr<ID3D12RootSignature> m_d3d12RootSignature;
 	};
 }
-
