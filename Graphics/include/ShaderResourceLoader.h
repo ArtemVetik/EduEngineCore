@@ -73,7 +73,7 @@ namespace EduEngine
 			switch (bindingDesc.Type)
 			{
 			case D3D_SIT_CBUFFER:                       ++numCBs; break;
-			case D3D_SIT_TBUFFER:                       ASSERT_FAILED(L"TBuffers are not supported"); break;
+			case D3D_SIT_TBUFFER:                       ASSERT_FAILED("TBuffers are not supported"); break;
 			case D3D_SIT_TEXTURE:                       ++(bindingDesc.Dimension == D3D_SRV_DIMENSION_BUFFER ? numBufSRVs : numTexSRVs); break;
 			case D3D_SIT_SAMPLER:                       ++numSamplers; break;
 			case D3D_SIT_UAV_RWTYPED:                   ++(bindingDesc.Dimension == D3D_SRV_DIMENSION_BUFFER ? numBufUAVs : numTexUAVs); break;
@@ -81,10 +81,10 @@ namespace EduEngine
 			case D3D_SIT_UAV_RWSTRUCTURED:              ++numBufUAVs; break;
 			case D3D_SIT_BYTEADDRESS:                   ++numBufSRVs; break;
 			case D3D_SIT_UAV_RWBYTEADDRESS:             ++numBufUAVs; break;
-			case D3D_SIT_UAV_APPEND_STRUCTURED:         ASSERT_FAILED(L"Append structured buffers are not supported"); break;
-			case D3D_SIT_UAV_CONSUME_STRUCTURED:        ASSERT_FAILED(L"Consume structured buffers are not supported"); break;
-			case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER: ASSERT_FAILED(L"RW structured buffers with counter are not supported"); break;
-			default:									ASSERT_FAILED(L"Unexpected resource type");
+			case D3D_SIT_UAV_APPEND_STRUCTURED:         ASSERT_FAILED("Append structured buffers are not supported"); break;
+			case D3D_SIT_UAV_CONSUME_STRUCTURED:        ASSERT_FAILED("Consume structured buffers are not supported"); break;
+			case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER: ASSERT_FAILED("RW structured buffers with counter are not supported"); break;
+			default:									ASSERT_FAILED("Unexpected resource type");
 			}
 
 			resources.emplace_back(ShaderResourceAttribs(bindingDesc.Name, bindingDesc.BindPoint, bindingDesc.BindCount, bindingDesc.Type, varType, bindingDesc.Dimension, -1, isStaticSampler));
@@ -106,7 +106,7 @@ namespace EduEngine
 			}
 			case D3D_SIT_TBUFFER:
 			{
-				ASSERT_FAILED(L"TBuffers are not supported");
+				ASSERT_FAILED("TBuffers are not supported");
 				break;
 			}
 			case D3D_SIT_TEXTURE:
@@ -150,10 +150,10 @@ namespace EduEngine
 				OnNewBufUAV(std::move(res));
 				break;
 			}
-			case D3D_SIT_UAV_APPEND_STRUCTURED:         ASSERT_FAILED(L"Append structured buffers are not supported"); break;
-			case D3D_SIT_UAV_CONSUME_STRUCTURED:        ASSERT_FAILED(L"Consume structured buffers are not supported"); break;
-			case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER: ASSERT_FAILED(L"RW structured buffers with counter are not supported"); break;
-			default:									ASSERT_FAILED(L"Unexpected resource type");
+			case D3D_SIT_UAV_APPEND_STRUCTURED:         ASSERT_FAILED("Append structured buffers are not supported"); break;
+			case D3D_SIT_UAV_CONSUME_STRUCTURED:        ASSERT_FAILED("Consume structured buffers are not supported"); break;
+			case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER: ASSERT_FAILED("RW structured buffers with counter are not supported"); break;
+			default:									ASSERT_FAILED("Unexpected resource type");
 			}
 		}
 

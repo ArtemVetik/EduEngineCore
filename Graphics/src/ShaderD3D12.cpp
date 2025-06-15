@@ -94,7 +94,8 @@ namespace EduEngine
 		ReflectionData.Ptr = pReflectionData->GetBufferPointer();
 		ReflectionData.Size = pReflectionData->GetBufferSize();
 
-		THROW_IF_FAILED(pUtils->CreateReflection(&ReflectionData, IID_PPV_ARGS(&m_ShaderReflection)), L"Failed to create reflection");
+		auto hr = pUtils->CreateReflection(&ReflectionData, IID_PPV_ARGS(&m_ShaderReflection));
+		THROW_IF_FAILED(hr, L"Failed to create reflection");
 
 		m_ShaderResources = std::make_shared<ShaderResourcesD3D12>(m_ShaderReflection.Get(), desc);
 		

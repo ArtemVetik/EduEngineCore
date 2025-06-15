@@ -221,13 +221,13 @@ namespace EduEngine
 	{
 		if (!m_pResourceCache)
 		{
-			//LOG_ERROR("Resource layout has no resource cache"); // TODO: Log Error
+			LOG_ERROR("Resource layout has no resource cache");
 			return;
 		}
 
 		if (!srcLayout->m_pResourceCache)
 		{
-			//LOG_ERROR("Dst layout has no resource cache");
+			LOG_ERROR("Dst layout has no resource cache");
 			return;
 		}
 

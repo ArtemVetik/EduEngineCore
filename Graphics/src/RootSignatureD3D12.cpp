@@ -513,8 +513,8 @@ namespace EduEngine
 						{
 							if (isResourceTable)
 							{
-								/*if (Res.CPUDescriptorHandle.ptr == 0)
-									LOG_ERROR_MESSAGE("No valid CbvSrvUav descriptor handle found for root parameter ", RootInd, ", descriptor slot ", OffsetFromTableStart);*/
+								if (res.ResHandle.CPUDescriptorHandle.ptr == 0)
+									LOG_ERROR("No valid CbvSrvUav descriptor handle found for root parameter ", rootInd, ", descriptor slot ", offsetFromTableStart);
 
 								VERIFY_EXPR(dynamicCbvSrvUavTblOffset < numDynamicCbvSrvUavDescriptors, "Not enough space in the descriptor heap allocation");
 
@@ -523,8 +523,8 @@ namespace EduEngine
 							}
 							else
 							{
-								/*if (Res.CPUDescriptorHandle.ptr == 0)
-									LOG_ERROR_MESSAGE("No valid sampler descriptor handle found for root parameter ", RootInd, ", descriptor slot ", OffsetFromTableStart);*/
+								if (res.ResHandle.CPUDescriptorHandle.ptr == 0)
+									LOG_ERROR("No valid sampler descriptor handle found for root parameter ", rootInd, ", descriptor slot ", offsetFromTableStart);
 
 								VERIFY_EXPR(dynamicSamplerTblOffset < numDynamicSamplerDescriptors, "Not enough space in the descriptor heap allocation");
 

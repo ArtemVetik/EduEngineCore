@@ -17,17 +17,17 @@ namespace EduEngine
 			// OnResourceCounted
 			[&](UINT numCBs, UINT numTexSRVs, UINT numTexUAVs, UINT numBufSRVs, UINT numBufUAVs, UINT numSamplers)
 			{
-				VERIFY_EXPR(numCBs < UINT16_MAX, L"numCBs out of bounds");
+				VERIFY_EXPR(numCBs < UINT16_MAX, "numCBs out of bounds");
 				m_TexSRVOffset = 0 + static_cast<uint16>(numCBs);
-				VERIFY_EXPR(numTexSRVs < UINT16_MAX, L"numTexSRVs out of bounds");
+				VERIFY_EXPR(numTexSRVs < UINT16_MAX, "numTexSRVs out of bounds");
 				m_TexUAVOffset = m_TexSRVOffset + static_cast<uint16>(numTexSRVs);
-				VERIFY_EXPR(numTexUAVs < UINT16_MAX, L"numTexUAVs out of bounds");
+				VERIFY_EXPR(numTexUAVs < UINT16_MAX, "numTexUAVs out of bounds");
 				m_BufSRVOffset = m_TexUAVOffset + static_cast<uint16>(numTexUAVs);
-				VERIFY_EXPR(numBufSRVs < UINT16_MAX, L"numBufSRVs out of bounds");
+				VERIFY_EXPR(numBufSRVs < UINT16_MAX, "numBufSRVs out of bounds");
 				m_BufUAVOffset = m_BufSRVOffset + static_cast<uint16>(numBufSRVs);
-				VERIFY_EXPR(numBufUAVs < UINT16_MAX, L"numBufUAVs out of bounds");
+				VERIFY_EXPR(numBufUAVs < UINT16_MAX, "numBufUAVs out of bounds");
 				m_SamplersOffset = m_BufUAVOffset + static_cast<uint16>(numBufUAVs);
-				VERIFY_EXPR(numSamplers < UINT16_MAX, L"numSamplers out of bounds");
+				VERIFY_EXPR(numSamplers < UINT16_MAX, "numSamplers out of bounds");
 				m_BufferEndOffset = m_SamplersOffset + static_cast<uint16>(numSamplers);
 
 				if (m_BufferEndOffset)

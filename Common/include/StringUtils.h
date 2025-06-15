@@ -3,9 +3,9 @@
 
 inline bool StrCmpSuff(const char* str, const char* cmp, const char* suff)
 {
-	VERIFY_EXPR(str != nullptr, L"str must be not null");
-	VERIFY_EXPR(cmp != nullptr, L"cmp must be not null");
-	VERIFY_EXPR(suff != nullptr, L"suff must be not null");
+	VERIFY_EXPR(str != nullptr, "str must be not null");
+	VERIFY_EXPR(cmp != nullptr, "cmp must be not null");
+	VERIFY_EXPR(suff != nullptr, "suff must be not null");
 
 	const char* s = &str[0];
 	const char* c = &cmp[0];
@@ -24,8 +24,8 @@ inline bool StrCmpSuff(const char* str, const char* cmp, const char* suff)
 
 inline bool StrHasSuff(const char* str, const char* suff)
 {
-	VERIFY_EXPR(str != nullptr, L"str must be not null");
-	VERIFY_EXPR(suff != nullptr, L"suff must be not null");
+	VERIFY_EXPR(str != nullptr, "str must be not null");
+	VERIFY_EXPR(suff != nullptr, "suff must be not null");
 
 	size_t strLen = strlen(str);
 	size_t suffLen = strlen(suff);

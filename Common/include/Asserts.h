@@ -7,48 +7,55 @@
 #include <cstdlib>
 #include <iostream>
 
-inline std::wstring AnsiToWString(const std::string& str)
-{
-    WCHAR buffer[512];
-    MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
-    return std::wstring(buffer);
-}
+inline void EnsureStr(const char*) {}
 
 #ifndef THROW_IF_FAILED
-#define THROW_IF_FAILED(expr, message)                                \
-    do {                                                              \
-        if (FAILED(expr)) {                                           \
-            HRESULT hr__ = (expr);                                    \
-            std::wstring wfn = AnsiToWString(__FILE__);               \
-            DxException exc(hr__, message, L#expr, wfn, __LINE__);    \
-            OutputDebugStringW(exc.ToString().c_str());               \
-            throw exc;                                                \
-        }                                                             \
-    } while(false)
+#define THROW_IF_FAILED(hr, message)                                                                    \
+    do {                                                                                                \
+        if (FAILED(hr)) {                                                                               \
+            HRESULT hr__ = (hr);                                                                        \
+            std::wstring wfn = AnsiToWString(__FILE__);                                                 \
+           OutputDebugStringW(DxException::GetHRError(hr__, message, L#hr, wfn, __LINE__).c_str());     \
+        }                                                                                               \
+    } while(0)
 #endif
 
 #ifndef VERIFY_EXPR
-#define VERIFY_EXPR(expr, message)                                         \
-    do {                                                                   \
-        if (!(expr)) {                                                     \
-            std::cerr << "Verification failed: " << #expr << "\n"          \
-                      << "Message: " << message << "\n"                    \
-                      << "File: " << __FILE__ << "\n"                      \
-                      << "Line: " << __LINE__ << "\n"                      \
-                      << "Function: " << __func__ << "\n";                 \
-            throw -1;                                                      \
-        }                                                                  \
+#define VERIFY_EXPR(expr, fmt, ...)                         \
+    do {                                                    \
+        if (!(expr)) {                                      \
+            ASSERT_FAILED(fmt, ##__VA_ARGS__);              \
+        }                                                   \
     } while (0)
 #endif
 
 #ifndef ASSERT_FAILED
-#define ASSERT_FAILED(message) VERIFY_EXPR(0, message)
+#define ASSERT_FAILED(message, ...)                                                              \
+    do {                                                                                            \
+        EnsureStr(message);                                                                         \
+        EduEngine::MsgStream ms;                                                                    \
+        EduEngine::FormatMsg(ms, message, __VA_ARGS__);                                           \
+        EduEngine::DxException::AssertError(ms.str().c_str(), __FUNCTION__, __FILE__, __LINE__);  \
+    } while(0)
+#endif
+
+#ifndef LOG_ERROR
+#define LOG_ERROR(message, ...)                             \
+ do {                                                       \
+        EnsureStr(message);                                 \
+        EduEngine::MsgStream ms;                            \
+        ms << "ENGINE ERROR: ";                             \
+        EduEngine::FormatMsg(ms, message, __VA_ARGS__);     \
+        ms << "\n";                                         \
+        OutputDebugStringA(ms.str().c_str());               \
+    } while(0)
 #endif
 
 #else
 
-#define THROW_IF_FAILED
-#define VERIFY_EXPR
-#define ASSERT_FAILED
+#define THROW_IF_FAILED do {} while(0)
+#define VERIFY_EXPR     do {} while(0)
+#define ASSERT_FAILED   do {} while(0)
+#define LOG_ERROR       do {} while(0)
 
 #endif
