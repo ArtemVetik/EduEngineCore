@@ -99,22 +99,35 @@ namespace EduEngine
 
 		ForwardOpaque::MaterialConstants materialConstants = {};
 
-		D3D12_RESOURCE_DESC matBufDesc = {};
-		matBufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		matBufDesc.Alignment = 0;
-		matBufDesc.Height = 1;
-		matBufDesc.Width = (sizeof(ForwardOpaque::MaterialConstants) + 255) & ~255;
-		matBufDesc.DepthOrArraySize = 1;
-		matBufDesc.MipLevels = 1;
-		matBufDesc.Format = DXGI_FORMAT_UNKNOWN;
-		matBufDesc.SampleDesc.Count = 1;
-		matBufDesc.SampleDesc.Quality = 0;
-		matBufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		D3D12_RESOURCE_DESC buffDesc = {};
+		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		buffDesc.Alignment = 0;
+		buffDesc.Height = 1;
+		buffDesc.Width = (sizeof(ForwardOpaque::MaterialConstants) + 255) & ~255;
+		buffDesc.DepthOrArraySize = 1;
+		buffDesc.MipLevels = 1;
+		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
+		buffDesc.SampleDesc.Count = 1;
+		buffDesc.SampleDesc.Quality = 0;
+		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-		std::shared_ptr<BufferD3D12> matBuffer = std::make_shared<BufferD3D12>(m_Device.get(), matBufDesc, &materialConstants, QueueID::Direct);
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Buffer.FirstElement = 0;
+		srvDesc.Buffer.NumElements = 1;
+		srvDesc.Buffer.StructureByteStride = sizeof(ForwardOpaque::Light);
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		std::shared_ptr<BufferD3D12> matBuffer = std::make_shared<BufferD3D12>(m_Device.get(), buffDesc, &materialConstants, QueueID::Direct);
 		matBuffer->CreateCBV();
 
+		buffDesc.Width = (sizeof(ForwardOpaque::Light) + 255) & ~255;
+		m_LightBuffer = std::make_shared<BufferD3D12>(m_Device.get(), buffDesc, QueueID::Direct);
+		m_LightBuffer->CreateSRV(&srvDesc, true);
+
 		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_PIXEL, "cbMaterial", matBuffer);
+		m_ColorPass->GetPipelineState().BindResource(EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
 
 		return true;
 	}
@@ -214,13 +227,11 @@ namespace EduEngine
 		DynamicUploadBuffer passBuffer(m_Device.get(), QueueID::Direct);
 		passBuffer.LoadData(passConstants);
 
-		DynamicUploadBuffer lightBuffer(m_Device.get(), QueueID::Direct);
-		lightBuffer.LoadData(lightConstants);
+		m_LightBuffer->LoadData(&lightConstants);
 
 		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_VERTEX, "cbPerObject", objBuffer.GetAllocation());
 		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_VERTEX, "cbPerPass", passBuffer.GetAllocation());
 		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_PIXEL, "cbPerPass", passBuffer.GetAllocation());
-		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_PIXEL, "cbLight", lightBuffer.GetAllocation());
 		m_ColorPass->GetPipelineState().CommitAll();
 
 		dCommandContext.GetCmdList()->IASetVertexBuffers(0, 1, &(m_RenderObject->GetVertexBuffer()->GetView()));

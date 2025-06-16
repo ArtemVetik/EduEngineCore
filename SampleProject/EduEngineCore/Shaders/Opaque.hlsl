@@ -3,6 +3,7 @@
 SamplerState gAlbedo_sampler : register(s0);
 
 Texture2D gAlbedo : register(t0);
+StructuredBuffer<Light> gLight : register(t1);
 
 cbuffer cbPerObject : register(b0)
 {
@@ -23,8 +24,6 @@ cbuffer cbMaterial : register(b2)
     float3 gFresnelR0;
     float gRoughness;
 }
-
-ConstantBuffer<Light> cbLight : register(b3);
 
 struct VertexIn
 {
@@ -72,7 +71,7 @@ float4 PS(VertexOut pin) : SV_Target
     
     float3 light = 0.0f;
     float3 eyePosW = normalize(gCamPos - pin.PosW);
-    light += ComputeDirectionalLight(cbLight, mat, pin.NormalW, eyePosW);
+    light += ComputeDirectionalLight(gLight[0], mat, pin.NormalW, eyePosW);
     
     float4 litColor = ambient + float4(light, 0);
     litColor.a = ambient.a;

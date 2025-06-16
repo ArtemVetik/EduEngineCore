@@ -43,6 +43,7 @@ namespace EduEngine
 
 		std::unique_ptr<Camera> m_Camera;
 
+		std::shared_ptr<BufferD3D12> m_LightBuffer;
 		std::unique_ptr<ForwardOpaque> m_ColorPass;
 
 		std::shared_ptr<Texture> m_Texture;
