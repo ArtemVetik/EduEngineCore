@@ -64,7 +64,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 					UpdateWindowTitle(window.GetMainWindow(), fps, mspf);
 
 				renderEngine->Update(timer);
-				renderEngine->Render();
+				renderEngine->Render(timer);
 			}
 			else
 			{

@@ -8,17 +8,49 @@
 
 namespace EduEngine
 {
-	class ColorPass
+	using namespace DirectX;
+
+	class ForwardOpaque
 	{
 	public:
 		struct ObjectConstants
 		{
-			DirectX::XMFLOAT4X4 World;
+			XMFLOAT4X4 World;
 		};
 
 		struct PassConstants
 		{
-			DirectX::XMFLOAT4X4 ViewProj;
+			XMFLOAT4X4 ViewProj;
+			XMFLOAT4 AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
+			UINT DirectionalLightsCount = 1;
+			XMFLOAT3 CamPos = { 0, 0, 0 };
+		};
+
+		struct MaterialConstants
+		{
+			XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+			XMFLOAT3 FresnelR0 = { 0.05f, 0.05f, 0.05f };
+			float Roughness = 0.15f;
+		};
+
+		struct Light
+		{
+		public:
+			enum Type
+			{
+				Directional = 0,
+				Point = 1,
+				Spotlight = 2
+			};
+
+			Type LightType = Type::Directional;
+			DirectX::XMFLOAT3 Padding = { 0, 0, 0 };
+			DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
+			float FalloffStart = 1.04f;							 // point/spot light only
+			DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f }; // directional/spot light only
+			float FalloffEnd = 10.0f;							 // point/spot light only
+			DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };	 // point/spot light only
+			float SpotPower = 64.0f;							 // spot light only
 		};
 
 	private:
@@ -31,7 +63,7 @@ namespace EduEngine
 		PipelineStateD3D12 m_Pso;
 
 	public:
-		ColorPass(RenderDeviceD3D12* device, const LPCWSTR* macros = nullptr)
+		ForwardOpaque(RenderDeviceD3D12* device, const LPCWSTR* macros = nullptr)
 		{
 			m_psStaticSamplers[0].Desc = CD3DX12_STATIC_SAMPLER_DESC(0,
 				D3D12_FILTER_MIN_MAG_MIP_POINT,
@@ -42,13 +74,15 @@ namespace EduEngine
 				8);
 			m_psStaticSamplers[0].TextureName = "gAlbedo";
 
-			ShaderVariableDesc vsVars[] {
+			ShaderVariableDesc vsVars[]{
 				ShaderVariableDesc("cbPerObject", SHADER_VARIABLE_TYPE_DYNAMIC),
 				ShaderVariableDesc("cbPerPass", SHADER_VARIABLE_TYPE_DYNAMIC)
 			};
 
-			ShaderVariableDesc psVars[] {
-				ShaderVariableDesc("gAlbedo", SHADER_VARIABLE_TYPE_STATIC)
+			ShaderVariableDesc psVars[]{
+				ShaderVariableDesc("cbMaterial", SHADER_VARIABLE_TYPE_MUTABLE),
+				ShaderVariableDesc("cbLight", SHADER_VARIABLE_TYPE_DYNAMIC),
+				ShaderVariableDesc("gAlbedo", SHADER_VARIABLE_TYPE_STATIC),
 			};
 
 			m_psDesc = {};

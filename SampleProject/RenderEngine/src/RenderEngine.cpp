@@ -93,9 +93,28 @@ namespace EduEngine
 		m_RenderObject->SetMaterial(m_Material.get());
 		m_RenderObject->SetMesh(m_Mesh.get());
 
-		m_ColorPass = std::make_unique<ColorPass>(m_Device.get());
+		m_ColorPass = std::make_unique<ForwardOpaque>(m_Device.get());
 		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_Texture->GetD3D12Texture());
 		m_ColorPass->Build(m_Device.get());
+
+		ForwardOpaque::MaterialConstants materialConstants = {};
+
+		D3D12_RESOURCE_DESC matBufDesc = {};
+		matBufDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		matBufDesc.Alignment = 0;
+		matBufDesc.Height = 1;
+		matBufDesc.Width = (sizeof(ForwardOpaque::MaterialConstants) + 255) & ~255;
+		matBufDesc.DepthOrArraySize = 1;
+		matBufDesc.MipLevels = 1;
+		matBufDesc.Format = DXGI_FORMAT_UNKNOWN;
+		matBufDesc.SampleDesc.Count = 1;
+		matBufDesc.SampleDesc.Quality = 0;
+		matBufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+		std::shared_ptr<BufferD3D12> matBuffer = std::make_shared<BufferD3D12>(m_Device.get(), matBufDesc, &materialConstants, QueueID::Direct);
+		matBuffer->CreateCBV();
+
+		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_PIXEL, "cbMaterial", matBuffer);
 
 		return true;
 	}
@@ -155,7 +174,7 @@ namespace EduEngine
 		m_Camera->Update(timer);
 	}
 
-	void RenderEngine::Render()
+	void RenderEngine::Render(const Timer& timer)
 	{
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
 
@@ -172,15 +191,22 @@ namespace EduEngine
 		dCommandContext.SetViewports(&m_Viewport, 1);
 		dCommandContext.SetScissorRects(&m_ScissorRect, 1);
 
-		const float clear[4] = { 0, 1, 0, 1 };
+		const float clear[4] = { 0, 0, 0, 1 };
 		dCommandContext.GetCmdList()->ClearRenderTargetView(m_SwapChain->CurrentBackBufferView(), clear, 0, nullptr);
 		dCommandContext.GetCmdList()->ClearDepthStencilView(m_SwapChain->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-		ColorPass::ObjectConstants objConstants;
+		ForwardOpaque::ObjectConstants objConstants;
 		objConstants.World = (SimpleMath::Matrix::CreateScale(0.1f) * SimpleMath::Matrix::CreateRotationY(XM_PI)).Transpose();
 
-		ColorPass::PassConstants passConstants;
+		ForwardOpaque::PassConstants passConstants;
 		XMStoreFloat4x4(&passConstants.ViewProj, XMMatrixTranspose(m_Camera->GetViewProjMatrix()));
+		passConstants.CamPos = m_Camera->GetPosition();
+
+		ForwardOpaque::Light lightConstants;
+		lightConstants.Direction.x = cos(timer.GetTotalTime() * 0.5f);
+		lightConstants.Direction.z = sin(timer.GetTotalTime() * 0.5f);
+		lightConstants.Direction.y = -1.0f;
+		lightConstants.Strength = { 1, 1, 1 };
 
 		DynamicUploadBuffer objBuffer(m_Device.get(), QueueID::Direct);
 		objBuffer.LoadData(objConstants);
@@ -188,8 +214,13 @@ namespace EduEngine
 		DynamicUploadBuffer passBuffer(m_Device.get(), QueueID::Direct);
 		passBuffer.LoadData(passConstants);
 
+		DynamicUploadBuffer lightBuffer(m_Device.get(), QueueID::Direct);
+		lightBuffer.LoadData(lightConstants);
+
 		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_VERTEX, "cbPerObject", objBuffer.GetAllocation());
 		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_VERTEX, "cbPerPass", passBuffer.GetAllocation());
+		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_PIXEL, "cbPerPass", passBuffer.GetAllocation());
+		m_ColorPass->GetPipelineState().BindCB(EDU_SHADER_TYPE_PIXEL, "cbLight", lightBuffer.GetAllocation());
 		m_ColorPass->GetPipelineState().CommitAll();
 
 		dCommandContext.GetCmdList()->IASetVertexBuffers(0, 1, &(m_RenderObject->GetVertexBuffer()->GetView()));

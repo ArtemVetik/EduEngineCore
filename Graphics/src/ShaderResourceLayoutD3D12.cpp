@@ -214,7 +214,7 @@ namespace EduEngine
 				return cbvSrvUav;
 		}
 
-		ASSERT_FAILED("Can't find variable");
+		ASSERT_FAILED("Can't find variable: ", name);
 	}
 
 	void ShaderResourceLayoutD3D12::CopyStaticResourceDesriptorHandles(const ShaderResourceLayoutD3D12* srcLayout)

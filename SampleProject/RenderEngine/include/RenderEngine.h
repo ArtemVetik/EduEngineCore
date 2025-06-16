@@ -26,7 +26,7 @@ namespace EduEngine
 		bool StartUp(const Window& mainWindow);
 
 		void Update(const Timer& timer) override;
-		void Render() override;
+		void Render(const Timer& timer) override;
 
 		void PendingResize(UINT w, UINT h);
 
@@ -43,7 +43,7 @@ namespace EduEngine
 
 		std::unique_ptr<Camera> m_Camera;
 
-		std::unique_ptr<ColorPass> m_ColorPass;
+		std::unique_ptr<ForwardOpaque> m_ColorPass;
 
 		std::shared_ptr<Texture> m_Texture;
 		std::shared_ptr<Mesh> m_Mesh;

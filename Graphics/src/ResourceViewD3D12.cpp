@@ -2,11 +2,23 @@
 
 namespace EduEngine
 {
-	void ResourceViewD3D12::CreateUAV(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, bool onCpu)
+	void ResourceViewD3D12::CreateCBV()
 	{
 		DescriptorHeapAllocation allocation = std::move(Allocate(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, false));
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
+		desc.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
+		desc.SizeInBytes = m_d3d12Resource->GetDesc().Width;
+
+		m_Device->GetD3D12Device()->CreateConstantBufferView(&desc, allocation.GetCpuHandle());
+		m_CbvView = std::make_unique<ResourceHeapView>(this, std::move(allocation), false);
+	}
+
+	void ResourceViewD3D12::CreateUAV(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, bool onCpu)
+	{
+		DescriptorHeapAllocation allocation = std::move(Allocate(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, onCpu));
 		m_Device->GetD3D12Device()->CreateUnorderedAccessView(m_d3d12Resource.Get(), nullptr, uavDesc, allocation.GetCpuHandle());
-		m_UavView = std::make_unique<ResourceHeapView>(this, std::move(allocation), false);
+		m_UavView = std::make_unique<ResourceHeapView>(this, std::move(allocation), onCpu);
 	}
 
 	void ResourceViewD3D12::CreateSRV(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, bool onCpu)

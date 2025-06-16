@@ -1,10 +1,8 @@
-SamplerState gAlbedo_sampler : register(s3);
-SamplerState gTestTex_sampler : register(s4);
+#include "LightingUtil.hlsl"
 
-Buffer<float4> gArray[13] : register(t4);
+SamplerState gAlbedo_sampler : register(s0);
+
 Texture2D gAlbedo : register(t0);
-Texture2D gTestTex : register(t3);
-StructuredBuffer<float> gStructBuff : register(t1);
 
 cbuffer cbPerObject : register(b0)
 {
@@ -14,7 +12,19 @@ cbuffer cbPerObject : register(b0)
 cbuffer cbPerPass : register(b1)
 {
     float4x4 gViewProj;
-};
+    float4 gAmbientLight;
+    uint gDirectionalLightsCount;
+    float3 gCamPos;
+}
+
+cbuffer cbMaterial : register(b2)
+{
+    float4 gDiffuseAlbedo;
+    float3 gFresnelR0;
+    float gRoughness;
+}
+
+ConstantBuffer<Light> cbLight : register(b3);
 
 struct VertexIn
 {
@@ -26,19 +36,23 @@ struct VertexIn
 
 struct VertexOut
 {
-	float4 PosH  : SV_POSITION;
+	float4 PosH  : SV_POSITION0;
+	float3 PosW  : POSITION;
+	float3 NormalW  : NORMAL;
+    float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD;
 };
 
 VertexOut VS(VertexIn vin)
 {
-	VertexOut vout;
-	
+    VertexOut vout = (VertexOut) 0.0f;
+
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
-    
-    float4 arrayFirst = gArray[0].Load(0);
-    
+    vout.PosW = posW.xyz;
     vout.PosH = mul(posW, gViewProj);
+
+    vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
+    vout.TangentW = mul(vin.TangentU, (float3x3) gWorld);
     vout.TexC = vin.TexC;
     
     return vout;
@@ -46,10 +60,24 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float a = gStructBuff.Load(0);
-    float4 b = gTestTex.Sample(gTestTex_sampler, a);
+    float4 diffuseAlbedo = gAlbedo.Sample(gAlbedo_sampler, float2(pin.TexC.x, pin.TexC.y)) * gDiffuseAlbedo;
+    float4 ambient = diffuseAlbedo * gAmbientLight;
     
-    return gAlbedo.Sample(gAlbedo_sampler, pin.TexC + b.xy);
+    pin.NormalW = normalize(pin.NormalW);
+    
+    Material mat;
+    mat.DiffuseAlbedo = diffuseAlbedo;
+    mat.FresnelR0 = gFresnelR0;
+    mat.Shininess = 1 - gRoughness;
+    
+    float3 light = 0.0f;
+    float3 eyePosW = normalize(gCamPos - pin.PosW);
+    light += ComputeDirectionalLight(cbLight, mat, pin.NormalW, eyePosW);
+    
+    float4 litColor = ambient + float4(light, 0);
+    litColor.a = ambient.a;
+    
+    return litColor;
 }
 
 

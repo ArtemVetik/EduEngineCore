@@ -34,12 +34,14 @@ namespace EduEngine
 			ResourceD3D12(pDevice, resource, queueId)
 		{ }
 
+		void CreateCBV();
 		void CreateUAV(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, bool onCpu = true);
 		void CreateSRV(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, bool onCpu = true);
 		void CreateRTV(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, bool onCpu = true);
 		void CreateDSV(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, bool onCpu = true);
 		void CreateSampler(const D3D12_SAMPLER_DESC* desc, bool onCpu = true);
 
+		ResourceHeapView* GetCBVView() const { return m_CbvView.get(); }
 		ResourceHeapView* GetUAVView() const { return m_UavView.get(); }
 		ResourceHeapView* GetSRVView() const { return m_SrvView.get(); }
 		ResourceHeapView* GetRTVView() const { return m_RtvView.get(); }
@@ -50,6 +52,7 @@ namespace EduEngine
 		DescriptorHeapAllocation Allocate(const D3D12_DESCRIPTOR_HEAP_TYPE& type, bool onCpu);
 
 	private:
+		std::unique_ptr<ResourceHeapView> m_CbvView;
 		std::unique_ptr<ResourceHeapView> m_UavView;
 		std::unique_ptr<ResourceHeapView> m_SrvView;
 		std::unique_ptr<ResourceHeapView> m_RtvView;
