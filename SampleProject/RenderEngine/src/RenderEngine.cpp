@@ -96,8 +96,8 @@ namespace EduEngine
 		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_Texture->GetD3D12Texture());
 		m_ColorPass->Build(m_Device.get());
 
-		m_ObjBuffer = std::make_unique<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
-		m_PassBuffer = std::make_unique<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
+		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
+		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
 
 		ForwardOpaque::MaterialConstants materialConstants = {};
 
@@ -117,12 +117,15 @@ namespace EduEngine
 
 		ForwardOpaque::Light l;
 
-		m_LightBuffer = std::make_unique<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
+		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
 		m_LightBuffer->LoadData(l);
 		m_LightBuffer->CreateSRV(1, sizeof(ForwardOpaque::Light));
 
 		m_ColorPass->GetPipelineState().BindResource(EDU_SHADER_TYPE_PIXEL, "cbMaterial", matBuffer);
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer.get());
+		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
+		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
+		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
+		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
 
 		return true;
 	}
@@ -221,9 +224,6 @@ namespace EduEngine
 		m_LightBuffer->LoadData(lightConstants);
 		m_LightBuffer->CreateSRV(1, sizeof(ForwardOpaque::Light));
 
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer.get());
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer.get());
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer.get());
 		m_ColorPass->GetPipelineState().CommitAll(true);
 
 		dCommandContext.GetCmdList()->IASetVertexBuffers(0, 1, &(m_RenderObject->GetVertexBuffer()->GetView()));

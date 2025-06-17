@@ -88,8 +88,8 @@ namespace EduEngine
             printf("Table %u:: NumResources: %u\t TableStartOffset: %u\n", i, t.GetNumResources(), t.TableStartOffset);
             for (uint32 j = 0; j < t.GetNumResources(); j++)
             {
-                printf("\tType: %s\tCPUHandle: %p\tpObject: %p\tGPUVirtualAddr: %p\n",
-                    ResTypeStr(t.GetResource(j).Type), t.GetResource(j).ResHandle.CPUDescriptorHandle, t.GetResource(j).pObject.get(), t.GetResource(j).ResHandle.GPUVirtualAddres);
+                printf("\tType: %s\tCPUHandle: %p\tpObject: %p\tpDynObject: %p\n",
+                    ResTypeStr(t.GetResource(j).Type), t.GetResource(j).CPUDescriptorHandle, t.GetResource(j).pObject.get(), t.GetResource(j).pDynObject.get());
             }
         }
     }

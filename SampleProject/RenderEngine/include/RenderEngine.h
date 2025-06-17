@@ -44,9 +44,9 @@ namespace EduEngine
 
 		std::unique_ptr<Camera> m_Camera;
 
-		std::unique_ptr<DynamicUploadBuffer> m_ObjBuffer;
-		std::unique_ptr<DynamicUploadBuffer> m_PassBuffer;
-		std::unique_ptr<DynamicUploadBuffer> m_LightBuffer;
+		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
+		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
+		std::shared_ptr<DynamicUploadBuffer> m_LightBuffer;
 		std::unique_ptr<ForwardOpaque> m_ColorPass;
 
 		std::shared_ptr<Texture> m_Texture;

@@ -62,10 +62,10 @@ namespace EduEngine
 			}
 
 			void BindResource(std::shared_ptr<ResourceViewD3D12> resourceView);
-			void BindDynamicResource(DynamicUploadBuffer* dynamicResource);
+			void BindDynamicResource(std::shared_ptr<DynamicUploadBuffer> dynamicResource);
 
 		private:
-			void BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, DynamicUploadBuffer* dynamicResource);
+			void BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, std::shared_ptr<DynamicUploadBuffer> dynamicResource);
 
 			ShaderResourceLayoutD3D12& m_ParentLayout;
 		};

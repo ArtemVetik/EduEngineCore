@@ -68,7 +68,7 @@ namespace EduEngine
 		m_ShaderLayouts[shaderType]->GetVariable(varName).BindResource(resource);
 	}
 
-	void PipelineStateD3D12Base::BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* varName, DynamicUploadBuffer* resource)
+	void PipelineStateD3D12Base::BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<DynamicUploadBuffer> resource)
 	{
 		VERIFY_EXPR(m_ShaderLayouts[shaderType] != nullptr, "");
 		m_ShaderLayouts[shaderType]->GetVariable(varName).BindDynamicResource(resource);

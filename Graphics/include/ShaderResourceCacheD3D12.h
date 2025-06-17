@@ -6,6 +6,7 @@
 #include <DescriptorHeapAllocation.h>
 #include <ShaderAPI.h>
 #include <ResourceD3D12.h>
+#include <DynamicUploadBuffer.h>
 
 namespace EduEngine
 {
@@ -39,12 +40,9 @@ namespace EduEngine
 		struct Resource
 		{
 			CachedResourceType Type = CachedResourceType::Unknown;
-			union Handle
-			{
-				D3D12_CPU_DESCRIPTOR_HANDLE CPUDescriptorHandle;
-				D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddres; // for constant buffers only
-			} ResHandle;
+			D3D12_CPU_DESCRIPTOR_HANDLE CPUDescriptorHandle;
 			std::shared_ptr<ResourceD3D12> pObject = nullptr;
+			std::shared_ptr<DynamicUploadBuffer> pDynObject = nullptr;
 		};
 
 		class RootTable

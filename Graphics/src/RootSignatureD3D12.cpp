@@ -127,7 +127,10 @@ namespace EduEngine
 					ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 			}
 
-			D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = res.ResHandle.GPUVirtualAddres;
+			D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = res.pObject ?
+				res.pObject->GetD3D12Resource()->GetGPUVirtualAddress() :
+				res.pDynObject->GetAllocation().GPUAddress;
+
 			if (isCompute)
 				ctx.GetCmdList()->SetComputeRootConstantBufferView(rootInd, cbvAddress);
 			else
@@ -382,7 +385,7 @@ namespace EduEngine
 		default:
 			// Resource not bound
 			VERIFY_EXPR(res.Type == CachedResourceType::Unknown, "Unexpected resource type");
-			VERIFY_EXPR(res.pObject == nullptr && res.ResHandle.CPUDescriptorHandle.ptr == 0, "Bound resource is unexpected");
+			VERIFY_EXPR(res.pObject == nullptr && res.CPUDescriptorHandle.ptr == 0, "Bound resource is unexpected");
 		}
 	}
 
@@ -516,22 +519,22 @@ namespace EduEngine
 						{
 							if (isResourceTable)
 							{
-								if (res.ResHandle.CPUDescriptorHandle.ptr == 0)
+								if (res.CPUDescriptorHandle.ptr == 0)
 									LOG_ERROR("No valid CbvSrvUav descriptor handle found for root parameter ", rootInd, ", descriptor slot ", offsetFromTableStart);
 
 								VERIFY_EXPR(dynamicCbvSrvUavTblOffset < numDynamicCbvSrvUavDescriptors, "Not enough space in the descriptor heap allocation");
 
-								pd3d12Device->CopyDescriptorsSimple(1, dynamicCbvSrvUavDescriptors.GetCpuHandle(dynamicCbvSrvUavTblOffset), res.ResHandle.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+								pd3d12Device->CopyDescriptorsSimple(1, dynamicCbvSrvUavDescriptors.GetCpuHandle(dynamicCbvSrvUavTblOffset), res.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 								++dynamicCbvSrvUavTblOffset;
 							}
 							else
 							{
-								if (res.ResHandle.CPUDescriptorHandle.ptr == 0)
+								if (res.CPUDescriptorHandle.ptr == 0)
 									LOG_ERROR("No valid sampler descriptor handle found for root parameter ", rootInd, ", descriptor slot ", offsetFromTableStart);
 
 								VERIFY_EXPR(dynamicSamplerTblOffset < numDynamicSamplerDescriptors, "Not enough space in the descriptor heap allocation");
 
-								pd3d12Device->CopyDescriptorsSimple(1, dynamicSamplerDescriptors.GetCpuHandle(dynamicSamplerTblOffset), res.ResHandle.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+								pd3d12Device->CopyDescriptorsSimple(1, dynamicSamplerDescriptors.GetCpuHandle(dynamicSamplerTblOffset), res.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 								++dynamicSamplerTblOffset;
 							}
 						}

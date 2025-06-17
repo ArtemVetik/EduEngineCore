@@ -261,20 +261,20 @@ namespace EduEngine
 
 					dstRes.pObject = srcRes.pObject;
 					dstRes.Type = srcRes.Type;
-					dstRes.ResHandle.CPUDescriptorHandle = srcRes.ResHandle.CPUDescriptorHandle;
+					dstRes.CPUDescriptorHandle = srcRes.CPUDescriptorHandle;
 
 					auto shdrVisibleHeapCPUDescriptorHandle = m_pResourceCache->GetShaderVisibleTableCPUDescriptorHandle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>(res.RootIndex, res.OffsetFromTableStart + arrInd);
 					VERIFY_EXPR(shdrVisibleHeapCPUDescriptorHandle.ptr != 0 || dstRes.Type == CachedResourceType::CBV, "");
 					if (shdrVisibleHeapCPUDescriptorHandle.ptr != 0)
 					{
-						m_pd3d12Device->CopyDescriptorsSimple(1, shdrVisibleHeapCPUDescriptorHandle, srcRes.ResHandle.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+						m_pd3d12Device->CopyDescriptorsSimple(1, shdrVisibleHeapCPUDescriptorHandle, srcRes.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 					}
 				}
 				else
 				{
 					VERIFY_EXPR(dstRes.pObject == srcRes.pObject, "");
 					VERIFY_EXPR(dstRes.Type == srcRes.Type, "");
-					VERIFY_EXPR(dstRes.ResHandle.CPUDescriptorHandle.ptr == srcRes.ResHandle.CPUDescriptorHandle.ptr, "");
+					VERIFY_EXPR(dstRes.CPUDescriptorHandle.ptr == srcRes.CPUDescriptorHandle.ptr, "");
 				}
 			}
 
@@ -302,20 +302,20 @@ namespace EduEngine
 
 						dstSampler.pObject = srcSampler.pObject;
 						dstSampler.Type = srcSampler.Type;
-						dstSampler.ResHandle.CPUDescriptorHandle = srcSampler.ResHandle.CPUDescriptorHandle;
+						dstSampler.CPUDescriptorHandle = srcSampler.CPUDescriptorHandle;
 
 						auto shdrVisibleSamplerHeapCPUDescriptorHandle = m_pResourceCache->GetShaderVisibleTableCPUDescriptorHandle<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER>(samInfo.RootIndex, samInfo.OffsetFromTableStart + arrInd);
 						VERIFY_EXPR(shdrVisibleSamplerHeapCPUDescriptorHandle.ptr != 0, "");
 						if (shdrVisibleSamplerHeapCPUDescriptorHandle.ptr != 0)
 						{
-							m_pd3d12Device->CopyDescriptorsSimple(1, shdrVisibleSamplerHeapCPUDescriptorHandle, srcSampler.ResHandle.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+							m_pd3d12Device->CopyDescriptorsSimple(1, shdrVisibleSamplerHeapCPUDescriptorHandle, srcSampler.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 						}
 					}
 					else
 					{
 						VERIFY_EXPR(dstSampler.pObject == srcSampler.pObject, "");
 						VERIFY_EXPR(dstSampler.Type == srcSampler.Type, "");
-						VERIFY_EXPR(dstSampler.ResHandle.CPUDescriptorHandle.ptr == srcSampler.ResHandle.CPUDescriptorHandle.ptr, "");
+						VERIFY_EXPR(dstSampler.CPUDescriptorHandle.ptr == srcSampler.CPUDescriptorHandle.ptr, "");
 					}
 				}
 			}
@@ -396,12 +396,12 @@ namespace EduEngine
 		BindResource_Internal(resourceView, nullptr);
 	}
 
-	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindDynamicResource(DynamicUploadBuffer* dynamicResource)
+	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindDynamicResource(std::shared_ptr<DynamicUploadBuffer> dynamicResource)
 	{
 		BindResource_Internal(nullptr, dynamicResource);
 	}
 
-	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, DynamicUploadBuffer* dynamicResource)
+	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, std::shared_ptr<DynamicUploadBuffer> dynamicResource)
 	{
 		VERIFY_EXPR(resourceView != nullptr || dynamicResource != nullptr, "");
 		
@@ -410,19 +410,10 @@ namespace EduEngine
 		auto& dstRes = resourceCache->GetRootTable(RootIndex).GetResource(OffsetFromTableStart);
 		dstRes.Type = ResType;
 		dstRes.pObject = resourceView;
+		dstRes.pDynObject = dynamicResource;
 
 		if (ResType == CachedResourceType::CBV)
-		{
-			if (resourceView)
-			{
-				dstRes.ResHandle.GPUVirtualAddres = resourceView->GetD3D12Resource()->GetGPUVirtualAddress();
-			}
-			else
-			{
-				dstRes.ResHandle.GPUVirtualAddres = dynamicResource->GetAllocation().GPUAddress;
-			}
 			return;
-		}
 
 		auto shdrVisibleHeapCPUDescriptorHandle = resourceCache->GetShaderVisibleTableCPUDescriptorHandle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>(RootIndex, OffsetFromTableStart);
 
@@ -430,14 +421,14 @@ namespace EduEngine
 		{
 		case CachedResourceType::TexSRV:
 		case CachedResourceType::BufSRV:
-			dstRes.ResHandle.CPUDescriptorHandle = resourceView ?
-				dstRes.ResHandle.CPUDescriptorHandle = resourceView->GetSRVView()->GetCpuHandle() :
+			dstRes.CPUDescriptorHandle = resourceView ?
+				dstRes.CPUDescriptorHandle = resourceView->GetSRVView()->GetCpuHandle() :
 				dynamicResource->GetSRVDescriptorCPUHandle();
 			break;
 		case CachedResourceType::TexUAV:
 		case CachedResourceType::BufUAV:
-			dstRes.ResHandle.CPUDescriptorHandle = resourceView ?
-				dstRes.ResHandle.CPUDescriptorHandle = resourceView->GetUAVView()->GetCpuHandle() :
+			dstRes.CPUDescriptorHandle = resourceView ?
+				dstRes.CPUDescriptorHandle = resourceView->GetUAVView()->GetCpuHandle() :
 				dynamicResource->GetUAVDescriptorCPUHandle();
 			break;
 		default:
@@ -445,12 +436,12 @@ namespace EduEngine
 			break;
 		}
 
-		VERIFY_EXPR(dstRes.ResHandle.CPUDescriptorHandle.ptr != 0, "No relevant D3D12 view");
+		VERIFY_EXPR(dstRes.CPUDescriptorHandle.ptr != 0, "No relevant D3D12 view");
 
 		if (shdrVisibleHeapCPUDescriptorHandle.ptr != 0)
 		{
 			ID3D12Device* pd3d12Device = m_ParentLayout.m_pd3d12Device.Get();
-			pd3d12Device->CopyDescriptorsSimple(1, shdrVisibleHeapCPUDescriptorHandle, dstRes.ResHandle.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			pd3d12Device->CopyDescriptorsSimple(1, shdrVisibleHeapCPUDescriptorHandle, dstRes.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
 		if (SamplerId != InvalidSamplerId)
@@ -479,15 +470,15 @@ namespace EduEngine
 			VERIFY_EXPR(sampler != nullptr, "");
 
 			dstSam.Type = CachedResourceType::Sampler;
-			dstSam.ResHandle.CPUDescriptorHandle = sampler->GetCpuHandle();
+			dstSam.CPUDescriptorHandle = sampler->GetCpuHandle();
 			dstSam.pObject = pTexViewD3D12;
 
-			VERIFY_EXPR(dstSam.ResHandle.CPUDescriptorHandle.ptr != 0, "No relevant D3D12 sampler descriptor handle");
+			VERIFY_EXPR(dstSam.CPUDescriptorHandle.ptr != 0, "No relevant D3D12 sampler descriptor handle");
 
 			if (ShdrVisibleHeapCPUDescriptorHandle.ptr != 0)
 			{
 				ID3D12Device* pd3d12Device = m_ParentResLayout.m_pd3d12Device.Get();
-				pd3d12Device->CopyDescriptorsSimple(1, ShdrVisibleHeapCPUDescriptorHandle, dstSam.ResHandle.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+				pd3d12Device->CopyDescriptorsSimple(1, ShdrVisibleHeapCPUDescriptorHandle, dstSam.CPUDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 			}
 		}
 		else
