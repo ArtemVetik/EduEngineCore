@@ -61,7 +61,7 @@ namespace EduEngine
 			}
 		}
 
-		m_Texture->CreateSRV(&srvDesc, false);
+		m_Texture->CreateSRV(&srvDesc, true);
 
 		m_RefCount = 1;
 	}
