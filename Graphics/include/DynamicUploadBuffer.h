@@ -8,8 +8,8 @@ namespace EduEngine
 	{
 	private:
 		DynamicAllocation m_DynamicAllocation;
-		DescriptorHeapAllocation m_CbvDescriptorAllocation;
 		DescriptorHeapAllocation m_SrvDescriptorAllocation;
+		DescriptorHeapAllocation m_UavDescriptorAllocation;
 
 		RenderDeviceD3D12* m_Device;
 		QueueID m_QueueId;
@@ -28,12 +28,12 @@ namespace EduEngine
 		template <class T>
 		void PutData(size_t index, const T& data);
 
-		void DynamicUploadBuffer::CreateCBV();
 		void DynamicUploadBuffer::CreateSRV(size_t elemCount, size_t byteStride);
+		void DynamicUploadBuffer::CreateUAV(size_t elemCount, size_t byteStride);
 
 		DynamicAllocation GetAllocation() const { return m_DynamicAllocation; }
-		D3D12_GPU_DESCRIPTOR_HANDLE GetCBVDescriptorGPUHandle() { return m_CbvDescriptorAllocation.GetGpuHandle(); }
-		D3D12_GPU_DESCRIPTOR_HANDLE GetSRVDescriptorGPUHandle() { return m_SrvDescriptorAllocation.GetGpuHandle(); }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVDescriptorCPUHandle() { return m_SrvDescriptorAllocation.GetCpuHandle(); }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetUAVDescriptorCPUHandle() { return m_UavDescriptorAllocation.GetCpuHandle(); }
 	};
 
 	template<class T>

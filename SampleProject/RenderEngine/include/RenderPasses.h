@@ -81,7 +81,7 @@ namespace EduEngine
 
 			ShaderVariableDesc psVars[]{
 				ShaderVariableDesc("cbMaterial", SHADER_VARIABLE_TYPE_MUTABLE),
-				ShaderVariableDesc("cbLight", SHADER_VARIABLE_TYPE_DYNAMIC),
+				ShaderVariableDesc("gLight", SHADER_VARIABLE_TYPE_DYNAMIC),
 				ShaderVariableDesc("gAlbedo", SHADER_VARIABLE_TYPE_STATIC),
 			};
 

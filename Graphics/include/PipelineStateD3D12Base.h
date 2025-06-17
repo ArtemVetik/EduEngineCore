@@ -15,9 +15,8 @@ namespace EduEngine
 
 		void Build(RenderDeviceD3D12* pDevice);
 
-		void BindCB(EDU_SHADER_TYPE shaderType, const char* varName, DynamicAllocation allocation);
-		void BindCB(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<ResourceViewD3D12> resource);
 		void BindResource(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<ResourceViewD3D12> resource);
+		void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* varName, DynamicUploadBuffer* resource);
 		void CommitAll(bool transitionResources = false);
 
 		void SetName(const wchar_t* name) { m_PSO->SetName(name); }

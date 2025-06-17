@@ -62,22 +62,16 @@ namespace EduEngine
 		BuildPSO(m_Device->GetD3D12Device(), m_RootSignature.GetD3D12RootSignature(), m_PSO);
 	}
 
-	void PipelineStateD3D12Base::BindCB(EDU_SHADER_TYPE shaderType, const char* varName, DynamicAllocation allocation)
-	{
-		VERIFY_EXPR(m_ShaderLayouts[shaderType] != nullptr, "");
-		m_ShaderLayouts[shaderType]->GetVariable(varName).BindCB(allocation);
-	}
-
-	void PipelineStateD3D12Base::BindCB(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<ResourceViewD3D12> resource)
-	{
-		VERIFY_EXPR(m_ShaderLayouts[shaderType] != nullptr, "");
-		m_ShaderLayouts[shaderType]->GetVariable(varName).BindCB(resource);
-	}
-
 	void PipelineStateD3D12Base::BindResource(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<ResourceViewD3D12> resource)
 	{
 		VERIFY_EXPR(m_ShaderLayouts[shaderType] != nullptr, "");
 		m_ShaderLayouts[shaderType]->GetVariable(varName).BindResource(resource);
+	}
+
+	void PipelineStateD3D12Base::BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* varName, DynamicUploadBuffer* resource)
+	{
+		VERIFY_EXPR(m_ShaderLayouts[shaderType] != nullptr, "");
+		m_ShaderLayouts[shaderType]->GetVariable(varName).BindDynamicResource(resource);
 	}
 
 	void PipelineStateD3D12Base::CommitAll(bool transitionResources)

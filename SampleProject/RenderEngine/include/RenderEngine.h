@@ -8,6 +8,7 @@
 #include "RenderObject.h"
 
 #include "../../Graphics/include/SwapChain.h"
+#include "../../Graphics/include/DynamicUploadBuffer.h"
 
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -43,7 +44,9 @@ namespace EduEngine
 
 		std::unique_ptr<Camera> m_Camera;
 
-		std::shared_ptr<BufferD3D12> m_LightBuffer;
+		std::unique_ptr<DynamicUploadBuffer> m_ObjBuffer;
+		std::unique_ptr<DynamicUploadBuffer> m_PassBuffer;
+		std::unique_ptr<DynamicUploadBuffer> m_LightBuffer;
 		std::unique_ptr<ForwardOpaque> m_ColorPass;
 
 		std::shared_ptr<Texture> m_Texture;

@@ -391,55 +391,54 @@ namespace EduEngine
 		return m_NumSamplers[SHADER_VARIABLE_TYPE_STATIC] + m_NumSamplers[SHADER_VARIABLE_TYPE_MUTABLE] + m_NumSamplers[SHADER_VARIABLE_TYPE_DYNAMIC];
 	}
 
-	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindCB(DynamicAllocation allocation)
-	{
-		VERIFY_EXPR(ResType == CachedResourceType::CBV, "");
-
-		auto& resourceCache = m_ParentLayout.m_pResourceCache;
-		VERIFY_EXPR(resourceCache, "Resource cache is null");
-
-		auto& dstRes = resourceCache->GetRootTable(RootIndex).GetResource(OffsetFromTableStart);
-		dstRes.Type = ResType;
-		dstRes.ResHandle.GPUVirtualAddres = allocation.GPUAddress;
-		dstRes.pObject = nullptr;
-	}
-
-	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindCB(std::shared_ptr<ResourceViewD3D12> resourceView)
-	{
-		VERIFY_EXPR(ResType == CachedResourceType::CBV, "");
-
-		auto& resourceCache = m_ParentLayout.m_pResourceCache;
-		VERIFY_EXPR(resourceCache, "Resource cache is null");
-
-		auto& dstRes = resourceCache->GetRootTable(RootIndex).GetResource(OffsetFromTableStart);
-		dstRes.Type = ResType;
-		dstRes.ResHandle.GPUVirtualAddres = resourceView->GetD3D12Resource()->GetGPUVirtualAddress();
-		dstRes.pObject = resourceView;
-	}
-
 	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindResource(std::shared_ptr<ResourceViewD3D12> resourceView)
 	{
-		VERIFY_EXPR(resourceView != nullptr, "");
-		VERIFY_EXPR(ResType != CachedResourceType::CBV, "");
+		BindResource_Internal(resourceView, nullptr);
+	}
 
+	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindDynamicResource(DynamicUploadBuffer* dynamicResource)
+	{
+		BindResource_Internal(nullptr, dynamicResource);
+	}
+
+	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, DynamicUploadBuffer* dynamicResource)
+	{
+		VERIFY_EXPR(resourceView != nullptr || dynamicResource != nullptr, "");
+		
 		auto& resourceCache = m_ParentLayout.m_pResourceCache;
 		VERIFY_EXPR(resourceCache, "Resource cache is null");
-
 		auto& dstRes = resourceCache->GetRootTable(RootIndex).GetResource(OffsetFromTableStart);
-		auto shdrVisibleHeapCPUDescriptorHandle = resourceCache->GetShaderVisibleTableCPUDescriptorHandle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>(RootIndex, OffsetFromTableStart);
-
 		dstRes.Type = ResType;
 		dstRes.pObject = resourceView;
+
+		if (ResType == CachedResourceType::CBV)
+		{
+			if (resourceView)
+			{
+				dstRes.ResHandle.GPUVirtualAddres = resourceView->GetD3D12Resource()->GetGPUVirtualAddress();
+			}
+			else
+			{
+				dstRes.ResHandle.GPUVirtualAddres = dynamicResource->GetAllocation().GPUAddress;
+			}
+			return;
+		}
+
+		auto shdrVisibleHeapCPUDescriptorHandle = resourceCache->GetShaderVisibleTableCPUDescriptorHandle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>(RootIndex, OffsetFromTableStart);
 
 		switch (dstRes.Type)
 		{
 		case CachedResourceType::TexSRV:
 		case CachedResourceType::BufSRV:
-			dstRes.ResHandle.CPUDescriptorHandle = resourceView->GetSRVView()->GetCpuHandle();
+			dstRes.ResHandle.CPUDescriptorHandle = resourceView ?
+				dstRes.ResHandle.CPUDescriptorHandle = resourceView->GetSRVView()->GetCpuHandle() :
+				dynamicResource->GetSRVDescriptorCPUHandle();
 			break;
 		case CachedResourceType::TexUAV:
 		case CachedResourceType::BufUAV:
-			dstRes.ResHandle.CPUDescriptorHandle = resourceView->GetUAVView()->GetCpuHandle();
+			dstRes.ResHandle.CPUDescriptorHandle = resourceView ?
+				dstRes.ResHandle.CPUDescriptorHandle = resourceView->GetUAVView()->GetCpuHandle() :
+				dynamicResource->GetUAVDescriptorCPUHandle();
 			break;
 		default:
 			ASSERT_FAILED("Invalid resource type");
@@ -456,6 +455,7 @@ namespace EduEngine
 
 		if (SamplerId != InvalidSamplerId)
 		{
+			VERIFY_EXPR(resourceView != nullptr, "");
 			auto& sampler = m_ParentLayout.GetSampler(Attribs.GetVarType(), SamplerId);
 
 			VERIFY_EXPR(!sampler.Attribs.IsStaticSampler(), "Static samplers should never be assigned space in the cache");

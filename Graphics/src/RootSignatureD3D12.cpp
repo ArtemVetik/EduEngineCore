@@ -121,11 +121,11 @@ namespace EduEngine
 
 			auto& res = resourceCache.GetRootTable(rootInd).GetResource(0);
 
-			// TODO: if res is Dynamic, what should be in the pObject?
-#if 0
-			if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER))
-				ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-#endif
+			if (res.pObject)
+			{
+				if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER))
+					ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+			}
 
 			D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = res.ResHandle.GPUVirtualAddres;
 			if (isCompute)
@@ -344,6 +344,9 @@ namespace EduEngine
 		ShaderResourceCacheD3D12::Resource& res,
 		D3D12_DESCRIPTOR_RANGE_TYPE rangeType)
 	{
+		if (!res.pObject)
+			return;
+
 		const D3D12_RESOURCE_STATES D3D12_RESOURCE_STATE_SHADER_RESOURCE = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
 		switch (res.Type)

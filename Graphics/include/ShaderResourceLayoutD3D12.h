@@ -5,6 +5,7 @@
 
 #include <ShaderResourcesD3D12.h>
 #include <ShaderResourceCacheD3D12.h>
+#include <DynamicUploadBuffer.h>
 
 namespace EduEngine
 {
@@ -60,11 +61,12 @@ namespace EduEngine
 				VERIFY_EXPR(OffsetFromTableStart != InvalidOffset, "Offset must be valid");
 			}
 
-			void BindCB(DynamicAllocation allocation);
-			void BindCB(std::shared_ptr<ResourceViewD3D12> resourceView);
 			void BindResource(std::shared_ptr<ResourceViewD3D12> resourceView);
+			void BindDynamicResource(DynamicUploadBuffer* dynamicResource);
 
 		private:
+			void BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, DynamicUploadBuffer* dynamicResource);
+
 			ShaderResourceLayoutD3D12& m_ParentLayout;
 		};
 
