@@ -112,6 +112,7 @@ namespace EduEngine
 		m_ShaderResourceCache.DebugPrint();
 		printf("\n\n");
 	}
+#endif
 
 	void PipelineStateD3D12Base::SetShaderBase(const std::shared_ptr<ShaderD3D12>& shader)
 	{
@@ -119,5 +120,4 @@ namespace EduEngine
 		VERIFY_EXPR(m_Shaders[shader->GetShaderType()] == nullptr, "");
 		m_Shaders[shader->GetShaderType()] = shader;
 	}
-#endif
 }

@@ -156,8 +156,10 @@ namespace EduEngine
 		if (InputManager::GetInstance().IsKeyPressed(DIK_Q))
 			m_Camera->Move(-upVector * moveScale * timer.GetDeltaTime());
 
+#ifdef _DEBUG
 		if (InputManager::GetInstance().IsKeyDown(DIK_P))
 			m_ColorPass->GetPipelineState().DebugPrint();
+#endif
 
 		auto mouseState = InputManager::GetInstance().GetMouseState();
 

@@ -53,9 +53,9 @@ inline void EnsureStr(const char*) {}
 
 #else
 
-#define THROW_IF_FAILED do {} while(0)
-#define VERIFY_EXPR     do {} while(0)
-#define ASSERT_FAILED   do {} while(0)
-#define LOG_ERROR       do {} while(0)
+#define THROW_IF_FAILED(hr, message)    do {} while(0)
+#define VERIFY_EXPR(expr, fmt, ...)     do {} while(0)
+#define ASSERT_FAILED(message, ...)     do {} while(0)
+#define LOG_ERROR(message, ...)         do {} while(0)
 
 #endif
