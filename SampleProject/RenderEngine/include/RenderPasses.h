@@ -117,9 +117,15 @@ namespace EduEngine
 				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			};
 
+			D3D12_DEPTH_STENCIL_DESC dsDesc = {};
+			dsDesc.DepthEnable = TRUE;
+			dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+
 			m_Pso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
 			m_Pso.SetShader(m_VertexShader);
 			m_Pso.SetShader(m_PixelShader);
+			m_Pso.SetDepthStencilState(dsDesc);
 			m_Pso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
 			m_Pso.Build(device);
 			m_Pso.SetName(L"ColorPSO");

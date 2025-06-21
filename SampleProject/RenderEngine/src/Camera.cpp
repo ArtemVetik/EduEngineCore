@@ -63,8 +63,8 @@ namespace EduEngine
 		XMMATRIX P = XMMatrixPerspectiveFovLH(
 			m_FovY,
 			aspectRatio,
-			m_NearValue,
-			m_FarValue
+			m_FarValue,
+			m_NearValue
 		);
 		XMStoreFloat4x4(&m_ProjectionMatrix, (P));
 	}
