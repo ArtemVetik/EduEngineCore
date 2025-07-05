@@ -150,7 +150,7 @@ namespace EduEngine
 
 		D3D12_CLEAR_VALUE dsClear;
 		dsClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		dsClear.DepthStencil.Depth = 1.0f;
+		dsClear.DepthStencil.Depth = 0.0f;
 		dsClear.DepthStencil.Stencil = 0;
 
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
