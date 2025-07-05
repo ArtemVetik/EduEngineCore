@@ -47,7 +47,7 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_LightBuffer;
-		std::unique_ptr<ForwardOpaque> m_ColorPass;
+		std::unique_ptr<PBRLighting> m_ColorPass;
 
 		std::shared_ptr<Texture> m_Texture;
 		std::shared_ptr<Mesh> m_Mesh;

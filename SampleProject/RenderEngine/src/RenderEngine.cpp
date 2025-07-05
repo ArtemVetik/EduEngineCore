@@ -92,20 +92,20 @@ namespace EduEngine
 		m_RenderObject->SetMaterial(m_Material.get());
 		m_RenderObject->SetMesh(m_Mesh.get());
 
-		m_ColorPass = std::make_unique<ForwardOpaque>(m_Device.get());
+		m_ColorPass = std::make_unique<PBRLighting>(m_Device.get());
 		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_Texture->GetD3D12Texture());
 		m_ColorPass->Build(m_Device.get());
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
 
-		ForwardOpaque::MaterialConstants materialConstants = {};
+		PBRLighting::MaterialConstants materialConstants = {};
 
 		D3D12_RESOURCE_DESC buffDesc = {};
 		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 		buffDesc.Alignment = 0;
 		buffDesc.Height = 1;
-		buffDesc.Width = (sizeof(ForwardOpaque::MaterialConstants) + 255) & ~255;
+		buffDesc.Width = (sizeof(PBRLighting::MaterialConstants) + 255) & ~255;
 		buffDesc.DepthOrArraySize = 1;
 		buffDesc.MipLevels = 1;
 		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -115,11 +115,11 @@ namespace EduEngine
 
 		std::shared_ptr<BufferD3D12> matBuffer = std::make_shared<BufferD3D12>(m_Device.get(), buffDesc, &materialConstants, QueueID::Direct);
 
-		ForwardOpaque::Light l;
+		PBRLighting::Light l;
 
 		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
 		m_LightBuffer->LoadData(l);
-		m_LightBuffer->CreateSRV(1, sizeof(ForwardOpaque::Light));
+		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
 		m_ColorPass->GetPipelineState().BindResource(EDU_SHADER_TYPE_PIXEL, "cbMaterial", matBuffer);
 		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
@@ -208,23 +208,24 @@ namespace EduEngine
 		dCommandContext.GetCmdList()->ClearRenderTargetView(m_SwapChain->CurrentBackBufferView(), clear, 0, nullptr);
 		dCommandContext.GetCmdList()->ClearDepthStencilView(m_SwapChain->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
-		ForwardOpaque::ObjectConstants objConstants;
+		PBRLighting::ObjectConstants objConstants;
 		objConstants.World = (SimpleMath::Matrix::CreateScale(0.1f) * SimpleMath::Matrix::CreateRotationY(XM_PI)).Transpose();
 
-		ForwardOpaque::PassConstants passConstants;
+		PBRLighting::PassConstants passConstants;
 		XMStoreFloat4x4(&passConstants.ViewProj, XMMatrixTranspose(m_Camera->GetViewProjMatrix()));
 		passConstants.CamPos = m_Camera->GetPosition();
 
-		ForwardOpaque::Light lightConstants;
+		PBRLighting::Light lightConstants;
 		lightConstants.Direction.x = cos(timer.GetTotalTime() * 0.5f);
 		lightConstants.Direction.z = sin(timer.GetTotalTime() * 0.5f);
 		lightConstants.Direction.y = -1.0f;
 		lightConstants.Strength = { 1, 1, 1 };
+		lightConstants.Position = XMFLOAT3(-lightConstants.Direction.x * 20, 80, -lightConstants.Direction.z * 20);
 
 		m_ObjBuffer->LoadData(objConstants);
 		m_PassBuffer->LoadData(passConstants);
 		m_LightBuffer->LoadData(lightConstants);
-		m_LightBuffer->CreateSRV(1, sizeof(ForwardOpaque::Light));
+		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
 		m_ColorPass->GetPipelineState().CommitAll(true);
 
