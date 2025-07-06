@@ -11,9 +11,13 @@ struct Light
 };
 
 SamplerState gAlbedo_sampler : register(s0);
+SamplerState gMetallicRoughness_sampler : register(s1);
+SamplerState gAO_sampler : register(s2);
 
 Texture2D gAlbedo : register(t0);
-StructuredBuffer<Light> gLight : register(t1);
+Texture2D gMetallicRoughness : register(t1);
+Texture2D gAO : register(t2);
+StructuredBuffer<Light> gLight : register(t3);
 
 cbuffer cbPerObject : register(b0)
 {
@@ -30,10 +34,6 @@ cbuffer cbPerPass : register(b1)
 cbuffer cbMaterial : register(b2)
 {
     float4 gDiffuseAlbedo;
-    float gMetallic;
-    float gRoughness;
-    float gAO;
-    uint gPadding;
 }
 
 struct VertexIn
@@ -112,13 +112,19 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float3 albedo = pow(gAlbedo.Sample(gAlbedo_sampler, pin.TexC), 2.2);
+    pin.TexC.y = -pin.TexC.y;
+    float3 albedo = pow(gAlbedo.Sample(gAlbedo_sampler, pin.TexC), 2.2) * gDiffuseAlbedo;
+    float2 metallicRoughness = gMetallicRoughness.Sample(gMetallicRoughness_sampler, pin.TexC).gb;
+    float ao = gAO.Sample(gAO_sampler, pin.TexC).r;
+    
+    float roughness = metallicRoughness.x;
+    float metallic = metallicRoughness.y;
     
     float3 N = normalize(pin.NormalW);
     float3 V = normalize(gCamPos - pin.PosW);
 
     float3 F0 = 0.04;
-    F0 = lerp(F0, albedo, gMetallic);
+    F0 = lerp(F0, albedo, metallic);
 	           
     // reflectance equation
     float3 Lo = 0.0;
@@ -131,13 +137,13 @@ float4 PS(VertexOut pin) : SV_Target
         float3 radiance = gLight[i].Strength;
         
         // cook-torrance brdf
-        float NDF = DistributionGGX(N, H, gRoughness);
-        float G = GeometrySmith(N, V, L, gRoughness);
+        float NDF = DistributionGGX(N, H, roughness);
+        float G = GeometrySmith(N, V, L, roughness);
         float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
         
         float3 kS = F;
         float3 kD = 1.0 - kS;
-        kD *= 1.0 - gMetallic;
+        kD *= 1.0 - metallic;
         
         float3 numerator = NDF * G * F;
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
@@ -148,7 +154,7 @@ float4 PS(VertexOut pin) : SV_Target
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
   
-    float3 ambient = 0.03 * albedo * gAO;
+    float3 ambient = 0.03 * albedo * ao;
     float3 color = ambient + Lo;
 	
     color = color / (color + 1.0);

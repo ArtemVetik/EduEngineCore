@@ -152,10 +152,6 @@ namespace EduEngine
 		struct MaterialConstants
 		{
 			XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-			float gMetallic = 0.0f;
-			float gRoughness = 0.15f;
-			float gAO = 1.0f;
-			UINT gPadding = 0;
 		};
 
 		struct Light
@@ -170,7 +166,7 @@ namespace EduEngine
 
 			Type LightType = Type::Directional;
 			DirectX::XMFLOAT3 Padding = { 0, 0, 0 };
-			DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
+			DirectX::XMFLOAT3 Strength = { 0.9f, 0.9f, 0.9f };
 			float FalloffStart = 1.04f;							 // point/spot light only
 			DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f }; // directional/spot light only
 			float FalloffEnd = 10.0f;							 // point/spot light only
@@ -183,7 +179,7 @@ namespace EduEngine
 		std::shared_ptr<ShaderD3D12> m_PixelShader;
 		ShaderDesc m_psDesc;
 		ShaderDesc m_vsDesc;
-		StaticSamplerDesc m_psStaticSamplers[1];
+		StaticSamplerDesc m_psStaticSamplers[3];
 
 		PipelineStateD3D12 m_Pso;
 
@@ -197,7 +193,12 @@ namespace EduEngine
 				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 				0.0f,
 				8);
+			m_psStaticSamplers[1].Desc = m_psStaticSamplers[0].Desc;
+			m_psStaticSamplers[2].Desc = m_psStaticSamplers[0].Desc;
+
 			m_psStaticSamplers[0].TextureName = "gAlbedo";
+			m_psStaticSamplers[1].TextureName = "gMetallicRoughness";
+			m_psStaticSamplers[2].TextureName = "gAO";
 
 			ShaderVariableDesc vsVars[]{
 				ShaderVariableDesc("cbPerObject", SHADER_VARIABLE_TYPE_DYNAMIC),
@@ -208,6 +209,8 @@ namespace EduEngine
 				ShaderVariableDesc("cbMaterial", SHADER_VARIABLE_TYPE_MUTABLE),
 				ShaderVariableDesc("gLight", SHADER_VARIABLE_TYPE_DYNAMIC),
 				ShaderVariableDesc("gAlbedo", SHADER_VARIABLE_TYPE_STATIC),
+				ShaderVariableDesc("gMetallicRoughness", SHADER_VARIABLE_TYPE_STATIC),
+				ShaderVariableDesc("gAO", SHADER_VARIABLE_TYPE_STATIC),
 			};
 
 			m_psDesc = {};

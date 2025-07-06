@@ -80,12 +80,18 @@ namespace EduEngine
 
 		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).Reset();
 
-		m_Mesh = std::make_shared<Mesh>(m_Device.get(), "Models\\joseph.fbx");
+		m_Mesh = std::make_shared<Mesh>(m_Device.get(), "Models\\DamagedHelmet.gltf");
 		m_Mesh->Load();
 
-		m_Texture = std::make_shared<Texture>(m_Device.get(), L"Textures\\principledshader_albedo.dds");
+		m_AlbedoTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_albedo.dds");
+		m_MetallicRoughnessTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_metalRoughness.dds");
+		m_AOTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_AO.dds");
+
+		m_MetallicRoughnessTexture->Load();
+		m_AOTexture->Load();
+
 		m_Material = std::make_shared<Material>();
-		m_Material->SetMainTexture(m_Texture.get());
+		m_Material->SetMainTexture(m_AlbedoTexture.get());
 		m_Material->Load();
 
 		m_RenderObject = std::make_shared<RenderObject>();
@@ -93,7 +99,9 @@ namespace EduEngine
 		m_RenderObject->SetMesh(m_Mesh.get());
 
 		m_ColorPass = std::make_unique<PBRLighting>(m_Device.get());
-		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_Texture->GetD3D12Texture());
+		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_AlbedoTexture->GetD3D12Texture());
+		m_ColorPass->GetStaticPSVariable("gMetallicRoughness").BindResource(m_MetallicRoughnessTexture->GetD3D12Texture());
+		m_ColorPass->GetStaticPSVariable("gAO").BindResource(m_AOTexture->GetD3D12Texture());
 		m_ColorPass->Build(m_Device.get());
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);
@@ -209,7 +217,7 @@ namespace EduEngine
 		dCommandContext.GetCmdList()->ClearDepthStencilView(m_SwapChain->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
 		PBRLighting::ObjectConstants objConstants;
-		objConstants.World = (SimpleMath::Matrix::CreateScale(0.1f) * SimpleMath::Matrix::CreateRotationY(XM_PI)).Transpose();
+		objConstants.World = (SimpleMath::Matrix::CreateScale(50.0f) * SimpleMath::Matrix::CreateRotationX(XM_PIDIV2) * SimpleMath::Matrix::CreateRotationY(XM_PI)).Transpose();
 
 		PBRLighting::PassConstants passConstants;
 		XMStoreFloat4x4(&passConstants.ViewProj, XMMatrixTranspose(m_Camera->GetViewProjMatrix()));
