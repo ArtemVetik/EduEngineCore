@@ -179,7 +179,7 @@ namespace EduEngine
 		std::shared_ptr<ShaderD3D12> m_PixelShader;
 		ShaderDesc m_psDesc;
 		ShaderDesc m_vsDesc;
-		StaticSamplerDesc m_psStaticSamplers[3];
+		StaticSamplerDesc m_psStaticSamplers[4];
 
 		PipelineStateD3D12 m_Pso;
 
@@ -187,7 +187,7 @@ namespace EduEngine
 		PBRLighting(RenderDeviceD3D12* device, const LPCWSTR* macros = nullptr)
 		{
 			m_psStaticSamplers[0].Desc = CD3DX12_STATIC_SAMPLER_DESC(0,
-				D3D12_FILTER_MIN_MAG_MIP_POINT,
+				D3D12_FILTER_MIN_MAG_MIP_LINEAR,
 				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
@@ -195,10 +195,12 @@ namespace EduEngine
 				8);
 			m_psStaticSamplers[1].Desc = m_psStaticSamplers[0].Desc;
 			m_psStaticSamplers[2].Desc = m_psStaticSamplers[0].Desc;
+			m_psStaticSamplers[3].Desc = m_psStaticSamplers[0].Desc;
 
 			m_psStaticSamplers[0].TextureName = "gAlbedo";
 			m_psStaticSamplers[1].TextureName = "gMetallicRoughness";
 			m_psStaticSamplers[2].TextureName = "gAO";
+			m_psStaticSamplers[3].TextureName = "gNormalMap";
 
 			ShaderVariableDesc vsVars[]{
 				ShaderVariableDesc("cbPerObject", SHADER_VARIABLE_TYPE_DYNAMIC),
@@ -211,6 +213,7 @@ namespace EduEngine
 				ShaderVariableDesc("gAlbedo", SHADER_VARIABLE_TYPE_STATIC),
 				ShaderVariableDesc("gMetallicRoughness", SHADER_VARIABLE_TYPE_STATIC),
 				ShaderVariableDesc("gAO", SHADER_VARIABLE_TYPE_STATIC),
+				ShaderVariableDesc("gNormalMap", SHADER_VARIABLE_TYPE_STATIC),
 			};
 
 			m_psDesc = {};

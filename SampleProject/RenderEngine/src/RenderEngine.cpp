@@ -86,9 +86,11 @@ namespace EduEngine
 		m_AlbedoTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_albedo.dds");
 		m_MetallicRoughnessTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_metalRoughness.dds");
 		m_AOTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_AO.dds");
+		m_NormalMapTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_normal.dds");
 
 		m_MetallicRoughnessTexture->Load();
 		m_AOTexture->Load();
+		m_NormalMapTexture->Load();
 
 		m_Material = std::make_shared<Material>();
 		m_Material->SetMainTexture(m_AlbedoTexture.get());
@@ -102,6 +104,7 @@ namespace EduEngine
 		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_AlbedoTexture->GetD3D12Texture());
 		m_ColorPass->GetStaticPSVariable("gMetallicRoughness").BindResource(m_MetallicRoughnessTexture->GetD3D12Texture());
 		m_ColorPass->GetStaticPSVariable("gAO").BindResource(m_AOTexture->GetD3D12Texture());
+		m_ColorPass->GetStaticPSVariable("gNormalMap").BindResource(m_NormalMapTexture->GetD3D12Texture());
 		m_ColorPass->Build(m_Device.get());
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(m_Device.get(), QueueID::Direct);

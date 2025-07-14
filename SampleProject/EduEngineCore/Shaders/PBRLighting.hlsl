@@ -13,11 +13,13 @@ struct Light
 SamplerState gAlbedo_sampler : register(s0);
 SamplerState gMetallicRoughness_sampler : register(s1);
 SamplerState gAO_sampler : register(s2);
+SamplerState gNormalMap_sampler : register(s3);
 
 Texture2D gAlbedo : register(t0);
 Texture2D gMetallicRoughness : register(t1);
 Texture2D gAO : register(t2);
-StructuredBuffer<Light> gLight : register(t3);
+Texture2D gNormalMap : register(t3);
+StructuredBuffer<Light> gLight : register(t4);
 
 cbuffer cbPerObject : register(b0)
 {
@@ -95,6 +97,27 @@ float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
     return ggx1 * ggx2;
 }
 
+//---------------------------------------------------------------------------------------
+// Transforms a normal map sample to world space.
+//---------------------------------------------------------------------------------------
+float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, float3 tangentW)
+{
+	// Uncompress each component from [0,1] to [-1,1].
+    float3 normalT = 2.0f * normalMapSample - 1.0f;
+
+	// Build orthonormal basis.
+    float3 N = unitNormalW;
+    float3 T = normalize(tangentW - dot(tangentW, N) * N);
+    float3 B = cross(N, T);
+
+    float3x3 TBN = float3x3(T, B, N);
+
+	// Transform from tangent space to world space.
+    float3 bumpedNormalW = mul(normalT, TBN);
+
+    return bumpedNormalW;
+}
+
 VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
@@ -120,9 +143,12 @@ float4 PS(VertexOut pin) : SV_Target
     float roughness = metallicRoughness.x;
     float metallic = metallicRoughness.y;
     
-    float3 N = normalize(pin.NormalW);
+    pin.NormalW = normalize(pin.NormalW);
     float3 V = normalize(gCamPos - pin.PosW);
-
+    
+    float3 normalMapSample = gNormalMap.Sample(gNormalMap_sampler, pin.TexC);
+    float3 N = NormalSampleToWorldSpace(normalMapSample, pin.NormalW, pin.TangentW);
+    
     float3 F0 = 0.04;
     F0 = lerp(F0, albedo, metallic);
 	           

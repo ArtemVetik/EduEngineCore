@@ -52,6 +52,7 @@ namespace EduEngine
 		std::shared_ptr<Texture> m_AlbedoTexture;
 		std::shared_ptr<Texture> m_MetallicRoughnessTexture;
 		std::shared_ptr<Texture> m_AOTexture;
+		std::shared_ptr<Texture> m_NormalMapTexture;
 		std::shared_ptr<Mesh> m_Mesh;
 		std::shared_ptr<Material> m_Material;
 		std::shared_ptr<RenderObject> m_RenderObject;
