@@ -26,6 +26,8 @@ namespace EduEngine
 		cmdContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_GENERIC_READ));
 		cmdContext->FlushResourceBarriers();
+
+		SetState(D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 
 	BufferD3D12::BufferD3D12(RenderDeviceD3D12*			pDevice,
@@ -46,6 +48,8 @@ namespace EduEngine
 		THROW_IF_FAILED(hr, L"Failed to create resource in default heap");
 
 		m_d3d12Resource->SetName(L"BufferD3D12");
+
+		SetState(D3D12_RESOURCE_STATE_GENERIC_READ);
 
 		LoadData(initData);
 	}

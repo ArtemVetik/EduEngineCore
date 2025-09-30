@@ -37,6 +37,8 @@ namespace EduEngine
 		);
 
 		THROW_IF_FAILED(hr, L"Failed to load dds texture");
+
+		SetState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	TextureD3D12::~TextureD3D12()
