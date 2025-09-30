@@ -30,7 +30,7 @@ namespace EduEngine
 	{
 		HRESULT hr = DirectX::CreateDDSTextureFromFile12(
 			m_Device->GetD3D12Device(),
-			m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).GetCmdList(),
+			m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList(),
 			ddsTexPath.c_str(),
 			m_d3d12Resource,
 			m_DDSuploadHeap
@@ -71,6 +71,6 @@ namespace EduEngine
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
 		m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, uploadBuff.Offset + alignOffset, &src.PlacedFootprint, nullptr, nullptr, nullptr);
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 	}
 }

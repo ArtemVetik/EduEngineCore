@@ -78,7 +78,7 @@ namespace EduEngine
 
 		Resize(mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
 
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).Reset();
+		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->Reset();
 
 		m_Mesh = std::make_shared<Mesh>(m_Device.get(), "Models\\DamagedHelmet.gltf");
 		m_Mesh->Load();
@@ -202,22 +202,22 @@ namespace EduEngine
 	{
 		ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
 
-		auto& dCommandContext = m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto* dCommandContext = m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto& dCommandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		dCommandContext.Reset();
-		dCommandContext.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
+		dCommandContext->Reset();
+		dCommandContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		dCommandContext.FlushResourceBarriers();
-		dCommandContext.GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+		dCommandContext->FlushResourceBarriers();
+		dCommandContext->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-		dCommandContext.SetRenderTargets(1, &m_SwapChain->CurrentBackBufferView(), true, &m_SwapChain->DepthStencilView());
-		dCommandContext.SetViewports(&m_Viewport, 1);
-		dCommandContext.SetScissorRects(&m_ScissorRect, 1);
+		dCommandContext->SetRenderTargets(1, &m_SwapChain->CurrentBackBufferView(), true, &m_SwapChain->DepthStencilView());
+		dCommandContext->SetViewports(&m_Viewport, 1);
+		dCommandContext->SetScissorRects(&m_ScissorRect, 1);
 
 		const float clear[4] = { 0, 0, 0, 1 };
-		dCommandContext.GetCmdList()->ClearRenderTargetView(m_SwapChain->CurrentBackBufferView(), clear, 0, nullptr);
-		dCommandContext.GetCmdList()->ClearDepthStencilView(m_SwapChain->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
+		dCommandContext->GetCmdList()->ClearRenderTargetView(m_SwapChain->CurrentBackBufferView(), clear, 0, nullptr);
+		dCommandContext->GetCmdList()->ClearDepthStencilView(m_SwapChain->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
 		PBRLighting::ObjectConstants objConstants;
 		objConstants.World = (SimpleMath::Matrix::CreateScale(50.0f) * SimpleMath::Matrix::CreateRotationX(XM_PIDIV2) * SimpleMath::Matrix::CreateRotationY(XM_PI)).Transpose();
@@ -240,18 +240,18 @@ namespace EduEngine
 
 		m_ColorPass->GetPipelineState().CommitAll(true);
 
-		dCommandContext.GetCmdList()->IASetVertexBuffers(0, 1, &(m_RenderObject->GetVertexBuffer()->GetView()));
-		dCommandContext.GetCmdList()->IASetIndexBuffer(&(m_RenderObject->GetIndexBuffer()->GetView()));
-		dCommandContext.GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		dCommandContext->GetCmdList()->IASetVertexBuffers(0, 1, &(m_RenderObject->GetVertexBuffer()->GetView()));
+		dCommandContext->GetCmdList()->IASetIndexBuffer(&(m_RenderObject->GetIndexBuffer()->GetView()));
+		dCommandContext->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		dCommandContext.GetCmdList()->DrawIndexedInstanced(m_RenderObject->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
+		dCommandContext->GetCmdList()->DrawIndexedInstanced(m_RenderObject->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
 
-		dCommandContext.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
+		dCommandContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-		dCommandContext.FlushResourceBarriers();
+		dCommandContext->FlushResourceBarriers();
 
-		dCommandQueue.CloseAndExecuteCommandContext(&dCommandContext);
-		dCommandContext.Reset();
+		dCommandQueue.CloseAndExecuteCommandContext(dCommandContext);
+		dCommandContext->Reset();
 
 		m_SwapChain->Present();
 		m_Device->FinishFrame();
@@ -263,7 +263,6 @@ namespace EduEngine
 		{
 			Resize(m_PendingResize.width, m_PendingResize.height);
 			m_PendingResize = EmptyResize;
-			dCommandContext.Reset();
 		}
 	}
 
@@ -278,14 +277,15 @@ namespace EduEngine
 
 	void RenderEngine::Resize(UINT w, UINT h)
 	{
-		auto& commandContext = m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto* commandContext = m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		commandContext.Reset();
+		commandContext->Reset();
 		m_SwapChain->Resize(w, h);
 
-		commandContext.FlushResourceBarriers();
-		commandQueue.CloseAndExecuteCommandContext(&commandContext);
+		commandContext->FlushResourceBarriers();
+		commandQueue.CloseAndExecuteCommandContext(commandContext);
+		commandContext->Reset();
 
 		m_Viewport.TopLeftX = 0;
 		m_Viewport.TopLeftY = 0;

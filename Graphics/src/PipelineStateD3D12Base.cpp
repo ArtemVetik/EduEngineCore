@@ -77,8 +77,8 @@ namespace EduEngine
 	void PipelineStateD3D12Base::CommitAll(bool transitionResources)
 	{
 		// TODO: change COMMAND_LIST_TYPE
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).GetCmdList()->SetPipelineState(m_PSO.Get());
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT).GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
+		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList()->SetPipelineState(m_PSO.Get());
+		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
 
 		m_RootSignature.CommitRootViews(m_ShaderResourceCache, m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT), false);
 		m_RootSignature.CommitDescriptorHandles(m_Device, m_ShaderResourceCache, m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT), false, transitionResources);

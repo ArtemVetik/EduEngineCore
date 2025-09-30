@@ -45,7 +45,7 @@ namespace EduEngine
 		gBuffDescSRV.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		gBuffDescSRV.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-		auto& commandContext = device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto* commandContext = device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		for (int i = 0; i < m_gBufferCount; i++)
 		{
@@ -57,7 +57,7 @@ namespace EduEngine
 			m_GBuffers[i]->CreateRTV(nullptr, true);
 			m_GBuffers[i]->CreateSRV(&gBuffDescSRV, false);
 
-			commandContext.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(
+			commandContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(
 				m_GBuffers[i]->GetD3D12Resource(),
 				D3D12_RESOURCE_STATE_COMMON,
 				D3D12_RESOURCE_STATE_RENDER_TARGET
@@ -82,7 +82,7 @@ namespace EduEngine
 			swprintf(bufferName, 32, L"AccumulationBuffer-%d", i);
 			m_AccumBuffer[i]->SetName(bufferName);
 
-			commandContext.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(
+			commandContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(
 				m_AccumBuffer[i]->GetD3D12Resource(),
 				D3D12_RESOURCE_STATE_COMMON,
 				D3D12_RESOURCE_STATE_RENDER_TARGET

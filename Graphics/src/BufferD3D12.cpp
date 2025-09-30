@@ -21,11 +21,11 @@ namespace EduEngine
 
 		m_d3d12Resource->SetName(L"BufferD3D12");
 
-		auto& cmdContext = pDevice->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto* cmdContext = pDevice->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		cmdContext.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
+		cmdContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_GENERIC_READ));
-		cmdContext.FlushResourceBarriers();
+		cmdContext->FlushResourceBarriers();
 	}
 
 	BufferD3D12::BufferD3D12(RenderDeviceD3D12*			pDevice,
@@ -63,21 +63,21 @@ namespace EduEngine
 
 		memcpy(reinterpret_cast<char*>(uploadBuff.CPUAddress), data, uploadBufferSize);
 
-		auto& cmdContext = m_QueueId != QueueID::Direct
+		auto* cmdContext = m_QueueId != QueueID::Direct
 			? m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_COMPUTE)
 			: m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		auto beforeState = m_QueueId != QueueID::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
 
-		cmdContext.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
+		cmdContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			beforeState, D3D12_RESOURCE_STATE_COPY_DEST));
-		cmdContext.FlushResourceBarriers();
+		cmdContext->FlushResourceBarriers();
 
-		cmdContext.GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.pBuffer, uploadBuff.Offset, uploadBufferSize);
+		cmdContext->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.pBuffer, uploadBuff.Offset, uploadBufferSize);
 
-		cmdContext.ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
+		cmdContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			D3D12_RESOURCE_STATE_COPY_DEST, beforeState));
-		cmdContext.FlushResourceBarriers();
+		cmdContext->FlushResourceBarriers();
 	}
 
 	ReadBackBufferD3D12::ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,

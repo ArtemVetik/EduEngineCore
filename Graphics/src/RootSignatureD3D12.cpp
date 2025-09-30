@@ -112,7 +112,7 @@ namespace EduEngine
 		}
 	}
 
-	void RootSignatureD3D12_1::CommitRootViews(ShaderResourceCacheD3D12& resourceCache, CommandContext& ctx, bool isCompute) const
+	void RootSignatureD3D12_1::CommitRootViews(ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute) const
 	{
 		for (uint32 rv = 0; rv < m_RootParams.GetNumRootViews(); ++rv)
 		{
@@ -124,7 +124,7 @@ namespace EduEngine
 			if (res.pObject)
 			{
 				if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER))
-					ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+					ctx->TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 			}
 
 			D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = res.pObject ?
@@ -132,13 +132,13 @@ namespace EduEngine
 				res.pDynObject->GetAllocation().GPUAddress;
 
 			if (isCompute)
-				ctx.GetCmdList()->SetComputeRootConstantBufferView(rootInd, cbvAddress);
+				ctx->GetCmdList()->SetComputeRootConstantBufferView(rootInd, cbvAddress);
 			else
-				ctx.GetCmdList()->SetGraphicsRootConstantBufferView(rootInd, cbvAddress);
+				ctx->GetCmdList()->SetGraphicsRootConstantBufferView(rootInd, cbvAddress);
 		}
 	}
 
-	void RootSignatureD3D12_1::CommitDescriptorHandles(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext& ctx, bool isCompute, bool transitionResources) const
+	void RootSignatureD3D12_1::CommitDescriptorHandles(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
 	{
 		if (m_DynamicSignature)
 			CommitDescriptorHandlesInternal_SMD(device, resourceCache, ctx, isCompute, transitionResources);
@@ -343,9 +343,9 @@ namespace EduEngine
 	}
 #endif
 
-	__forceinline void TransitionResource(CommandContext& ctx,
-		ShaderResourceCacheD3D12::Resource& res,
-		D3D12_DESCRIPTOR_RANGE_TYPE rangeType)
+	__forceinline void TransitionResource(CommandContext* ctx,
+										  ShaderResourceCacheD3D12::Resource& res,
+										  D3D12_DESCRIPTOR_RANGE_TYPE rangeType)
 	{
 		if (!res.pObject)
 			return;
@@ -357,27 +357,27 @@ namespace EduEngine
 		case CachedResourceType::CBV:
 			VERIFY_EXPR(rangeType == D3D12_DESCRIPTOR_RANGE_TYPE_CBV, "Unexpected descriptor range type");
 			if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER))
-				ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+				ctx->TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 			break;
 		case CachedResourceType::BufSRV:
 			VERIFY_EXPR(rangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV, "Unexpected descriptor range type");
 			if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_SHADER_RESOURCE))
-				ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+				ctx->TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 			break;
 		case CachedResourceType::BufUAV:
 			VERIFY_EXPR(rangeType == D3D12_DESCRIPTOR_RANGE_TYPE_UAV, "Unexpected descriptor range type");
 			if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
-				ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				ctx->TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			break;
 		case CachedResourceType::TexSRV:
 			VERIFY_EXPR(rangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SRV, "Unexpected descriptor range type");
 			if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_SHADER_RESOURCE))
-				ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_SHADER_RESOURCE);
+				ctx->TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_SHADER_RESOURCE);
 			break;
 		case CachedResourceType::TexUAV:
 			VERIFY_EXPR(rangeType == D3D12_DESCRIPTOR_RANGE_TYPE_UAV, "Unexpected descriptor range type");
 			if (!res.pObject->CheckAllStates(D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
-				ctx.TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				ctx->TransitionResource(res.pObject.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			break;
 		case CachedResourceType::Sampler:
 			VERIFY_EXPR(rangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, "Unexpected descriptor range type");
@@ -408,7 +408,7 @@ namespace EduEngine
 		}
 	}
 
-	void RootSignatureD3D12_1::CommitDescriptorHandlesInternal_SM(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext& ctx, bool isCompute, bool transitionResources) const
+	void RootSignatureD3D12_1::CommitDescriptorHandlesInternal_SM(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
 	{
 		VERIFY_EXPR(m_TotalSrvCbvUavSlots[SHADER_VARIABLE_TYPE_DYNAMIC] == 0 && m_TotalSamplerSlots[SHADER_VARIABLE_TYPE_DYNAMIC] == 0, "");
 
@@ -419,7 +419,7 @@ namespace EduEngine
 		};
 
 		if (descriptorHeaps)
-			ctx.GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+			ctx->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 		m_RootParams.ProcessRootTables(
 			[&](uint32 RootInd, const RootParameter& RootTable, const D3D12_ROOT_PARAMETER& D3D12Param, bool IsResourceTable)
@@ -432,9 +432,9 @@ namespace EduEngine
 				VERIFY_EXPR(RootTableGPUDescriptorHandle.ptr != 0, "Unexpected null GPU descriptor handle");
 
 				if (isCompute)
-					ctx.GetCmdList()->SetComputeRootDescriptorTable(RootInd, RootTableGPUDescriptorHandle);
+					ctx->GetCmdList()->SetComputeRootDescriptorTable(RootInd, RootTableGPUDescriptorHandle);
 				else
-					ctx.GetCmdList()->SetGraphicsRootDescriptorTable(RootInd, RootTableGPUDescriptorHandle);
+					ctx->GetCmdList()->SetGraphicsRootDescriptorTable(RootInd, RootTableGPUDescriptorHandle);
 
 				if (transitionResources)
 				{
@@ -449,7 +449,7 @@ namespace EduEngine
 		);
 	}
 
-	void RootSignatureD3D12_1::CommitDescriptorHandlesInternal_SMD(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext& ctx, bool isCompute, bool transitionResources) const
+	void RootSignatureD3D12_1::CommitDescriptorHandlesInternal_SMD(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
 	{
 		auto* pd3d12Device = device->GetD3D12Device();
 
@@ -475,7 +475,7 @@ namespace EduEngine
 			VERIFY_EXPR(dynamicSamplerDescriptors.GetDescriptorHeap() == descriptorHeaps[1], "Inconsistent Sampler descriptor heaps");
 
 		if (descriptorHeaps)
-			ctx.GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+			ctx->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 		// Offset to the beginning of the current dynamic CBV_SRV_UAV/SAMPLER table from 
 		// the start of the allocation
@@ -503,9 +503,9 @@ namespace EduEngine
 				}
 
 				if (isCompute)
-					ctx.GetCmdList()->SetComputeRootDescriptorTable(rootInd, rootTableGPUDescriptorHandle);
+					ctx->GetCmdList()->SetComputeRootDescriptorTable(rootInd, rootTableGPUDescriptorHandle);
 				else
-					ctx.GetCmdList()->SetGraphicsRootDescriptorTable(rootInd, rootTableGPUDescriptorHandle);
+					ctx->GetCmdList()->SetGraphicsRootDescriptorTable(rootInd, rootTableGPUDescriptorHandle);
 
 				ProcessCachedTableResources(rootInd, d3d12Param, resourceCache,
 					[&](UINT offsetFromTableStart, const D3D12_DESCRIPTOR_RANGE& range, ShaderResourceCacheD3D12::Resource& res)
