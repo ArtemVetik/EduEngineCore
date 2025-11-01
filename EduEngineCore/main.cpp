@@ -2,10 +2,10 @@
 #include <crtdbg.h>
 #include <sstream>
 
-#include "../../RenderEngine/include/IRenderEngine.h"
-#include "../../RenderEngine/include/Window.h"
-#include "../../RenderEngine/include/Timer.h"
-#include "../../InputSystem/include/InputManager.h"
+#include "../DemoProjects/PBR/include/IRenderEngine.h"
+#include "../DemoProjects/PBR/include/Window.h"
+#include "../DemoProjects/PBR/include/Timer.h"
+#include "../InputSystem/include/InputManager.h"
 
 using namespace EduEngine;
 

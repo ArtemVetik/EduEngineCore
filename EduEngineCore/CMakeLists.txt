@@ -1,4 +1,4 @@
-set(LIBS_ROOT "${CMAKE_SOURCE_DIR}/SampleProject/Libraries")
+set(LIBS_ROOT "${CMAKE_SOURCE_DIR}/Libraries")
 
 file(GLOB_RECURSE MAIN_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/*.cpp"
@@ -19,7 +19,7 @@ target_include_directories(EduEngineCore PRIVATE
 )
 
 target_link_libraries(EduEngineCore PRIVATE
-    RenderEngine
+    PBR
     InputSystem
 )
 
@@ -41,5 +41,4 @@ add_custom_command(TARGET EduEngineCore POST_BUILD
 		"$<TARGET_FILE_DIR:EduEngineCore>"
 )
 
-message(STATUS "Modules configured: EduMath, GraphicsHeaps, Graphics, InputSystem, RenderEngine, EduEngineCore executable.")
 message(STATUS "Build with: mkdir build && cd build && cmake .. && cmake --build .")
