@@ -21,7 +21,7 @@ namespace EduEngine
 		m_FilePath = filePath;
 	}
 
-	void Texture::Load(D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc)
+	void Texture::Load(DeviceContext* context, D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc)
 	{
 		if (m_RefCount > 0)
 		{
@@ -29,7 +29,7 @@ namespace EduEngine
 			return;
 		}
 
-		m_Texture = std::make_shared<TextureD3D12>(m_Device, std::wstring(m_FilePath), QueueID::Direct);
+		m_Texture = std::make_shared<TextureD3D12>(m_Device, context, std::wstring(m_FilePath), QueueID::Direct);
 
 		auto texDesc = m_Texture->GetD3D12Resource()->GetDesc();
 		bool cubeMap = texDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && texDesc.DepthOrArraySize == 6;

@@ -3,8 +3,9 @@
 
 namespace EduEngine
 {
-	Mesh::Mesh(RenderDeviceD3D12* device, const char* filePath) :
+	Mesh::Mesh(RenderDeviceD3D12* device, DeviceContext* context, const char* filePath) :
 		m_Device(device),
+		m_Context(context),
 		m_FilePath(filePath),
 		m_Scene(nullptr),
 		m_RefCount(0)
@@ -57,9 +58,9 @@ namespace EduEngine
 			}
 		}
 
-		m_VertexBuffer = std::make_shared<VertexBufferD3D12>(m_Device, meshData.Vertices.data(),
+		m_VertexBuffer = std::make_shared<VertexBufferD3D12>(m_Device, m_Context, meshData.Vertices.data(),
 			sizeof(Vertex), (UINT)meshData.Vertices.size());
-		m_IndexBuffer = std::make_shared<IndexBufferD3D12>(m_Device, meshData.GetIndices16().data(),
+		m_IndexBuffer = std::make_shared<IndexBufferD3D12>(m_Device, m_Context, meshData.GetIndices16().data(),
 			sizeof(uint16), (UINT)meshData.GetIndices16().size(), DXGI_FORMAT_R16_UINT);
 
 		m_RefCount = 1;

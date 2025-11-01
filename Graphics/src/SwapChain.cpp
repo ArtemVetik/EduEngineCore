@@ -102,7 +102,7 @@ namespace EduEngine
 		m_SwapChain->SetMaximumFrameLatency(SwapChainBufferCount);
 	}
 
-	void SwapChain::Resize(UINT width, UINT height)
+	void SwapChain::Resize(DeviceContext* context, UINT width, UINT height)
 	{
 		m_Width = width;
 		m_Height = height;
@@ -173,7 +173,7 @@ namespace EduEngine
 		depthSrvDesc.Texture2D.PlaneSlice = 0;
 		m_DepthStencilTexture->CreateSRV(&depthSrvDesc, false);
 
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->ResourceBarrier(
+		context->GetCommandCtx()->ResourceBarrier(
 			CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilTexture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 	}
 

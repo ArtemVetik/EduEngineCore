@@ -4,9 +4,11 @@
 namespace EduEngine
 {
 	BufferD3D12::BufferD3D12(RenderDeviceD3D12*			pDevice,
+							 DeviceContext*				context,
 							 const D3D12_RESOURCE_DESC& desc,
 							 QueueID					queueId) :
-		ResourceViewD3D12(pDevice, queueId)
+		ResourceViewD3D12(pDevice, queueId),
+		m_Context(context)
 	{
 		// Create the actual default buffer resource.
 		HRESULT hr = m_Device->GetD3D12Device()->CreateCommittedResource(
@@ -21,20 +23,20 @@ namespace EduEngine
 
 		m_d3d12Resource->SetName(L"BufferD3D12");
 
-		auto* cmdContext = pDevice->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-		cmdContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
+		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_GENERIC_READ));
-		cmdContext->FlushResourceBarriers();
+		m_Context->GetCommandCtx()->FlushResourceBarriers();
 
 		SetState(D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 
 	BufferD3D12::BufferD3D12(RenderDeviceD3D12*			pDevice,
+							 DeviceContext*				context,
 							 const D3D12_RESOURCE_DESC& desc,
 							 const void*				initData,
 							 QueueID					queueId) :
-		ResourceViewD3D12(pDevice, queueId)
+		ResourceViewD3D12(pDevice, queueId),
+		m_Context(context)
 	{
 		// Create the actual default buffer resource.
 		HRESULT hr = m_Device->GetD3D12Device()->CreateCommittedResource(
@@ -67,21 +69,17 @@ namespace EduEngine
 
 		memcpy(reinterpret_cast<char*>(uploadBuff.CPUAddress), data, uploadBufferSize);
 
-		auto* cmdContext = m_QueueId != QueueID::Direct
-			? m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_COMPUTE)
-			: m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
 		auto beforeState = m_QueueId != QueueID::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
 
-		cmdContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
+		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			beforeState, D3D12_RESOURCE_STATE_COPY_DEST));
-		cmdContext->FlushResourceBarriers();
+		m_Context->GetCommandCtx()->FlushResourceBarriers();
 
-		cmdContext->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.pBuffer, uploadBuff.Offset, uploadBufferSize);
+		m_Context->GetCommandCtx()->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.pBuffer, uploadBuff.Offset, uploadBufferSize);
 
-		cmdContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
+		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			D3D12_RESOURCE_STATE_COPY_DEST, beforeState));
-		cmdContext->FlushResourceBarriers();
+		m_Context->GetCommandCtx()->FlushResourceBarriers();
 	}
 
 	ReadBackBufferD3D12::ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,

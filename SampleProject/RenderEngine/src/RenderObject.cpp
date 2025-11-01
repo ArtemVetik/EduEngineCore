@@ -31,7 +31,7 @@ namespace EduEngine
 			m_Mesh->Load();
 	}
 
-	void RenderObject::SetMaterial(Material* material)
+	void RenderObject::SetMaterial(DeviceContext* context, Material* material)
 	{
 		if (m_Material == material)
 			return;
@@ -42,7 +42,7 @@ namespace EduEngine
 		m_Material = material;
 
 		if (m_Material)
-			m_Material->Load();
+			m_Material->Load(context);
 	}
 
 	VertexBufferD3D12* RenderObject::GetVertexBuffer() const

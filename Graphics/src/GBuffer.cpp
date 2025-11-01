@@ -11,7 +11,7 @@ namespace EduEngine
 			m_Formats[i] = formats[i];
 	}
 
-	void GBuffer::Resize(RenderDeviceD3D12* device, UINT width, UINT height)
+	void GBuffer::Resize(RenderDeviceD3D12* device, DeviceContext* context, UINT width, UINT height)
 	{
 		for (int i = 0; i < m_gBufferCount; i++)
 			m_GBuffers[i].reset();
@@ -45,7 +45,7 @@ namespace EduEngine
 		gBuffDescSRV.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		gBuffDescSRV.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-		auto* commandContext = device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto* commandContext = context->GetCommandCtx();
 
 		for (int i = 0; i < m_gBufferCount; i++)
 		{

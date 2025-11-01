@@ -9,7 +9,7 @@ namespace EduEngine
 	public:
 		GBuffer(int gBufferCount, const DXGI_FORMAT* formats, int accumCount, DXGI_FORMAT accumBuffFormat);
 
-		void Resize(RenderDeviceD3D12* device, UINT width, UINT height);
+		void Resize(RenderDeviceD3D12* device, DeviceContext* context, UINT width, UINT height);
 
 		ID3D12Resource* GetGBuffer(int index) const;
 		D3D12_CPU_DESCRIPTOR_HANDLE GetGBufferRTVView(int index) const;

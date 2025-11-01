@@ -1,7 +1,7 @@
 #pragma once
 #include "framework.h"
 #include "QueueID.h"
-#include "RenderDeviceD3D12.h"
+#include "DeviceContext.h"
 #include "RootSignatureD3D12.h"
 #include "ShaderD3D12.h"
 
@@ -17,7 +17,7 @@ namespace EduEngine
 
 		void BindResource(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<ResourceViewD3D12> resource);
 		void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<DynamicUploadBuffer> resource);
-		void CommitAll(bool transitionResources = false);
+		void CommitAll(DeviceContext* context, bool transitionResources = false);
 
 		void SetName(const wchar_t* name) { m_PSO->SetName(name); }
 

@@ -13,7 +13,7 @@ namespace EduEngine
 	class Mesh
 	{
 	public:
-		Mesh(RenderDeviceD3D12* device, const char* filePath);
+		Mesh(RenderDeviceD3D12* device, DeviceContext* context, const char* filePath);
 		~Mesh();
 
 		void Load();
@@ -34,6 +34,8 @@ namespace EduEngine
 
 	private:
 		RenderDeviceD3D12* m_Device;
+		DeviceContext* m_Context;
+
 		Assimp::Importer m_AssimpImporter;
 		const aiScene* m_Scene;
 		std::shared_ptr<VertexBufferD3D12> m_VertexBuffer;

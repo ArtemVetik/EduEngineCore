@@ -25,12 +25,12 @@ namespace EduEngine
 	{
 	}
 
-	TextureD3D12::TextureD3D12(RenderDeviceD3D12* pDevice, std::wstring ddsTexPath, QueueID queueId) :
+	TextureD3D12::TextureD3D12(RenderDeviceD3D12* pDevice, DeviceContext* context, std::wstring ddsTexPath, QueueID queueId) :
 		ResourceViewD3D12(pDevice, queueId)
 	{
 		HRESULT hr = DirectX::CreateDDSTextureFromFile12(
 			m_Device->GetD3D12Device(),
-			m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList(),
+			context->GetCommandCtx()->GetCmdList(),
 			ddsTexPath.c_str(),
 			m_d3d12Resource,
 			m_DDSuploadHeap
@@ -52,7 +52,7 @@ namespace EduEngine
 		}
 	}
 
-	void TextureD3D12::LoadData(void* dataPtr)
+	void TextureD3D12::LoadData(DeviceContext* context, void* dataPtr)
 	{
 		UINT64 uploadBufferSize = 0;
 		m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, 0, nullptr, nullptr, nullptr, &uploadBufferSize);
@@ -73,6 +73,6 @@ namespace EduEngine
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
 		m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, uploadBuff.Offset + alignOffset, &src.PlacedFootprint, nullptr, nullptr, nullptr);
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+		context->GetCommandCtx()->GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 	}
 }

@@ -16,7 +16,7 @@ namespace EduEngine
 		~RenderObject();
 
 		void SetMesh(Mesh* mesh);
-		void SetMaterial(Material* material);
+		void SetMaterial(DeviceContext* context, Material* material);
 
 		VertexBufferD3D12* GetVertexBuffer() const;
 		IndexBufferD3D12* GetIndexBuffer() const;

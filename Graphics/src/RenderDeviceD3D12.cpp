@@ -31,22 +31,10 @@ namespace EduEngine
 		},
 		m_DynUploadHeap{ true, this, 2048 },
 		m_QueryHeap{ this, 16, D3D12_QUERY_HEAP_TYPE_TIMESTAMP }
-	{
-		m_AviableCmdCtx[0].push_back(new CommandContext(*this, D3D12_COMMAND_LIST_TYPE_DIRECT));
-		m_AviableCmdCtx[1].push_back(new CommandContext(*this, D3D12_COMMAND_LIST_TYPE_COMPUTE));
-	}
+	{ }
 
 	RenderDeviceD3D12::~RenderDeviceD3D12()
 	{
-		for (size_t i = 0; i < 2; i++)
-		{
-			while (!m_AviableCmdCtx[i].empty())
-			{
-				delete m_AviableCmdCtx[i].front();
-				m_AviableCmdCtx[i].pop_front();
-			}
-		}
-
 		FinishFrame(true);
 	}
 
@@ -77,28 +65,6 @@ namespace EduEngine
 			return m_CommandQueues[1].AllocateInDynamicHeap(sizeInBytes);
 		else if (queueId == QueueID::Both)
 			return m_DynUploadHeap.Allocate(sizeInBytes);
-	}
-
-	CommandContext* RenderDeviceD3D12::GetCommandContext(D3D12_COMMAND_LIST_TYPE type)
-	{
-		assert(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		char ind = type == D3D12_COMMAND_LIST_TYPE_DIRECT ? 0 : 1;
-		
-		CommandContext* ret = nullptr;
-
-		//TODO: rewrite
-		/*if (m_AviableCmdCtx[ind].empty())
-		{
-			ret = new CommandContext(*this, type);
-			m_AviableCmdCtx[ind].push_back(ret);
-		}
-		else*/
-		{
-			ret = m_AviableCmdCtx[ind].front();
-			//m_AviableCmdCtx[ind].pop_front();
-		}
-
-		return ret;
 	}
 
 	CommandQueueD3D12& RenderDeviceD3D12::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)

@@ -12,10 +12,10 @@ namespace EduEngine
 		Material();
 		~Material();
 
-		void SetMainTexture(Texture* texture);
+		void SetMainTexture(DeviceContext* context, Texture* texture);
 		Texture* GetMainTexture();
 
-		void Load();
+		void Load(DeviceContext* context);
 		void Free();
 
 		int GetRefCount() const { return m_RefCount; }

@@ -14,7 +14,7 @@ namespace EduEngine
 	public:
 		SwapChain(RenderDeviceD3D12* pDevice, UINT width, UINT height, HWND window, bool transparent = false);
 
-		void Resize(UINT width, UINT height);
+		void Resize(DeviceContext* context, UINT width, UINT height);
 		void Present();
 
 		ID3D12Resource* CurrentBackBuffer() const;

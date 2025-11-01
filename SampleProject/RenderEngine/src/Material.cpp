@@ -17,7 +17,7 @@ namespace EduEngine
 			m_MainTexture->Free();
 	}
 
-	void Material::SetMainTexture(Texture* texture)
+	void Material::SetMainTexture(DeviceContext* context, Texture* texture)
 	{
 		if (m_MainTexture && m_RefCount > 0)
 			m_MainTexture->Free();
@@ -25,7 +25,7 @@ namespace EduEngine
 		m_MainTexture = texture;
 
 		if (m_MainTexture && m_RefCount > 0)
-			m_MainTexture->Load();
+			m_MainTexture->Load(context);
 	}
 
 	Texture* Material::GetMainTexture()
@@ -33,7 +33,7 @@ namespace EduEngine
 		return m_MainTexture;
 	}
 
-	void Material::Load()
+	void Material::Load(DeviceContext* context)
 	{
 		if (m_RefCount > 0)
 		{
@@ -42,7 +42,7 @@ namespace EduEngine
 		}
 
 		if (m_MainTexture)
-			m_MainTexture->Load();
+			m_MainTexture->Load(context);
 
 		m_RefCount = 1;
 	}

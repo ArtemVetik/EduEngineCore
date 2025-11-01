@@ -1,6 +1,7 @@
 #pragma once
 #include "framework.h"
 #include "ResourceViewD3D12.h"
+#include "DeviceContext.h"
 
 namespace EduEngine
 {
@@ -14,26 +15,32 @@ namespace EduEngine
 	{
 	public:
 		BufferD3D12(RenderDeviceD3D12*		   pDevice,
+					DeviceContext*			   context,
 					const D3D12_RESOURCE_DESC& desc,
 					QueueID					   queueId);
 
 		BufferD3D12(RenderDeviceD3D12*		   pDevice,
+					DeviceContext*			   context,
 					const D3D12_RESOURCE_DESC& desc,
 					const void*				   initData,
 					QueueID					   queueId);
 
 		void LoadData(const void* data, UINT* byteSize = nullptr);
+
+	private:
+		DeviceContext* m_Context;
 	};
 
 	class GRAPHICS_API VertexBufferD3D12 : public BufferD3D12
 	{
 	public:
 		VertexBufferD3D12(RenderDeviceD3D12*   pDevice,
+						  DeviceContext*	   context,
 						  const void*		   initData,
 						  UINT				   byteStride,
 						  UINT				   bufferLength,
 						  D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) :
-			BufferD3D12(pDevice, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueID::Direct)
+			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueID::Direct)
 		{
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
 			m_View.StrideInBytes = byteStride;
@@ -50,12 +57,13 @@ namespace EduEngine
 	{
 	public:
 		IndexBufferD3D12(RenderDeviceD3D12*   pDevice,
+						 DeviceContext*		  context,
 						 const void*		  initData,
 						 UINT				  byteStride,
 						 UINT				  bufferLength,
 						 DXGI_FORMAT		  format,
 						 D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) :
-			BufferD3D12(pDevice, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueID::Direct),
+			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueID::Direct),
 			m_Length(bufferLength)
 		{
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();

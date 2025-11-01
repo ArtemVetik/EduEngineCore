@@ -74,14 +74,14 @@ namespace EduEngine
 		m_ShaderLayouts[shaderType]->GetVariable(varName).BindDynamicResource(resource);
 	}
 
-	void PipelineStateD3D12Base::CommitAll(bool transitionResources)
+	void PipelineStateD3D12Base::CommitAll(DeviceContext* context, bool transitionResources)
 	{
 		// TODO: change COMMAND_LIST_TYPE
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList()->SetPipelineState(m_PSO.Get());
-		m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
+		context->GetCommandCtx()->GetCmdList()->SetPipelineState(m_PSO.Get());
+		context->GetCommandCtx()->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
 
-		m_RootSignature.CommitRootViews(m_ShaderResourceCache, m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT), false);
-		m_RootSignature.CommitDescriptorHandles(m_Device, m_ShaderResourceCache, m_Device->GetCommandContext(D3D12_COMMAND_LIST_TYPE_DIRECT), false, transitionResources);
+		m_RootSignature.CommitRootViews(m_ShaderResourceCache, context->GetCommandCtx(), false);
+		m_RootSignature.CommitDescriptorHandles(m_Device, m_ShaderResourceCache, context->GetCommandCtx(), false, transitionResources);
 	}
 
 #ifdef _DEBUG

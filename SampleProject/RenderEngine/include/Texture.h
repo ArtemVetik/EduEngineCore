@@ -13,7 +13,7 @@ namespace EduEngine
 		void UpdateFilePath(const wchar_t* filePath);
 		void* GetGPUPtr();
 
-		void Load(D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc = nullptr);
+		void Load(DeviceContext* context, D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc = nullptr);
 		void Free();
 
 		std::shared_ptr<TextureD3D12>& GetD3D12Texture() { return m_Texture; }

@@ -28,7 +28,6 @@ namespace EduEngine
 		DescriptorHeapAllocation AllocateDynamicDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 		DynamicAllocation AllocateDynamicUploadGPUDescriptor(QueueID queueId, size_t sizeInBytes);
 
-		CommandContext* GetCommandContext(D3D12_COMMAND_LIST_TYPE type);
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 		const QueryHeap& GetQueryHeap() const { return m_QueryHeap; }
 
@@ -58,7 +57,6 @@ namespace EduEngine
 		std::deque<ReleaseObject> m_ReleaseObjectsQueue;
 
 		CommandQueueD3D12 m_CommandQueues[2]; // must be after descriptor heaps (release in destructor)
-		std::deque<CommandContext*> m_AviableCmdCtx[2];
 		QueryHeap m_QueryHeap;
 	};
 }

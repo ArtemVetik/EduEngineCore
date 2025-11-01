@@ -2,6 +2,7 @@
 
 #include "IRenderEngine.h"
 #include "RenderPasses.h"
+#include "DeviceContext.h"
 #include "Timer.h"
 #include "Camera.h"
 #include "Window.h"
@@ -63,5 +64,7 @@ namespace EduEngine
 
 		static constexpr DirectX::SimpleMath::Rectangle EmptyResize = { -1, -1, -1, -1 };
 		DirectX::SimpleMath::Rectangle m_PendingResize = EmptyResize;
+	
+		std::unique_ptr<DeviceContext> m_MainContext;
 	};
 }
