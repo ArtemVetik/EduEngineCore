@@ -10,7 +10,6 @@ namespace EduEngine
 		Texture(RenderDeviceD3D12* device, const wchar_t* filePath);
 		~Texture();
 
-		void UpdateFilePath(const wchar_t* filePath);
 		void* GetGPUPtr();
 
 		void Load(DeviceContext* context, D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc = nullptr);

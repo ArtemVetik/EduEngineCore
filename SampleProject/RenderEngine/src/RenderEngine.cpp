@@ -90,17 +90,10 @@ namespace EduEngine
 		m_AOTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_AO.dds");
 		m_NormalMapTexture = std::make_shared<Texture>(m_Device.get(), L"Textures\\Default_normal.dds");
 
+		m_AlbedoTexture->Load(m_MainContext.get());
 		m_MetallicRoughnessTexture->Load(m_MainContext.get());
 		m_AOTexture->Load(m_MainContext.get());
 		m_NormalMapTexture->Load(m_MainContext.get());
-
-		m_Material = std::make_shared<Material>();
-		m_Material->SetMainTexture(m_MainContext.get(), m_AlbedoTexture.get());
-		m_Material->Load(m_MainContext.get());
-
-		m_RenderObject = std::make_shared<RenderObject>();
-		m_RenderObject->SetMaterial(m_MainContext.get(), m_Material.get());
-		m_RenderObject->SetMesh(m_Mesh.get());
 
 		m_ColorPass = std::make_unique<PBRLighting>(m_Device.get());
 		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_AlbedoTexture->GetD3D12Texture());
@@ -241,11 +234,11 @@ namespace EduEngine
 
 		m_ColorPass->GetPipelineState().CommitAll(m_MainContext.get(), true);
 
-		m_MainContext->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &(m_RenderObject->GetVertexBuffer()->GetView()));
-		m_MainContext->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&(m_RenderObject->GetIndexBuffer()->GetView()));
+		m_MainContext->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &(m_Mesh->GetVertexBuffer()->GetView()));
+		m_MainContext->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&(m_Mesh->GetIndexBuffer()->GetView()));
 		m_MainContext->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		m_MainContext->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_RenderObject->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
+		m_MainContext->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
 
 		m_MainContext->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));

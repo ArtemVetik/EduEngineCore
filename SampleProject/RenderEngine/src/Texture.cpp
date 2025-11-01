@@ -16,11 +16,6 @@ namespace EduEngine
 		m_Texture.reset();
 	}
 
-	void Texture::UpdateFilePath(const wchar_t* filePath)
-	{
-		m_FilePath = filePath;
-	}
-
 	void Texture::Load(DeviceContext* context, D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc)
 	{
 		if (m_RefCount > 0)

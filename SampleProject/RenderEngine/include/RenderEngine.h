@@ -6,7 +6,8 @@
 #include "Timer.h"
 #include "Camera.h"
 #include "Window.h"
-#include "RenderObject.h"
+#include "Mesh.h"
+#include "Texture.h"
 
 #include "../../Graphics/include/SwapChain.h"
 #include "../../Graphics/include/DynamicUploadBuffer.h"
@@ -55,8 +56,6 @@ namespace EduEngine
 		std::shared_ptr<Texture> m_AOTexture;
 		std::shared_ptr<Texture> m_NormalMapTexture;
 		std::shared_ptr<Mesh> m_Mesh;
-		std::shared_ptr<Material> m_Material;
-		std::shared_ptr<RenderObject> m_RenderObject;
 
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT m_ScissorRect;
