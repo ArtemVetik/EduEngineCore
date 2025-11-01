@@ -2,10 +2,8 @@
 #include <crtdbg.h>
 #include <sstream>
 
-#include "../DemoProjects/PBR/include/IRenderEngine.h"
-#include "../DemoProjects/PBR/include/Window.h"
-#include "../DemoProjects/PBR/include/Timer.h"
 #include "../InputSystem/include/InputManager.h"
+#include "../DemoProjects/PBR/include/PBRDemoFactory.h"
 
 using namespace EduEngine;
 
@@ -39,7 +37,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 	InputManager::GetInstance().Initialize(hInstance, window.GetMainWindow());
 
-	auto renderEngine = IRenderEngine::Create(window);
+	auto demo = PBRDemoFactory::Create(window);
 
 	MSG msg = { 0 };
 	int fps;
@@ -63,8 +61,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 				if (timer.UpdateTitleBarStats(fps, mspf))
 					UpdateWindowTitle(window.GetMainWindow(), fps, mspf);
 
-				renderEngine->Update(timer);
-				renderEngine->Render(timer);
+				demo->Update(timer);
+				demo->Render(timer);
 			}
 			else
 			{

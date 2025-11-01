@@ -35,6 +35,15 @@ namespace EduEngine
 
 		static RenderEngine* GetInstance();
 
+	protected:
+		virtual void OnStartUp() {};
+		virtual void OnUpdate(const Timer& timer) {};
+		virtual void OnRender(const Timer& timer) {};
+
+		RenderDeviceD3D12* GetDevice() const { return m_Device.get(); }
+		Camera* GetCamera() const { return m_Camera.get(); }
+		DeviceContext* GetMainContext() const { return m_MainContext.get(); }
+
 	private:
 		void Resize(UINT w, UINT h);
 
@@ -43,19 +52,7 @@ namespace EduEngine
 
 		std::unique_ptr<RenderDeviceD3D12> m_Device;
 		std::unique_ptr<SwapChain> m_SwapChain;
-
 		std::unique_ptr<Camera> m_Camera;
-
-		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
-		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
-		std::shared_ptr<DynamicUploadBuffer> m_LightBuffer;
-		std::unique_ptr<PBRLighting> m_ColorPass;
-
-		std::shared_ptr<Texture> m_AlbedoTexture;
-		std::shared_ptr<Texture> m_MetallicRoughnessTexture;
-		std::shared_ptr<Texture> m_AOTexture;
-		std::shared_ptr<Texture> m_NormalMapTexture;
-		std::shared_ptr<Mesh> m_Mesh;
 
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT m_ScissorRect;

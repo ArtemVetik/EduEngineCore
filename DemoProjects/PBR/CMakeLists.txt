@@ -16,17 +16,6 @@ target_include_directories(PBR PUBLIC
     ${LIBS_ROOT}/include
 )
 
-find_library(ASSIMP_LIB
-    NAMES assimp-vc143-mt
-    HINTS ${LIBS_ROOT}/lib
-    NO_DEFAULT_PATH
-)
-if(NOT ASSIMP_LIB)
-    message(FATAL_ERROR "Assimp library 'assimp-vc143-mt.lib' not found in ${LIBS_ROOT}/lib")
-endif()
-
-target_link_libraries(PBR PUBLIC
-    Graphics
-    Common
-    ${ASSIMP_LIB}
+target_link_libraries(PBR PRIVATE
+    BaseDemo
 )

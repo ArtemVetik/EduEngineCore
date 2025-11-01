@@ -19,6 +19,7 @@ target_include_directories(EduEngineCore PRIVATE
 )
 
 target_link_libraries(EduEngineCore PRIVATE
+    BaseDemo
     PBR
     InputSystem
 )
