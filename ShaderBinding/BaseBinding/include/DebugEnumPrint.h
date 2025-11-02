@@ -1,11 +1,11 @@
 #pragma once
-#include "ShaderResourceCacheD3D12.h"
+#include "ShaderAPI.h"
 
 #include <d3d12.h>
 
 namespace EduEngine
 {
-	inline const char* VarTypeStr(SHADER_VARIABLE_TYPE t)
+	__forceinline const char* VarTypeStr(SHADER_VARIABLE_TYPE t)
 	{
 		switch (t)
 		{
@@ -17,7 +17,7 @@ namespace EduEngine
 		}
 	};
 
-	inline const char* InputTypeStr(D3D_SHADER_INPUT_TYPE t)
+	__forceinline const char* InputTypeStr(D3D_SHADER_INPUT_TYPE t)
 	{
 		switch (t)
 		{
@@ -39,7 +39,7 @@ namespace EduEngine
 		}
 	};
 
-	inline const char* SrvDimStr(D3D_SRV_DIMENSION t)
+	__forceinline const char* SrvDimStr(D3D_SRV_DIMENSION t)
 	{
 		switch (t)
 		{
@@ -59,23 +59,7 @@ namespace EduEngine
 		}
 	};
 
-	inline const char* ResTypeStr(CachedResourceType t)
-	{
-		switch (t)
-		{
-		case EduEngine::CachedResourceType::Unknown: return "Unknown";
-		case EduEngine::CachedResourceType::CBV: return "CBV";
-		case EduEngine::CachedResourceType::TexSRV: return "TexSRV";
-		case EduEngine::CachedResourceType::BufSRV: return "BufSRV";
-		case EduEngine::CachedResourceType::TexUAV: return "TexUAV";
-		case EduEngine::CachedResourceType::BufUAV: return "BufUAV";
-		case EduEngine::CachedResourceType::Sampler: return "Sampler";
-		case EduEngine::CachedResourceType::NumTypes: return "NumTypes";
-		default: return "??DEFAULT??";
-		}
-	};
-
-	inline const char* ShaderTypeStr(EDU_SHADER_TYPE t)
+	__forceinline const char* ShaderTypeStr(EDU_SHADER_TYPE t)
 	{
 		switch (t)
 		{
@@ -87,7 +71,7 @@ namespace EduEngine
 		}
 	};
 
-	inline const char* ParamTypeStr(D3D12_ROOT_PARAMETER_TYPE t)
+	__forceinline const char* ParamTypeStr(D3D12_ROOT_PARAMETER_TYPE t)
 	{
 		switch (t)
 		{
@@ -100,7 +84,7 @@ namespace EduEngine
 		}
 	}
 
-	inline const char* SdrVisStr(D3D12_SHADER_VISIBILITY t)
+	__forceinline const char* SdrVisStr(D3D12_SHADER_VISIBILITY t)
 	{
 		switch (t)
 		{
@@ -116,7 +100,7 @@ namespace EduEngine
 		}
 	}
 
-	inline const char* RangeTypeStr(D3D12_DESCRIPTOR_RANGE_TYPE t)
+	__forceinline const char* RangeTypeStr(D3D12_DESCRIPTOR_RANGE_TYPE t)
 	{
 		switch (t)
 		{
@@ -128,7 +112,7 @@ namespace EduEngine
 		}
 	};
 
-	inline const char* FilterStr(D3D12_FILTER f)
+	__forceinline const char* FilterStr(D3D12_FILTER f)
 	{
 		switch (f)
 		{

@@ -146,4 +146,20 @@ namespace EduEngine
 		void* m_pMemory = nullptr;
 		uint32 m_NumTables = 0;
 	};
+
+	__forceinline const char* ResTypeStr(CachedResourceType t)
+	{
+		switch (t)
+		{
+		case EduEngine::CachedResourceType::Unknown: return "Unknown";
+		case EduEngine::CachedResourceType::CBV: return "CBV";
+		case EduEngine::CachedResourceType::TexSRV: return "TexSRV";
+		case EduEngine::CachedResourceType::BufSRV: return "BufSRV";
+		case EduEngine::CachedResourceType::TexUAV: return "TexUAV";
+		case EduEngine::CachedResourceType::BufUAV: return "BufUAV";
+		case EduEngine::CachedResourceType::Sampler: return "Sampler";
+		case EduEngine::CachedResourceType::NumTypes: return "NumTypes";
+		default: return "??DEFAULT??";
+		}
+	};
 }
