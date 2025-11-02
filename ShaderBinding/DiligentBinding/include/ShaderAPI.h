@@ -2,7 +2,7 @@
 
 namespace EduEngine
 {
-	enum GRAPHICS_API SHADER_VARIABLE_TYPE
+	enum SHADER_VARIABLE_TYPE
 	{
 		SHADER_VARIABLE_TYPE_STATIC = 0,
 		SHADER_VARIABLE_TYPE_MUTABLE = 1,
@@ -19,7 +19,7 @@ namespace EduEngine
 		EDU_SHADER_TYPE_NUM_TYPES = 4,
 	};
 
-	struct GRAPHICS_API ShaderVariableDesc
+	struct ShaderVariableDesc
 	{
 		const char* Name;
 		SHADER_VARIABLE_TYPE Type;
@@ -36,7 +36,7 @@ namespace EduEngine
 		const char* TextureName = nullptr;
 	};
 
-	struct GRAPHICS_API ShaderDesc
+	struct ShaderDesc
 	{
 		EDU_SHADER_TYPE ShaderType;
 		SHADER_VARIABLE_TYPE DefaultVarType;

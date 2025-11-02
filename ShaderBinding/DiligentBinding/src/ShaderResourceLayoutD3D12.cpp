@@ -34,7 +34,7 @@ namespace EduEngine
 											   const SHADER_VARIABLE_TYPE* varTypes,
 											   uint32 numAllowedTypes,
 											   ShaderResourceCacheD3D12* pResourceCache,
-											   RootSignatureD3D12_1* pRootSig,
+											   RootSignatureD3D12* pRootSig,
 											   bool isStatic)
 	{
 		m_pResources = pSrcResources;

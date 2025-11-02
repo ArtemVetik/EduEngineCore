@@ -7,7 +7,7 @@
 
 namespace EduEngine
 {
-	class GRAPHICS_API PipelineStateD3D12Base
+	class DILIGENTBINDING_API PipelineStateD3D12Base
 	{
 	public:
 		PipelineStateD3D12Base(QueueID queueId);
@@ -40,7 +40,7 @@ namespace EduEngine
 		std::shared_ptr<ShaderD3D12> m_Shaders[EDU_SHADER_TYPE_NUM_TYPES];
 		std::shared_ptr<ShaderResourceLayoutD3D12> m_ShaderLayouts[EDU_SHADER_TYPE_NUM_TYPES];
 		ShaderResourceCacheD3D12 m_ShaderResourceCache;
-		RootSignatureD3D12_1 m_RootSignature;
+		RootSignatureD3D12 m_RootSignature;
 		
 		QueueID m_QueueId;
 	};

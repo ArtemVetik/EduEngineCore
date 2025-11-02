@@ -12,10 +12,6 @@
 #include <crtdbg.h>
 #endif
 
-#pragma comment(lib,"d3dcompiler.lib")
-#pragma comment(lib, "D3D12.lib")
-#pragma comment(lib, "dxgi.lib")
-
 #ifdef GRAPHICS_STATIC
 #define GRAPHICS_API
 #else

@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "ShaderD3D12.h"
 
 namespace EduEngine

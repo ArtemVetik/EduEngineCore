@@ -39,6 +39,7 @@ add_custom_command(TARGET EduEngineCore POST_BUILD
         "$<TARGET_FILE_DIR:EduEngineCore>"
 	COMMAND ${CMAKE_COMMAND} -E copy
 		"$<TARGET_FILE:Graphics>"
+		"$<TARGET_FILE:DiligentBinding>"
 		"$<TARGET_FILE_DIR:EduEngineCore>"
 )
 

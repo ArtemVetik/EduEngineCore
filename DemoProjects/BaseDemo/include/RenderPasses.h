@@ -4,7 +4,7 @@
 #include "RootSignatureD3D12.h"
 
 #include "../../Common/include/SimpleMath.h"
-#include "../../Graphics/include/PipelineStateD3D12.h"
+#include <PipelineStateD3D12.h>
 
 namespace EduEngine
 {

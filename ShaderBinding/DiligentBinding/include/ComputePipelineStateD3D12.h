@@ -4,7 +4,7 @@
 
 namespace EduEngine
 {
-	class GRAPHICS_API ComputePipelineStateD3D12 : public PipelineStateD3D12Base
+	class DILIGENTBINDING_API ComputePipelineStateD3D12 : public PipelineStateD3D12Base
 	{
 	public:
 		ComputePipelineStateD3D12(QueueID queueId);

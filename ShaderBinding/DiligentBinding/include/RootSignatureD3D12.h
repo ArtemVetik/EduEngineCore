@@ -1,19 +1,19 @@
 #pragma once
-
 #include "framework.h"
 #include "ShaderAPI.h"
-#include "RenderDeviceD3D12.h"
+#include <RenderDeviceD3D12.h>
 #include "RootParamsManager.h"
 
-#include <ShaderD3D12.h>
-#include <ShaderResourceLayoutD3D12.h>
+#include "ShaderD3D12.h"
+#include "ShaderResourceLayoutD3D12.h"
 
+using namespace EduEngine;
 namespace EduEngine
 {
-	class RootSignatureD3D12_1
+	class RootSignatureD3D12
 	{
 	public:
-		RootSignatureD3D12_1();
+		RootSignatureD3D12();
 
 		void AllocateResourceSlot(EDU_SHADER_TYPE			   shaderType,
 								  const ShaderResourceAttribs& shaderResAttribs,

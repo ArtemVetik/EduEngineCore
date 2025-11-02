@@ -1,10 +1,11 @@
 #include "RootSignatureD3D12.h"
-#include "CommandContext.h"
 #include "DebugEnumPrint.h"
+
+#include <CommandContext.h>
 
 namespace EduEngine
 {
-	RootSignatureD3D12_1::RootSignatureD3D12_1() :
+	RootSignatureD3D12::RootSignatureD3D12() :
 		m_RootParams(),
 		m_StaticSamplers(),
 		m_DynamicSignature(false)
@@ -21,11 +22,11 @@ namespace EduEngine
 			m_SamplerRootTablesMap[i] = InvalidRootTableIndex;
 	}
 
-	void RootSignatureD3D12_1::AllocateResourceSlot(EDU_SHADER_TYPE              shaderType,
-		const ShaderResourceAttribs& shaderResAttribs,
-		D3D12_DESCRIPTOR_RANGE_TYPE  rangeType,
-		uint32& rootIndexOut,
-		uint32& offsetFromTableStartOut)
+	void RootSignatureD3D12::AllocateResourceSlot(EDU_SHADER_TYPE              shaderType,
+													const ShaderResourceAttribs& shaderResAttribs,
+													D3D12_DESCRIPTOR_RANGE_TYPE  rangeType,
+													uint32&						 rootIndexOut,
+													uint32&						 offsetFromTableStartOut)
 	{
 		int shaderInd = shaderType;
 		auto shaderVisibility = GetShaderVisibility(shaderType);
@@ -66,7 +67,7 @@ namespace EduEngine
 		}
 	}
 
-	void RootSignatureD3D12_1::AllocateStaticSamplers(const ShaderD3D12** shaders, uint32 numShaders)
+	void RootSignatureD3D12::AllocateStaticSamplers(const ShaderD3D12** shaders, uint32 numShaders)
 	{
 		VERIFY_EXPR(m_StaticSamplers.size() == 0, "Static samplers already allocated");
 
@@ -90,7 +91,7 @@ namespace EduEngine
 		}
 	}
 
-	void RootSignatureD3D12_1::InitStaticSampler(EDU_SHADER_TYPE shaderType, const String& textureName, const ShaderResourceAttribs& samplerAttribs)
+	void RootSignatureD3D12::InitStaticSampler(EDU_SHADER_TYPE shaderType, const String& textureName, const ShaderResourceAttribs& samplerAttribs)
 	{
 		auto shaderVisibility = GetShaderVisibility(shaderType);
 		auto samplerFound = false;
@@ -112,7 +113,7 @@ namespace EduEngine
 		}
 	}
 
-	void RootSignatureD3D12_1::CommitRootViews(ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute) const
+	void RootSignatureD3D12::CommitRootViews(ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute) const
 	{
 		for (uint32 rv = 0; rv < m_RootParams.GetNumRootViews(); ++rv)
 		{
@@ -138,7 +139,7 @@ namespace EduEngine
 		}
 	}
 
-	void RootSignatureD3D12_1::CommitDescriptorHandles(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
+	void RootSignatureD3D12::CommitDescriptorHandles(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
 	{
 		if (m_DynamicSignature)
 			CommitDescriptorHandlesInternal_SMD(device, resourceCache, ctx, isCompute, transitionResources);
@@ -146,7 +147,7 @@ namespace EduEngine
 			CommitDescriptorHandlesInternal_SM(device, resourceCache, ctx, isCompute, transitionResources);
 	}
 
-	void RootSignatureD3D12_1::InitResourceCache(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache)
+	void RootSignatureD3D12::InitResourceCache(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache)
 	{
 		std::vector<uint32> cacheTableSizes(m_RootParams.GetNumRootTables() + m_RootParams.GetNumRootViews(), 0);
 
@@ -220,7 +221,7 @@ namespace EduEngine
 		resourceCache.SetDescriptorHeapSpace(std::move(cbcSrvUavHeapSpace), std::move(samplerHeapSpace));
 	}
 
-	void RootSignatureD3D12_1::Build(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache)
+	void RootSignatureD3D12::Build(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache)
 	{
 		for (uint32 i = 0; i < m_RootParams.GetNumRootTables(); ++i)
 		{
@@ -301,7 +302,7 @@ namespace EduEngine
 	}
 
 #ifdef _DEBUG
-	void RootSignatureD3D12_1::DebugPrint()
+	void RootSignatureD3D12::DebugPrint()
 	{
 		printf("----------------------------------------\n");
 		printf("------------ Root Signature ------------\n");
@@ -408,7 +409,7 @@ namespace EduEngine
 		}
 	}
 
-	void RootSignatureD3D12_1::CommitDescriptorHandlesInternal_SM(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
+	void RootSignatureD3D12::CommitDescriptorHandlesInternal_SM(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
 	{
 		VERIFY_EXPR(m_TotalSrvCbvUavSlots[SHADER_VARIABLE_TYPE_DYNAMIC] == 0 && m_TotalSamplerSlots[SHADER_VARIABLE_TYPE_DYNAMIC] == 0, "");
 
@@ -449,7 +450,7 @@ namespace EduEngine
 		);
 	}
 
-	void RootSignatureD3D12_1::CommitDescriptorHandlesInternal_SMD(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
+	void RootSignatureD3D12::CommitDescriptorHandlesInternal_SMD(RenderDeviceD3D12* device, ShaderResourceCacheD3D12& resourceCache, CommandContext* ctx, bool isCompute, bool transitionResources) const
 	{
 		auto* pd3d12Device = device->GetD3D12Device();
 

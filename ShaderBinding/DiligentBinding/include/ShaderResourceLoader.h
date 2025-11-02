@@ -5,9 +5,8 @@
 #include <vector>
 #include <d3d12shader.h>
 
-#include "StringUtils.h"
-
-#include "../../Common/include/Asserts.h"
+#include "../../../Common/include/StringUtils.h"
+#include "../../../Common/include/Asserts.h"
 
 namespace EduEngine
 {

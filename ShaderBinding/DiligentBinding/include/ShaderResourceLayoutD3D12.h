@@ -3,8 +3,9 @@
 #include "RenderDeviceD3D12.h"
 #include "ResourceViewD3D12.h"
 
-#include <ShaderResourcesD3D12.h>
-#include <ShaderResourceCacheD3D12.h>
+#include "ShaderResourcesD3D12.h"
+#include "ShaderResourceCacheD3D12.h"
+
 #include <DynamicUploadBuffer.h>
 
 namespace EduEngine
@@ -20,7 +21,7 @@ namespace EduEngine
 						const SHADER_VARIABLE_TYPE* varTypes,
 						uint32 numAllowedTypes,
 						ShaderResourceCacheD3D12* pResourceCache,
-						class RootSignatureD3D12_1* pRootSig,
+						class RootSignatureD3D12* pRootSig,
 						bool isStatic);
 
 		struct SRV_CBV_UAV;

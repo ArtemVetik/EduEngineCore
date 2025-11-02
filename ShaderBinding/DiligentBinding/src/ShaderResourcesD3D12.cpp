@@ -1,8 +1,6 @@
 #include "ShaderResourcesD3D12.h"
 #include "DebugEnumPrint.h"
 
-#include "../../Common/include/StringUtils.h"
-
 namespace EduEngine
 {
 	ShaderResourcesD3D12::ShaderResourcesD3D12(ID3D12ShaderReflection* reflection, const ShaderDesc& shaderDesc) :
