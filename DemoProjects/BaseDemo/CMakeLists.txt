@@ -27,6 +27,7 @@ endif()
 target_link_libraries(BaseDemo PUBLIC
     Graphics
     DiligentBinding
+    EduBinding
     Common
     ${ASSIMP_LIB}
 )
