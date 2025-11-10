@@ -16,5 +16,5 @@ target_include_directories(DiligentBinding PUBLIC
 target_compile_definitions(DiligentBinding PRIVATE UNICODE _UNICODE DILIGENTBINDING_EXPORTS)
 
 target_link_libraries(DiligentBinding PUBLIC
-    BaseBinding
+    Graphics
 )

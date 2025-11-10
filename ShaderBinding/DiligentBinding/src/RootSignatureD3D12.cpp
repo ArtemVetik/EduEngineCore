@@ -236,7 +236,7 @@ namespace EduEngine
 			(isSamplerTable ? m_TotalSamplerSlots : m_TotalSrvCbvUavSlots)[varType] += tableSize;
 		}
 
-		rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
 		auto totalParams = m_RootParams.GetNumRootTables() + m_RootParams.GetNumRootViews();
 		m_RootParamsD3D12 = std::vector<D3D12_ROOT_PARAMETER>(totalParams, D3D12_ROOT_PARAMETER());
