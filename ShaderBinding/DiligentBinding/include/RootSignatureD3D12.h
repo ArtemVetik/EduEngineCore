@@ -7,7 +7,7 @@
 #include "ShaderD3D12.h"
 #include "ShaderResourceLayoutD3D12.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	class RootSignatureD3D12
 	{

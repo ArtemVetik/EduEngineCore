@@ -8,7 +8,7 @@
 
 #include <DynamicUploadBuffer.h>
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	class ShaderResourceLayoutD3D12
 	{

@@ -3,19 +3,17 @@
 
 #include <d3d12.h>
 
-namespace EduEngine::DiligentBinding
+namespace EduEngine::EduBinding
 {
-	__forceinline const char* VarTypeStr(SHADER_VARIABLE_TYPE t)
+	__forceinline const char* ShaderResourceTypeStr(SHADER_RESOURCE_TYPE t)
 	{
 		switch (t)
 		{
-		case SHADER_VARIABLE_TYPE_STATIC: return "STATIC";
-		case SHADER_VARIABLE_TYPE_MUTABLE: return "MUTABLE";
-		case SHADER_VARIABLE_TYPE_DYNAMIC: return "DYNAMIC";
-		case SHADER_VARIABLE_TYPE_NUM_TYPES: return "NUM_TYPES";
-		default: return "?DEFAULT?";
+		case SHADER_RESOURCE_TYPE_DYNAMIC: return "SHADER_RESOURCE_TYPE_DYNAMIC";
+		case SHADER_RESOURCE_TYPE_MUTABLE: return "SHADER_RESOURCE_TYPE_MUTABLE";
+		default: return "??DEFAULT??";
 		}
-	};
+	}
 
 	__forceinline const char* InputTypeStr(D3D_SHADER_INPUT_TYPE t)
 	{

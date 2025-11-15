@@ -8,7 +8,7 @@
 #include <ResourceD3D12.h>
 #include <DynamicUploadBuffer.h>
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	enum class CachedResourceType : int
 	{
@@ -151,14 +151,14 @@ namespace EduEngine
 	{
 		switch (t)
 		{
-		case EduEngine::CachedResourceType::Unknown: return "Unknown";
-		case EduEngine::CachedResourceType::CBV: return "CBV";
-		case EduEngine::CachedResourceType::TexSRV: return "TexSRV";
-		case EduEngine::CachedResourceType::BufSRV: return "BufSRV";
-		case EduEngine::CachedResourceType::TexUAV: return "TexUAV";
-		case EduEngine::CachedResourceType::BufUAV: return "BufUAV";
-		case EduEngine::CachedResourceType::Sampler: return "Sampler";
-		case EduEngine::CachedResourceType::NumTypes: return "NumTypes";
+		case CachedResourceType::Unknown: return "Unknown";
+		case CachedResourceType::CBV: return "CBV";
+		case CachedResourceType::TexSRV: return "TexSRV";
+		case CachedResourceType::BufSRV: return "BufSRV";
+		case CachedResourceType::TexUAV: return "TexUAV";
+		case CachedResourceType::BufUAV: return "BufUAV";
+		case CachedResourceType::Sampler: return "Sampler";
+		case CachedResourceType::NumTypes: return "NumTypes";
 		default: return "??DEFAULT??";
 		}
 	};

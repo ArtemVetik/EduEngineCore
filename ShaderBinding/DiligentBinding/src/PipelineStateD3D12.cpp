@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "PipelineStateD3D12.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	PipelineStateD3D12::PipelineStateD3D12() :
 		PipelineStateD3D12Base(QueueID::Direct)

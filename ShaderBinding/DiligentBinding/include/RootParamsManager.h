@@ -5,7 +5,7 @@
 
 #include <d3d12.h>
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	class RootParameter
 	{

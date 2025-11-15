@@ -8,7 +8,7 @@
 #include "../../../Common/include/StringUtils.h"
 #include "../../../Common/include/Asserts.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	template<typename TOnResourcesCounted,
 			 typename TOnNewCB,

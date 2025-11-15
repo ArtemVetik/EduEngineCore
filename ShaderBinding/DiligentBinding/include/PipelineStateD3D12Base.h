@@ -5,7 +5,7 @@
 #include "RootSignatureD3D12.h"
 #include "ShaderD3D12.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	class DILIGENTBINDING_API PipelineStateD3D12Base
 	{

@@ -9,7 +9,7 @@
 
 #pragma comment(lib,"dxcompiler.lib")
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	inline D3D12_SHADER_VISIBILITY GetShaderVisibility(EDU_SHADER_TYPE type)
 	{

@@ -1,6 +1,6 @@
 #include "ShaderD3D12.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	ShaderD3D12::ShaderD3D12(std::wstring		fileName,
 							 const LPCWSTR*		defines,

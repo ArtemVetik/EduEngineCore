@@ -1,6 +1,7 @@
 #include "PBRDemo.h"
 
 #include "../../InputSystem/include/InputManager.h"
+#include "../../ShaderBinding/EduBinding/include/PipelineState.h"
 
 namespace EduEngine
 {
@@ -20,10 +21,6 @@ namespace EduEngine
 		m_NormalMapTexture->Load(GetMainContext());
 
 		m_ColorPass = std::make_unique<PBRLighting>(GetDevice());
-		m_ColorPass->GetStaticPSVariable("gAlbedo").BindResource(m_AlbedoTexture->GetD3D12Texture());
-		m_ColorPass->GetStaticPSVariable("gMetallicRoughness").BindResource(m_MetallicRoughnessTexture->GetD3D12Texture());
-		m_ColorPass->GetStaticPSVariable("gAO").BindResource(m_AOTexture->GetD3D12Texture());
-		m_ColorPass->GetStaticPSVariable("gNormalMap").BindResource(m_NormalMapTexture->GetD3D12Texture());
 		m_ColorPass->Build(GetDevice());
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
@@ -51,11 +48,18 @@ namespace EduEngine
 		m_LightBuffer->LoadData(l);
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
-		m_ColorPass->GetPipelineState().BindResource(EDU_SHADER_TYPE_PIXEL, "cbMaterial", matBuffer);
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
-		m_ColorPass->GetPipelineState().BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
+		auto binder = m_ColorPass->GetPipelineState().GetShaderBinder();
+
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture->GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture->GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture->GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture->GetD3D12Texture());
+
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", matBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
 	}
 
 	void PBRDemo::OnUpdate(const Timer& timer)
@@ -136,7 +140,7 @@ namespace EduEngine
 		m_LightBuffer->LoadData(lightConstants);
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
-		m_ColorPass->GetPipelineState().CommitAll(GetMainContext(), true);
+		m_ColorPass->GetPipelineState().CommitAll(GetMainContext());
 
 		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &(m_Mesh->GetVertexBuffer()->GetView()));
 		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&(m_Mesh->GetIndexBuffer()->GetView()));

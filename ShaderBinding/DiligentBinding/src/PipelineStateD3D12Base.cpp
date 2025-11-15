@@ -1,6 +1,6 @@
 #include "PipelineStateD3D12Base.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	PipelineStateD3D12Base::PipelineStateD3D12Base(QueueID queueId) :
 		m_Device(nullptr),

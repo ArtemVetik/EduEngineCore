@@ -1,6 +1,6 @@
 #include "ComputePipelineStateD3D12.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	ComputePipelineStateD3D12::ComputePipelineStateD3D12(QueueID queueId) :
 		PipelineStateD3D12Base(queueId)

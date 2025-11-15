@@ -5,7 +5,7 @@
 #include <string>
 #include <d3dcompiler.h>
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	struct ShaderResourceAttribs
 	{

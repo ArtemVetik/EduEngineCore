@@ -1,7 +1,7 @@
 #include "ShaderResourceCacheD3D12.h"
 #include "DebugEnumPrint.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
     ShaderResourceCacheD3D12::~ShaderResourceCacheD3D12()
     {

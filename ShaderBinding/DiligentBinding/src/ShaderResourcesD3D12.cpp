@@ -1,7 +1,7 @@
 #include "ShaderResourcesD3D12.h"
 #include "DebugEnumPrint.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	ShaderResourcesD3D12::ShaderResourcesD3D12(ID3D12ShaderReflection* reflection, const ShaderDesc& shaderDesc) :
 		m_ShaderType(shaderDesc.ShaderType),

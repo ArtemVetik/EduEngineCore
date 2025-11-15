@@ -1,6 +1,6 @@
 #include "RootParamsManager.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
     RootParamsManager::RootParamsManager() :
         m_pMemory(nullptr)

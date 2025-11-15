@@ -1,6 +1,6 @@
 #pragma once
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	enum SHADER_VARIABLE_TYPE
 	{

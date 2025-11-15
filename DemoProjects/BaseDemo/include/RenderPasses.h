@@ -4,7 +4,9 @@
 #include "RootSignatureD3D12.h"
 
 #include "../../Common/include/SimpleMath.h"
+
 #include <PipelineStateD3D12.h>
+#include <PipelineState.h>
 
 namespace EduEngine
 {
@@ -54,13 +56,14 @@ namespace EduEngine
 		};
 
 	private:
-		std::shared_ptr<ShaderD3D12> m_VertexShader;
-		std::shared_ptr<ShaderD3D12> m_PixelShader;
-		ShaderDesc m_psDesc;
-		ShaderDesc m_vsDesc;
-		StaticSamplerDesc m_psStaticSamplers[1];
 
-		PipelineStateD3D12 m_Pso;
+		std::shared_ptr<EduEngine::DiligentBinding::ShaderD3D12> m_VertexShader;
+		std::shared_ptr<EduEngine::DiligentBinding::ShaderD3D12> m_PixelShader;
+		EduEngine::DiligentBinding::ShaderDesc m_psDesc;
+		EduEngine::DiligentBinding::ShaderDesc m_vsDesc;
+		EduEngine::DiligentBinding::StaticSamplerDesc m_psStaticSamplers[1];
+
+		EduEngine::DiligentBinding::PipelineStateD3D12 m_Pso;
 
 	public:
 		ForwardOpaque(RenderDeviceD3D12* device, const LPCWSTR* macros = nullptr)
@@ -74,38 +77,38 @@ namespace EduEngine
 				8);
 			m_psStaticSamplers[0].TextureName = "gAlbedo";
 
-			ShaderVariableDesc vsVars[]{
-				ShaderVariableDesc("cbPerObject", SHADER_VARIABLE_TYPE_DYNAMIC),
-				ShaderVariableDesc("cbPerPass", SHADER_VARIABLE_TYPE_DYNAMIC)
+			EduEngine::DiligentBinding::ShaderVariableDesc vsVars[]{
+				EduEngine::DiligentBinding::ShaderVariableDesc("cbPerObject", EduEngine::DiligentBinding::SHADER_VARIABLE_TYPE_DYNAMIC),
+				EduEngine::DiligentBinding::ShaderVariableDesc("cbPerPass", EduEngine::DiligentBinding::SHADER_VARIABLE_TYPE_DYNAMIC)
 			};
 
-			ShaderVariableDesc psVars[]{
-				ShaderVariableDesc("cbMaterial", SHADER_VARIABLE_TYPE_MUTABLE),
-				ShaderVariableDesc("gLight", SHADER_VARIABLE_TYPE_DYNAMIC),
-				ShaderVariableDesc("gAlbedo", SHADER_VARIABLE_TYPE_STATIC),
+			EduEngine::DiligentBinding::ShaderVariableDesc psVars[]{
+				EduEngine::DiligentBinding::ShaderVariableDesc("cbMaterial", EduEngine::DiligentBinding::SHADER_VARIABLE_TYPE_MUTABLE),
+				EduEngine::DiligentBinding::ShaderVariableDesc("gLight", EduEngine::DiligentBinding::SHADER_VARIABLE_TYPE_DYNAMIC),
+				EduEngine::DiligentBinding::ShaderVariableDesc("gAlbedo", EduEngine::DiligentBinding::SHADER_VARIABLE_TYPE_STATIC),
 			};
 
 			m_psDesc = {};
-			m_psDesc.ShaderType = EDU_SHADER_TYPE_PIXEL;
-			m_psDesc.DefaultVarType = SHADER_VARIABLE_TYPE_MUTABLE;
+			m_psDesc.ShaderType = EduEngine::DiligentBinding::EDU_SHADER_TYPE_PIXEL;
+			m_psDesc.DefaultVarType = EduEngine::DiligentBinding::SHADER_VARIABLE_TYPE_MUTABLE;
 			m_psDesc.NumVarDesc = _countof(psVars);
 			m_psDesc.VarDesc = psVars;
 			m_psDesc.NumStaticSamplers = _countof(m_psStaticSamplers);
 			m_psDesc.StaticSamplers = m_psStaticSamplers;
 
 			m_vsDesc = {};
-			m_vsDesc.ShaderType = EDU_SHADER_TYPE_VERTEX;
-			m_vsDesc.DefaultVarType = SHADER_VARIABLE_TYPE_MUTABLE;
+			m_vsDesc.ShaderType = EduEngine::DiligentBinding::EDU_SHADER_TYPE_VERTEX;
+			m_vsDesc.DefaultVarType = EduEngine::DiligentBinding::SHADER_VARIABLE_TYPE_MUTABLE;
 			m_vsDesc.NumVarDesc = _countof(vsVars);
 			m_vsDesc.VarDesc = vsVars;
 			m_vsDesc.NumStaticSamplers = 0;
 
-			m_VertexShader = std::make_shared<ShaderD3D12>(L"Shaders\\Opaque.hlsl", macros, L"VS", L"vs_6_0", device, m_vsDesc);
-			m_PixelShader = std::make_shared<ShaderD3D12>(L"Shaders\\Opaque.hlsl", macros, L"PS", L"ps_6_0", device, m_psDesc);
+			m_VertexShader = std::make_shared<EduEngine::DiligentBinding::ShaderD3D12>(L"Shaders\\Opaque.hlsl", macros, L"VS", L"vs_6_0", device, m_vsDesc);
+			m_PixelShader = std::make_shared<EduEngine::DiligentBinding::ShaderD3D12>(L"Shaders\\Opaque.hlsl", macros, L"PS", L"ps_6_0", device, m_psDesc);
 		}
 
-		ShaderResourceLayoutD3D12::SRV_CBV_UAV& GetStaticVSVariable(const char* name) { return m_VertexShader->GetStaticVariable(name); }
-		ShaderResourceLayoutD3D12::SRV_CBV_UAV& GetStaticPSVariable(const char* name) { return m_PixelShader->GetStaticVariable(name); }
+		EduEngine::DiligentBinding::ShaderResourceLayoutD3D12::SRV_CBV_UAV& GetStaticVSVariable(const char* name) { return m_VertexShader->GetStaticVariable(name); }
+		EduEngine::DiligentBinding::ShaderResourceLayoutD3D12::SRV_CBV_UAV& GetStaticPSVariable(const char* name) { return m_PixelShader->GetStaticVariable(name); }
 
 		void Build(RenderDeviceD3D12* device)
 		{
@@ -131,7 +134,7 @@ namespace EduEngine
 			m_Pso.SetName(L"ColorPSO");
 		}
 
-		PipelineStateD3D12& GetPipelineState() { return m_Pso; }
+		EduEngine::DiligentBinding::PipelineStateD3D12& GetPipelineState() { return m_Pso; }
 	};
 
 	class PBRLighting
@@ -175,68 +178,41 @@ namespace EduEngine
 		};
 
 	private:
-		std::shared_ptr<ShaderD3D12> m_VertexShader;
-		std::shared_ptr<ShaderD3D12> m_PixelShader;
-		ShaderDesc m_psDesc;
-		ShaderDesc m_vsDesc;
-		StaticSamplerDesc m_psStaticSamplers[4];
-
-		PipelineStateD3D12 m_Pso;
+		std::shared_ptr<EduEngine::EduBinding::ShaderD3D12> m_VertexShader;
+		std::shared_ptr<EduEngine::EduBinding::ShaderD3D12> m_PixelShader;
+		EduEngine::EduBinding::PipelineState m_Pso;
+		EduEngine::EduBinding::ShaderDesc m_psDesc;
+		EduEngine::EduBinding::ShaderDesc m_vsDesc;
 
 	public:
 		PBRLighting(RenderDeviceD3D12* device, const LPCWSTR* macros = nullptr)
 		{
-			m_psStaticSamplers[0].Desc = CD3DX12_STATIC_SAMPLER_DESC(0,
-				D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-				D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-				0.0f,
-				8);
-			m_psStaticSamplers[1].Desc = m_psStaticSamplers[0].Desc;
-			m_psStaticSamplers[2].Desc = m_psStaticSamplers[0].Desc;
-			m_psStaticSamplers[3].Desc = m_psStaticSamplers[0].Desc;
-
-			m_psStaticSamplers[0].TextureName = "gAlbedo";
-			m_psStaticSamplers[1].TextureName = "gMetallicRoughness";
-			m_psStaticSamplers[2].TextureName = "gAO";
-			m_psStaticSamplers[3].TextureName = "gNormalMap";
-
-			ShaderVariableDesc vsVars[]{
-				ShaderVariableDesc("cbPerObject", SHADER_VARIABLE_TYPE_DYNAMIC),
-				ShaderVariableDesc("cbPerPass", SHADER_VARIABLE_TYPE_DYNAMIC)
+			EduEngine::EduBinding::ShaderResourceDesc vsVars[]{
+				EduEngine::EduBinding::ShaderResourceDesc("cbPerObject", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),
+				EduEngine::EduBinding::ShaderResourceDesc("cbPerPass", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC)
 			};
 
-			ShaderVariableDesc psVars[]{
-				ShaderVariableDesc("cbMaterial", SHADER_VARIABLE_TYPE_MUTABLE),
-				ShaderVariableDesc("gLight", SHADER_VARIABLE_TYPE_DYNAMIC),
-				ShaderVariableDesc("gAlbedo", SHADER_VARIABLE_TYPE_STATIC),
-				ShaderVariableDesc("gMetallicRoughness", SHADER_VARIABLE_TYPE_STATIC),
-				ShaderVariableDesc("gAO", SHADER_VARIABLE_TYPE_STATIC),
-				ShaderVariableDesc("gNormalMap", SHADER_VARIABLE_TYPE_STATIC),
+			EduEngine::EduBinding::ShaderResourceDesc psVars[]{
+				EduEngine::EduBinding::ShaderResourceDesc("cbPerPass", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),
+				EduEngine::EduBinding::ShaderResourceDesc("cbMaterial", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
+				EduEngine::EduBinding::ShaderResourceDesc("gLight", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),
+				EduEngine::EduBinding::ShaderResourceDesc("gAlbedo", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
+				EduEngine::EduBinding::ShaderResourceDesc("gMetallicRoughness", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
+				EduEngine::EduBinding::ShaderResourceDesc("gAO", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
+				EduEngine::EduBinding::ShaderResourceDesc("gNormalMap", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
 			};
 
-			m_psDesc = {};
-			m_psDesc.ShaderType = EDU_SHADER_TYPE_PIXEL;
-			m_psDesc.DefaultVarType = SHADER_VARIABLE_TYPE_MUTABLE;
-			m_psDesc.NumVarDesc = _countof(psVars);
-			m_psDesc.VarDesc = psVars;
-			m_psDesc.NumStaticSamplers = _countof(m_psStaticSamplers);
-			m_psDesc.StaticSamplers = m_psStaticSamplers;
+			m_vsDesc.DefaultType = EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE;
+			m_vsDesc.ResourceNum = _countof(vsVars);
+			m_vsDesc.ResourceDesc = vsVars;
 
-			m_vsDesc = {};
-			m_vsDesc.ShaderType = EDU_SHADER_TYPE_VERTEX;
-			m_vsDesc.DefaultVarType = SHADER_VARIABLE_TYPE_MUTABLE;
-			m_vsDesc.NumVarDesc = _countof(vsVars);
-			m_vsDesc.VarDesc = vsVars;
-			m_vsDesc.NumStaticSamplers = 0;
+			m_psDesc.DefaultType = EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE;
+			m_psDesc.ResourceNum = _countof(psVars);
+			m_psDesc.ResourceDesc = psVars;
 
-			m_VertexShader = std::make_shared<ShaderD3D12>(L"Shaders\\PBRLighting.hlsl", macros, L"VS", L"vs_6_0", device, m_vsDesc);
-			m_PixelShader = std::make_shared<ShaderD3D12>(L"Shaders\\PBRLighting.hlsl", macros, L"PS", L"ps_6_0", device, m_psDesc);
+			m_VertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\PBRLighting.hlsl", L"VS", L"vs_6_0", macros, m_vsDesc);
+			m_PixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\PBRLighting.hlsl", L"PS", L"ps_6_0", macros, m_psDesc);
 		}
-
-		ShaderResourceLayoutD3D12::SRV_CBV_UAV& GetStaticVSVariable(const char* name) { return m_VertexShader->GetStaticVariable(name); }
-		ShaderResourceLayoutD3D12::SRV_CBV_UAV& GetStaticPSVariable(const char* name) { return m_PixelShader->GetStaticVariable(name); }
 
 		void Build(RenderDeviceD3D12* device)
 		{
@@ -258,10 +234,10 @@ namespace EduEngine
 			m_Pso.SetShader(m_PixelShader);
 			m_Pso.SetDepthStencilState(dsDesc);
 			m_Pso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+
 			m_Pso.Build(device);
-			m_Pso.SetName(L"PBRLightingPSO");
 		}
 
-		PipelineStateD3D12& GetPipelineState() { return m_Pso; }
+		EduEngine::EduBinding::PipelineState& GetPipelineState() { return m_Pso; }
 	};
 }

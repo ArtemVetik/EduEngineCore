@@ -2,21 +2,21 @@
 #include "RootSignatureD3D12.h"
 #include "DebugEnumPrint.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	D3D12_DESCRIPTOR_RANGE_TYPE GetDescriptorRangeType(CachedResourceType resType)
 	{
 		switch (resType)
 		{
-		case EduEngine::CachedResourceType::CBV:
+		case CachedResourceType::CBV:
 			return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		case EduEngine::CachedResourceType::TexSRV:
-		case EduEngine::CachedResourceType::BufSRV:
+		case CachedResourceType::TexSRV:
+		case CachedResourceType::BufSRV:
 			return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		case EduEngine::CachedResourceType::TexUAV:
-		case EduEngine::CachedResourceType::BufUAV:
+		case CachedResourceType::TexUAV:
+		case CachedResourceType::BufUAV:
 			return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		case EduEngine::CachedResourceType::Sampler:
+		case CachedResourceType::Sampler:
 			return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 		default:
 			ASSERT_FAILED("Unexpected resource type");

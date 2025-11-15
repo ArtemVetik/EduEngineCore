@@ -2,7 +2,7 @@
 #include "framework.h"
 #include "PipelineStateD3D12Base.h"
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	class DILIGENTBINDING_API ComputePipelineStateD3D12 : public PipelineStateD3D12Base
 	{

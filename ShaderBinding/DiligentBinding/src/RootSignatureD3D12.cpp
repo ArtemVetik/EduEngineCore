@@ -3,7 +3,7 @@
 
 #include <CommandContext.h>
 
-namespace EduEngine
+namespace EduEngine::DiligentBinding
 {
 	RootSignatureD3D12::RootSignatureD3D12() :
 		m_RootParams(),
