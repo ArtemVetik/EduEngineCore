@@ -3,6 +3,8 @@
 
 #include <cassert>
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 namespace EduEngine
 {
 	LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -80,6 +82,8 @@ namespace EduEngine
 
 	LRESULT Window::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
+		ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam);
+
 		switch (msg)
 		{
 		case WM_SIZE:

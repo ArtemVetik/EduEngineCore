@@ -29,5 +29,6 @@ target_link_libraries(BaseDemo PUBLIC
     DiligentBinding
     EduBinding
     Common
+    ImGui
     ${ASSIMP_LIB}
 )

@@ -33,6 +33,9 @@ namespace EduEngine
 
 		void PendingResize(UINT w, UINT h);
 
+		void AllocImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle);
+		void FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle);
+
 		static RenderEngine* GetInstance();
 
 	protected:
@@ -45,6 +48,7 @@ namespace EduEngine
 		DeviceContext* GetMainContext() const { return m_MainContext.get(); }
 
 	private:
+		void InitImGui(const Window& mainWindow);
 		void Resize(UINT w, UINT h);
 
 	private:
@@ -57,6 +61,8 @@ namespace EduEngine
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT m_ScissorRect;
 		DXGI_ADAPTER_DESC1 m_DeviceDesc;
+
+		DescriptorHeapAllocation m_ImGuiTex;
 
 		static constexpr DirectX::SimpleMath::Rectangle EmptyResize = { -1, -1, -1, -1 };
 		DirectX::SimpleMath::Rectangle m_PendingResize = EmptyResize;

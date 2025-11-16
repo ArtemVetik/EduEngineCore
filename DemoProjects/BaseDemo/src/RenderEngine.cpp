@@ -23,6 +23,10 @@ namespace EduEngine
 
 	RenderEngine::~RenderEngine()
 	{
+		ImGui_ImplDX12_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
+
 		if (m_Device != nullptr)
 			m_Device->FlushQueues();
 	}
@@ -81,6 +85,8 @@ namespace EduEngine
 		Resize(mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
 
 		m_MainContext->GetCommandCtx()->Reset();
+
+		InitImGui(mainWindow);
 
 		OnStartUp();
 
@@ -143,6 +149,48 @@ namespace EduEngine
 
 		if (lw != w || lh != h)
 			m_PendingResize = { (long)lx, (long)ly, (long)w, (long)h };
+	}
+	
+	void RenderEngine::AllocImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
+	{
+		m_ImGuiTex = m_Device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+		*out_cpu_handle = m_ImGuiTex.GetCpuHandle();
+		*out_gpu_handle = m_ImGuiTex.GetGpuHandle();
+	}
+
+	void RenderEngine::FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+	{
+		m_ImGuiTex = {};
+	}
+
+	void RenderEngine::InitImGui(const Window& mainWindow)
+	{
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+		ImGui::StyleColorsDark();
+		ImGui_ImplWin32_Init(mainWindow.GetMainWindow());
+
+		ImGui_ImplDX12_InitInfo init_info;
+		init_info.Device = m_Device->GetD3D12Device();
+		init_info.CommandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT).GetD3D12CommandQueue();
+		init_info.NumFramesInFlight = 3;
+		init_info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		init_info.SrvDescriptorHeap = m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		init_info.SrvDescriptorAllocFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
+			{
+				return RenderEngine::GetInstance()->AllocImGuiSrv(info, out_cpu_handle, out_gpu_handle);
+			};
+
+		init_info.SrvDescriptorFreeFn = [](ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle)
+			{
+				return RenderEngine::GetInstance()->FreeImGuiSrv(info, cpu_handle, gpu_handle);
+			};
+
+		ImGui_ImplDX12_Init(&init_info);
 	}
 
 	void RenderEngine::Resize(UINT w, UINT h)
