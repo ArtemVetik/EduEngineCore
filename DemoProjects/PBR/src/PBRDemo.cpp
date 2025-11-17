@@ -42,10 +42,9 @@ namespace EduEngine
 
 		std::shared_ptr<BufferD3D12> matBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &materialConstants, QueueID::Direct);
 
-		PBRLighting::Light l;
-
+		m_LightConstants = {};
 		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
-		m_LightBuffer->LoadData(l);
+		m_LightBuffer->LoadData(m_LightConstants);
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
 		auto binder = m_ColorPass->GetPipelineState().GetShaderBinder();
@@ -60,6 +59,8 @@ namespace EduEngine
 		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
 		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
 		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
+
+		m_DebugRenderer = std::make_shared<DebugRendererSystem>(GetDevice());
 	}
 
 	void PBRDemo::OnUpdate(const Timer& timer)
@@ -128,16 +129,16 @@ namespace EduEngine
 		XMStoreFloat4x4(&passConstants.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		passConstants.CamPos = GetCamera()->GetPosition();
 
-		PBRLighting::Light lightConstants;
-		lightConstants.Direction.x = cos(timer.GetTotalTime() * 0.5f);
-		lightConstants.Direction.z = sin(timer.GetTotalTime() * 0.5f);
-		lightConstants.Direction.y = -1.0f;
-		lightConstants.Strength = { 1, 1, 1 };
-		lightConstants.Position = XMFLOAT3(-lightConstants.Direction.x * 20, 80, -lightConstants.Direction.z * 20);
+		m_LightConstants.Direction.x = cos(timer.GetTotalTime() * 0.5f);
+		m_LightConstants.Direction.z = sin(timer.GetTotalTime() * 0.5f);
+		m_LightConstants.Direction.y = -1.0f;
+		m_LightConstants.Strength = { 1, 1, 1 };
+		m_LightConstants.Position = XMFLOAT3(-m_LightConstants.Direction.x * 20, 80, -m_LightConstants.Direction.z * 20);
 
 		m_ObjBuffer->LoadData(objConstants);
 		m_PassBuffer->LoadData(passConstants);
-		m_LightBuffer->LoadData(lightConstants);
+		
+		m_LightBuffer->LoadData(m_LightConstants);
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
 		m_ColorPass->GetPipelineState().CommitAll(GetMainContext());
@@ -148,6 +149,9 @@ namespace EduEngine
 
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
 
+		m_DebugRenderer->DrawSphere(10.0f, { 1, 1, 0 }, DirectX::XMMatrixTranslation(m_LightConstants.Position.x, m_LightConstants.Position.y, m_LightConstants.Position.z), 16);
+
+		m_DebugRenderer->Render(GetMainContext(), GetCamera()->GetViewProjMatrix(), GetCamera()->GetPosition());
 
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();

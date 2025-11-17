@@ -9,6 +9,8 @@
 #include "../../BaseDemo/include/Mesh.h"
 #include "../../Graphics/include/DynamicUploadBuffer.h"
 
+#include <DebugRendererSystem.h>
+
 namespace EduEngine
 {
 	class PBRDemo : public RenderEngine
@@ -29,5 +31,9 @@ namespace EduEngine
 		std::shared_ptr<Texture> m_AOTexture;
 		std::shared_ptr<Texture> m_NormalMapTexture;
 		std::shared_ptr<Mesh> m_Mesh;
+
+		std::shared_ptr<DebugRendererSystem> m_DebugRenderer;
+	
+		PBRLighting::Light m_LightConstants;
 	};
 }
