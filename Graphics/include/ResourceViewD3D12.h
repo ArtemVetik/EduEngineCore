@@ -16,9 +16,9 @@ namespace EduEngine
 			m_OnCpu(onCpu)
 		{ }
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(uint32 offset = 0) const { return m_Allocation.GetCpuHandle(); }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(uint32 offset = 0) const { return m_Allocation.GetCpuHandle(offset); }
 
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(uint32 offset = 0) const { return m_Allocation.GetGpuHandle(); }
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(uint32 offset = 0) const { return m_Allocation.GetGpuHandle(offset); }
 
 		bool OnCpu() const { return m_OnCpu; }
 	};
@@ -37,7 +37,8 @@ namespace EduEngine
 		void CreateCBV();
 		void CreateUAV(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, bool onCpu = true);
 		void CreateSRV(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, bool onCpu = true);
-		void CreateRTV(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, bool onCpu = true);
+		void CreateRTV(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc);
+		void CreateRTV2DArray();
 		void CreateDSV(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, bool onCpu = true);
 		void CreateSampler(const D3D12_SAMPLER_DESC* desc, bool onCpu = true);
 
@@ -49,9 +50,9 @@ namespace EduEngine
 		ResourceHeapView* GetSampler() const { return m_Sampler.get(); }
 
 	private:
-		DescriptorHeapAllocation Allocate(const D3D12_DESCRIPTOR_HEAP_TYPE& type, bool onCpu);
+		DescriptorHeapAllocation Allocate(const D3D12_DESCRIPTOR_HEAP_TYPE& type, size_t count, bool onCpu);
 
-	private:
+	private: // TODO: create ALLOWED_VIEWS_FLAG to reduce class size from unused pointers
 		std::unique_ptr<ResourceHeapView> m_CbvView;
 		std::unique_ptr<ResourceHeapView> m_UavView;
 		std::unique_ptr<ResourceHeapView> m_SrvView;
