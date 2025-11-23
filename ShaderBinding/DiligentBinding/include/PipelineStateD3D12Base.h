@@ -10,7 +10,7 @@ namespace EduEngine::DiligentBinding
 	class DILIGENTBINDING_API PipelineStateD3D12Base
 	{
 	public:
-		PipelineStateD3D12Base(QueueID queueId);
+		PipelineStateD3D12Base(QueueID queueId, bool isCompute);
 		virtual ~PipelineStateD3D12Base();
 
 		void Build(RenderDeviceD3D12* pDevice);
@@ -32,9 +32,6 @@ namespace EduEngine::DiligentBinding
 
 		virtual void BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso) = 0;
 
-	protected:
-		RenderDeviceD3D12* m_Device;
-
 	private:
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO;
 		std::shared_ptr<ShaderD3D12> m_Shaders[EDU_SHADER_TYPE_NUM_TYPES];
@@ -43,5 +40,7 @@ namespace EduEngine::DiligentBinding
 		RootSignatureD3D12 m_RootSignature;
 		
 		QueueID m_QueueId;
+		RenderDeviceD3D12* m_Device;
+		bool m_IsCompute;
 	};
 }

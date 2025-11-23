@@ -3,7 +3,7 @@
 namespace EduEngine::DiligentBinding
 {
 	ComputePipelineStateD3D12::ComputePipelineStateD3D12(QueueID queueId) :
-		PipelineStateD3D12Base(queueId)
+		PipelineStateD3D12Base(queueId, true)
 	{
 		ZeroMemory(&m_Desc, sizeof(D3D12_COMPUTE_PIPELINE_STATE_DESC));
 		m_Desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
@@ -27,8 +27,9 @@ namespace EduEngine::DiligentBinding
 
 	void ComputePipelineStateD3D12::BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso)
 	{
-		HRESULT hr = device->CreateComputePipelineState(&m_Desc, IID_PPV_ARGS(&pso));
+		m_Desc.pRootSignature = rootSignature;
 
+		HRESULT hr = device->CreateComputePipelineState(&m_Desc, IID_PPV_ARGS(&pso));
 		THROW_IF_FAILED(hr, L"Failed to create PSO");
 	}
 }

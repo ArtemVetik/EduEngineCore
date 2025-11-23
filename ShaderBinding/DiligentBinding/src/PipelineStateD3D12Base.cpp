@@ -2,9 +2,10 @@
 
 namespace EduEngine::DiligentBinding
 {
-	PipelineStateD3D12Base::PipelineStateD3D12Base(QueueID queueId) :
+	PipelineStateD3D12Base::PipelineStateD3D12Base(QueueID queueId, bool isCompute) :
 		m_Device(nullptr),
-		m_QueueId(queueId)
+		m_QueueId(queueId),
+		m_IsCompute(isCompute)
 	{
 		for (uint32 i = 0; i < EDU_SHADER_TYPE_NUM_TYPES; i++)
 		{
@@ -76,12 +77,14 @@ namespace EduEngine::DiligentBinding
 
 	void PipelineStateD3D12Base::CommitAll(DeviceContext* context, bool transitionResources)
 	{
-		// TODO: change COMMAND_LIST_TYPE
 		context->GetCommandCtx()->GetCmdList()->SetPipelineState(m_PSO.Get());
-		context->GetCommandCtx()->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
+		if (m_IsCompute)
+			context->GetCommandCtx()->GetCmdList()->SetComputeRootSignature(m_RootSignature.GetD3D12RootSignature());
+		else
+			context->GetCommandCtx()->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
 
-		m_RootSignature.CommitRootViews(m_ShaderResourceCache, context->GetCommandCtx(), false);
-		m_RootSignature.CommitDescriptorHandles(m_Device, m_ShaderResourceCache, context->GetCommandCtx(), false, transitionResources);
+		m_RootSignature.CommitRootViews(m_ShaderResourceCache, context->GetCommandCtx(), m_IsCompute);
+		m_RootSignature.CommitDescriptorHandles(m_Device, m_ShaderResourceCache, context->GetCommandCtx(), m_IsCompute, transitionResources);
 	}
 
 #ifdef _DEBUG
