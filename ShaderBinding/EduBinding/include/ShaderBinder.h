@@ -121,7 +121,7 @@ namespace EduEngine::EduBinding
 		virtual void BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource) override;
 		virtual void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<DynamicUploadBuffer> resource) override;
 
-		void CommitAll(DeviceContext* context);
+		void CommitAll(DeviceContext* context, bool isCompute);
 
 #ifdef _DEBUG
 		void DebugPrint();

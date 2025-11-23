@@ -165,7 +165,7 @@ namespace EduEngine::EduBinding
 					param->RootView.Dynamic = resource;
 					return true;
 				}
-				
+
 				return false;
 			},
 			[&](CachedRootParam* param, CachedDescriptor* descriptor, uint16 offset) // OnDescriptor
@@ -182,7 +182,7 @@ namespace EduEngine::EduBinding
 		);
 	}
 
-	void ShaderBinder::CommitAll(DeviceContext* context)
+	void ShaderBinder::CommitAll(DeviceContext* context, bool isCompute)
 	{
 		auto cmdList = context->GetCommandCtx()->GetCmdList();
 
@@ -192,19 +192,28 @@ namespace EduEngine::EduBinding
 				if (param->IsDynamic())
 				{
 					VERIFY_EXPR(param->RootView.Dynamic.get(), "Dynamic GPU resource (", param->RootView.Name, ") for Root CBV is not set");
-					cmdList->SetGraphicsRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetAllocation().GPUAddress);
+					if (isCompute)
+						cmdList->SetComputeRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetAllocation().GPUAddress);
+					else
+						cmdList->SetGraphicsRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetAllocation().GPUAddress);
 				}
 				else
 				{
-					VERIFY_EXPR(param->RootView.Dynamic.get(), "Mutable GPU resource (", param->RootView.Name, ") for Root CBV is not set");
-					cmdList->SetGraphicsRootConstantBufferView(rootIndex, param->RootView.Mutable->GetD3D12Resource()->GetGPUVirtualAddress());
+					VERIFY_EXPR(param->RootView.Mutable.get(), "Mutable GPU resource (", param->RootView.Name, ") for Root CBV is not set");
+					if (isCompute)
+						cmdList->SetComputeRootConstantBufferView(rootIndex, param->RootView.Mutable->GetD3D12Resource()->GetGPUVirtualAddress());
+					else
+						cmdList->SetGraphicsRootConstantBufferView(rootIndex, param->RootView.Mutable->GetD3D12Resource()->GetGPUVirtualAddress());
 				}
 			},
 			[&](uint16 rootIndex, CachedRootParam* param) // OnDescriptorTable
 			{
 				if (!param->IsDynamic())
 				{
-					cmdList->SetGraphicsRootDescriptorTable(rootIndex, m_MutableHeapSpace.GetGpuHandle(param->DescriptorTable.GPUHeapOffset));
+					if (isCompute)
+						cmdList->SetComputeRootDescriptorTable(rootIndex, m_MutableHeapSpace.GetGpuHandle(param->DescriptorTable.GPUHeapOffset));
+					else
+						cmdList->SetGraphicsRootDescriptorTable(rootIndex, m_MutableHeapSpace.GetGpuHandle(param->DescriptorTable.GPUHeapOffset));
 				}
 				else
 				{
@@ -225,7 +234,10 @@ namespace EduEngine::EduBinding
 						m_Device->GetD3D12Device()->CopyDescriptorsSimple(1, dstHandle, srcHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 					}
 
-					cmdList->SetGraphicsRootDescriptorTable(rootIndex, dynHeapSpace.GetGpuHandle());
+					if (isCompute)
+						cmdList->SetComputeRootDescriptorTable(rootIndex, dynHeapSpace.GetGpuHandle());
+					else
+						cmdList->SetGraphicsRootDescriptorTable(rootIndex, dynHeapSpace.GetGpuHandle());
 				}
 			},
 			[&](uint16 rootIndex, CachedRootParam* param, CachedDescriptor* descriptor, uint16 offset) // OnDescriptors

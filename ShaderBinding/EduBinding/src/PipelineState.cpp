@@ -4,7 +4,8 @@
 
 namespace EduEngine::EduBinding
 {
-	PipelineState::PipelineState()
+	PipelineState::PipelineState(QueueID queueId) :
+		PipelineStateBase(queueId, false)
 	{
 		ZeroMemory(&m_Desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 
@@ -87,54 +88,14 @@ namespace EduEngine::EduBinding
 			ASSERT_FAILED("Unexpected shader type");
 		}
 
-		m_Shaders[shader->GetType()] = shader;
+		SetShaderBase(shader);
 	}
 
-	void PipelineState::Build(RenderDeviceD3D12* device)
+	void PipelineState::BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso)
 	{
-		uint8 shadersNum = 0;
-		ShaderD3D12* activeShaders[EDU_SHADER_TYPE_NUM];
+		m_Desc.pRootSignature = rootSignature;
 
-		for (uint8 i = 0; i < EDU_SHADER_TYPE_NUM; i++)
-		{
-			if (m_Shaders[i].get())
-			{
-				activeShaders[shadersNum++] = m_Shaders[i].get();
-			}
-		}
-
-		m_RootSignature.Build(device, activeShaders, shadersNum);
-
-		m_ShaderBinder = std::make_shared<ShaderBinder>(device);
-		m_ShaderBinder->Build(activeShaders, shadersNum);
-
-		m_Desc.pRootSignature = m_RootSignature.GetD3D12RootSignature();
-
-		HRESULT hr = device->GetD3D12Device()->CreateGraphicsPipelineState(&m_Desc, IID_PPV_ARGS(&m_PSO));
+		HRESULT hr = device->CreateGraphicsPipelineState(&m_Desc, IID_PPV_ARGS(&pso));
 		THROW_IF_FAILED(hr, L"Failed to create PSO");
 	}
-
-	void PipelineState::CommitAll(DeviceContext* context)
-	{
-		context->GetCommandCtx()->GetCmdList()->SetPipelineState(m_PSO.Get());
-		context->GetCommandCtx()->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
-
-		m_ShaderBinder->CommitAll(context);
-	}
-
-#ifdef _DEBUG
-	void PipelineState::DebugPrint()
-	{
-		for (uint8 i = 0; i < EDU_SHADER_TYPE_NUM; i++)
-		{
-			if (m_Shaders[i].get())
-			{
-				m_Shaders[i]->DebugPrint();
-			}
-		}
-
-		m_RootSignature.DebugPrint();
-		m_ShaderBinder->DebugPrint();
-	}
-#endif
 }
