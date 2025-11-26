@@ -94,7 +94,7 @@ namespace EduEngine
 
 			tmpTexture = std::make_shared<TextureD3D12>(m_Device, tmpTexDesc, nullptr, QueueID::Direct);
 			tmpTexture->CreateSRV(&srvDesc);
-			tmpTexture->CreateUAV(&uavDesc);
+			tmpTexture->CreateUAV_Array(uavDesc);
 
 			// TODO: SRV Subresource -> D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
 			//		 UAV Subresource -> D3D12_RESOURCE_STATE_UNORDERED_ACCESS
