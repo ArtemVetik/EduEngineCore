@@ -36,10 +36,11 @@ namespace EduEngine
 
 		void CreateCBV();
 		void CreateUAV(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, bool onCpu = true);
+		void CreateUAV_Array(D3D12_UNORDERED_ACCESS_VIEW_DESC& uavDesc, uint32 mipCount = 0, uint32 arraySize = 0, bool onCpu = true);
 		void CreateSRV(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, bool onCpu = true);
 		void CreateRTV(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc);
-		void CreateRTV2DArray();
-		void CreateDSV(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, bool onCpu = true);
+		void CreateRTV_Array(D3D12_RENDER_TARGET_VIEW_DESC& rtvDesc, uint32 mipCount = 0, uint32 arraySize = 0);
+		void CreateDSV(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc);
 		void CreateSampler(const D3D12_SAMPLER_DESC* desc, bool onCpu = true);
 
 		ResourceHeapView* GetCBVView() const { return m_CbvView.get(); }

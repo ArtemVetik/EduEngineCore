@@ -161,7 +161,7 @@ namespace EduEngine
 
 		m_DepthStencilTexture = std::make_unique<TextureD3D12>(m_Device, dsDesc, &dsClear, QueueID::Direct);
 		m_DepthStencilTexture->SetName(L"MainDepthStencil");
-		m_DepthStencilTexture->CreateDSV(&dsvDesc, true);
+		m_DepthStencilTexture->CreateDSV(&dsvDesc);
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvDesc = {};
 		depthSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
