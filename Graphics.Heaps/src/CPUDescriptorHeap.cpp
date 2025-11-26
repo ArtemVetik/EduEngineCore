@@ -33,13 +33,16 @@ namespace EduEngine
 
         DescriptorHeapAllocation allocation;
         // Go through all descriptor heap managers that have free descriptors
-        for (auto availableHeapIt = m_AvailableHeaps.begin(); availableHeapIt != m_AvailableHeaps.end(); ++availableHeapIt)
+        for (auto availableHeapIt = m_AvailableHeaps.begin(); availableHeapIt != m_AvailableHeaps.end(); )
         {
+            auto heapIndex = *availableHeapIt;
             // Try to allocate descriptors using the current descriptor heap manager
-            allocation = m_HeapPool[*availableHeapIt].Allocate(queueId, count);
+            allocation = m_HeapPool[heapIndex].Allocate(queueId, count);
             // Remove the manager from the pool if it has no more available descriptors
-            if (m_HeapPool[*availableHeapIt].GetNumAvailableDescriptors() == 0)
-                m_AvailableHeaps.erase(*availableHeapIt);
+            if (m_HeapPool[heapIndex].GetNumAvailableDescriptors() == 0)
+                availableHeapIt = m_AvailableHeaps.erase(availableHeapIt);
+            else
+                availableHeapIt++;
 
             // Terminate the loop if descriptor was successfully allocated, otherwise
             // go to the next manager
