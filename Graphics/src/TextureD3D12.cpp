@@ -59,14 +59,14 @@ namespace EduEngine
 
 		auto uploadBuff = m_Device->AllocateDynamicUploadGPUDescriptor(m_QueueId, uploadBufferSize + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 		int alignOffset = uploadBuff.Offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-		
+
 		memcpy(reinterpret_cast<char*>(uploadBuff.CPUAddress) + alignOffset, dataPtr, uploadBufferSize);
 
 		D3D12_TEXTURE_COPY_LOCATION dst = {};
 		dst.pResource = m_d3d12Resource.Get();
 		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 		dst.SubresourceIndex = 0;
-		
+
 		D3D12_TEXTURE_COPY_LOCATION src = {};
 		src.pResource = uploadBuff.pBuffer;
 		src.PlacedFootprint.Offset = uploadBuff.Offset + alignOffset;
@@ -74,5 +74,41 @@ namespace EduEngine
 
 		m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, uploadBuff.Offset + alignOffset, &src.PlacedFootprint, nullptr, nullptr, nullptr);
 		context->GetCommandCtx()->GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		SetState(D3D12_RESOURCE_STATE_COPY_DEST);
+	}
+
+	void TextureD3D12::LoadData(DeviceContext* context, TextureD3D12* srcTexture, UINT srcSubresource, UINT dstSubresource)
+	{
+		context->GetCommandCtx()->TransitionResource(srcTexture, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		context->GetCommandCtx()->TransitionResource(this, D3D12_RESOURCE_STATE_COPY_DEST, true);
+
+		D3D12_TEXTURE_COPY_LOCATION dst = {};
+		dst.pResource = m_d3d12Resource.Get();
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = dstSubresource;
+
+		D3D12_TEXTURE_COPY_LOCATION src = {};
+		src.pResource = srcTexture->GetD3D12Resource();
+		src.SubresourceIndex = srcSubresource;
+		src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+		context->GetCommandCtx()->GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+	}
+
+	bool TextureD3D12::IsSRGBFormat() const
+	{
+		if (!m_d3d12Resource)
+			return false;
+
+		auto format = m_d3d12Resource->GetDesc().Format;
+
+		return format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB ||
+			format == DXGI_FORMAT_BC1_UNORM_SRGB ||
+			format == DXGI_FORMAT_BC2_UNORM_SRGB ||
+			format == DXGI_FORMAT_BC3_UNORM_SRGB ||
+			format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB ||
+			format == DXGI_FORMAT_B8G8R8X8_UNORM_SRGB ||
+			format == DXGI_FORMAT_BC7_UNORM_SRGB;
 	}
 }
