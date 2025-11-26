@@ -114,10 +114,11 @@ namespace EduEngine::EduBinding
 		VERIFY_EXPR(descriptorsOffset == m_DescriptorsNum, "Incorrect ShaderBinder build: descriptors count mismatch");
 
 		// TODO: Set QueueID
-		m_MutableHeapSpace = std::move(m_Device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalMutableDescriptors));
+		if (totalMutableDescriptors != 0)
+			m_MutableHeapSpace = std::move(m_Device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalMutableDescriptors));
 	}
 
-	void ShaderBinder::BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource)
+	void ShaderBinder::BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource, uint32 descriptorOffset)
 	{
 		ProcessRootParams(SHADER_RESOURCE_TYPE_MUTABLE, shaderType,
 			[&](CachedRootParam* param) // OnRootView
@@ -139,8 +140,8 @@ namespace EduEngine::EduBinding
 					descriptor->Mutable = resource;
 
 					auto srcHandle = descriptor->Type == CachedDescriptorType::SRV ?
-						descriptor->Mutable->GetSRVView()->GetCpuHandle() :
-						descriptor->Mutable->GetUAVView()->GetCpuHandle();
+						descriptor->Mutable->GetSRVView()->GetCpuHandle(descriptorOffset) :
+						descriptor->Mutable->GetUAVView()->GetCpuHandle(descriptorOffset);
 
 					auto dstHandle = m_MutableHeapSpace.GetCpuHandle(param->DescriptorTable.GPUHeapOffset + offset);
 
@@ -179,6 +180,18 @@ namespace EduEngine::EduBinding
 
 				return false;
 			}
+		);
+	}
+
+	void ShaderBinder::DryMutableResources()
+	{
+		if (m_MutableHeapSpace.IsNull())
+			return;
+
+		m_MutableHeapSpace = std::move(m_Device->AllocateGPUDescriptor(
+			QueueID::Direct,
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+			m_MutableHeapSpace.GetNumHandles())
 		);
 	}
 
@@ -262,7 +275,7 @@ namespace EduEngine::EduBinding
 		return reinterpret_cast<CachedDescriptor*>(reinterpret_cast<CachedRootParam*>(m_Buffer) + m_RootViewNum + m_DescriptorTablesNum) + index;
 	}
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 	void ShaderBinder::DebugPrint()
 	{
 		printf("----------------------------------------\n");

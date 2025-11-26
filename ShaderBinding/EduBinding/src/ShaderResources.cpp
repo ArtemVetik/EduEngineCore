@@ -116,7 +116,7 @@ namespace EduEngine::EduBinding
 		free(m_ResBuffer);
 	}
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 	void ShaderResources::DebugPrint()
 	{
 		auto PrintShaderRes = [](const ShaderResourceInfo& res)

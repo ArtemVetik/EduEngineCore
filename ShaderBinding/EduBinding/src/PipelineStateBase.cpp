@@ -24,6 +24,9 @@ namespace EduEngine::EduBinding
 
 	void PipelineStateBase::Build(RenderDeviceD3D12* device)
 	{
+		VERIFY_EXPR(m_Device == nullptr, "");
+		m_Device = device;
+
 		uint8 shadersNum = 0;
 		ShaderD3D12* activeShaders[EDU_SHADER_TYPE_NUM];
 
@@ -62,7 +65,7 @@ namespace EduEngine::EduBinding
 		m_Shaders[shader->GetType()] = shader;
 	}
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 	void PipelineStateBase::DebugPrint()
 	{
 		for (uint8 i = 0; i < EDU_SHADER_TYPE_NUM; i++)

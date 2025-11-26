@@ -58,12 +58,12 @@ namespace EduEngine::EduBinding
 
 		if (defines)
 		{
-			for (LPCWSTR define = defines[0]; define != NULL; define++)
+			for (uint32 i = 0; defines[i] != NULL; i++)
 			{
 				pszArgs.push_back(L"-D");
-				pszArgs.push_back(define++);
+				pszArgs.push_back(defines[i++]);
 				pszArgs.push_back(L"=");
-				pszArgs.push_back(define);
+				pszArgs.push_back(defines[i]);
 			}
 		}
 
@@ -134,7 +134,7 @@ namespace EduEngine::EduBinding
 		};
 	}
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 	void ShaderD3D12::DebugPrint()
 	{
 		printf("---------------------------------------------------\n");

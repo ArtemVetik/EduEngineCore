@@ -25,7 +25,7 @@ namespace EduEngine::EduBinding
 
 		D3D12_SHADER_BYTECODE GetShaderBytecode() const;
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 		void DebugPrint();
 #endif
 

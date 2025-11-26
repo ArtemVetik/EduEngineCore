@@ -20,7 +20,7 @@ namespace EduEngine::EduBinding
 
 		IShaderBinder* GetShaderBinder() const { return m_ShaderBinder.get(); }
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 		void DebugPrint();
 #endif
 

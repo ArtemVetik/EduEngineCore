@@ -45,7 +45,7 @@ namespace EduEngine::EduBinding
 
 		uint8 rootIndex = 0;
 
-#ifndef _DEBUG
+#ifndef EDUBINDINGDEBUG
 		D3D12_ROOT_PARAMETER1 params[64];
 		std::vector<D3D12_DESCRIPTOR_RANGE1> tableRanges[SHADER_RESOURCE_TYPE_NUM][EDU_SHADER_TYPE_NUM];
 #endif
@@ -104,12 +104,12 @@ namespace EduEngine::EduBinding
 			}
 		);
 
-#ifndef _DEBUG
+#ifndef EDUBINDINGDEBUG
 		D3D12_STATIC_SAMPLER_DESC staticSamplers[7];
 #endif
 		InitStaticSamplers(staticSamplers);
 
-#ifndef _DEBUG
+#ifndef EDUBINDINGDEBUG
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc = {};
 #else
 		rootSigDesc = {};
@@ -142,7 +142,7 @@ namespace EduEngine::EduBinding
 		THROW_IF_FAILED(hr, L"Failed to create root signature");
 	}
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 	void RootSignature::DebugPrint()
 	{
 		printf("----------------------------------------\n");

@@ -15,6 +15,8 @@ target_include_directories(EduBinding PUBLIC
 
 target_compile_definitions(EduBinding PRIVATE UNICODE _UNICODE EDUBINDING_EXPORTS)
 
+#target_compile_definitions(EduBinding PUBLIC $<$<CONFIG:Debug>:EDUBINDINGDEBUG>)
+
 target_link_libraries(EduBinding PUBLIC
     Graphics
 )

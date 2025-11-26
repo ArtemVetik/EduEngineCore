@@ -10,7 +10,8 @@ namespace EduEngine::EduBinding
 	class EDUBINDING_API IShaderBinder
 	{
 	public:
-		virtual void BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource) = 0;
+		virtual void BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource, uint32 descriptorOffset = 0) = 0;
 		virtual void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<DynamicUploadBuffer> resource) = 0;
+		virtual void DryMutableResources() = 0;
 	};
 }

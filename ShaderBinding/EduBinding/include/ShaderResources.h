@@ -46,7 +46,7 @@ namespace EduEngine::EduBinding
 			return m_ResBuffer[m_resOffsets[t].BuffUAV + index];
 		}
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 		void DebugPrint();
 #endif
 
