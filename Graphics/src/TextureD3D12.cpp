@@ -28,28 +28,27 @@ namespace EduEngine
 	TextureD3D12::TextureD3D12(RenderDeviceD3D12* pDevice, DeviceContext* context, std::wstring ddsTexPath, QueueID queueId) :
 		ResourceViewD3D12(pDevice, queueId)
 	{
+		Microsoft::WRL::ComPtr<ID3D12Resource> ddsUploadHeap = nullptr;
+
 		HRESULT hr = DirectX::CreateDDSTextureFromFile12(
 			m_Device->GetD3D12Device(),
 			context->GetCommandCtx()->GetCmdList(),
 			ddsTexPath.c_str(),
 			m_d3d12Resource,
-			m_DDSuploadHeap
+			ddsUploadHeap
 		);
 
 		THROW_IF_FAILED(hr, L"Failed to load dds texture");
 
-		SetState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
-
-	TextureD3D12::~TextureD3D12()
-	{
-		if (m_DDSuploadHeap)
+		if (ddsUploadHeap)
 		{
 			ReleaseResourceWrapper releaseResource;
-			releaseResource.AddResource(std::move(m_DDSuploadHeap));
+			releaseResource.AddResource(std::move(ddsUploadHeap));
 
 			m_Device->SafeReleaseObject(m_QueueId, std::move(releaseResource));
 		}
+
+		SetState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	void TextureD3D12::LoadData(DeviceContext* context, void* dataPtr)

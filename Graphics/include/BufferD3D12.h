@@ -45,6 +45,8 @@ namespace EduEngine
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
 			m_View.StrideInBytes = byteStride;
 			m_View.SizeInBytes = byteStride * bufferLength;
+
+			SetName(L"VertexBufferD3D12");
 		}
 
 		D3D12_VERTEX_BUFFER_VIEW GetView() const { return m_View; }
@@ -69,6 +71,8 @@ namespace EduEngine
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
 			m_View.Format = format;
 			m_View.SizeInBytes = byteStride * bufferLength;
+
+			SetName(L"IndexBufferD3D12");
 		}
 
 		D3D12_INDEX_BUFFER_VIEW GetView() const { return m_View; }

@@ -18,14 +18,10 @@ namespace EduEngine
 
 		TextureD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource> resource, QueueID queueId);
 		TextureD3D12(RenderDeviceD3D12* pDevice, DeviceContext* context, std::wstring ddsTexPath, QueueID queueId);
-		~TextureD3D12();
 
 		void LoadData(DeviceContext* context, void* dataPtr);
 		void LoadData(DeviceContext* context, TextureD3D12* srcTexture, UINT srcSubresource = 0, UINT dstSubresource = 0);
 
 		bool IsSRGBFormat() const;
-
-	private:
-		Microsoft::WRL::ComPtr<ID3D12Resource> m_DDSuploadHeap;
 	};
 }
