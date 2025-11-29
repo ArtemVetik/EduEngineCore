@@ -60,7 +60,7 @@ namespace EduEngine::EduBinding
 		{
 			for (uint32 i = 0; defines[i] != NULL; i++)
 			{
-				pszArgs.push_back(L"-D");
+				pszArgs.push_back(L"-D ");
 				pszArgs.push_back(defines[i++]);
 				pszArgs.push_back(L"=");
 				pszArgs.push_back(defines[i]);

@@ -31,5 +31,7 @@ namespace EduEngine::EduBinding
 
 		HRESULT hr = device->CreateComputePipelineState(&m_Desc, IID_PPV_ARGS(&pso));
 		THROW_IF_FAILED(hr, L"Failed to create PSO");
+		
+		pso->SetName(L"PSO_Compute");
 	}
 }

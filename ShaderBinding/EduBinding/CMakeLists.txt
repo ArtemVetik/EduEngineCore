@@ -13,7 +13,10 @@ target_include_directories(EduBinding PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
-target_compile_definitions(EduBinding PRIVATE UNICODE _UNICODE EDUBINDING_EXPORTS)
+target_compile_definitions(EduBinding PRIVATE UNICODE _UNICODE)
+
+target_compile_definitions(EduBinding PRIVATE EDUBINDING_EXPORTS)
+#target_compile_definitions(EduBinding PUBLIC EDUBINDING_STATIC)
 
 #target_compile_definitions(EduBinding PUBLIC $<$<CONFIG:Debug>:EDUBINDINGDEBUG>)
 

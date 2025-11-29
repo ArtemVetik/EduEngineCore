@@ -116,7 +116,10 @@ namespace EduEngine::EduBinding
 #endif
 
 		rootSigDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-		rootSigDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+		rootSigDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+#if 0
+		rootSigDesc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+#endif
 		rootSigDesc.Desc_1_1.NumStaticSamplers = _countof(staticSamplers);
 		rootSigDesc.Desc_1_1.pStaticSamplers = staticSamplers;
 		rootSigDesc.Desc_1_1.pParameters = params;
@@ -140,6 +143,8 @@ namespace EduEngine::EduBinding
 		);
 
 		THROW_IF_FAILED(hr, L"Failed to create root signature");
+
+		m_RootSignature->SetName(L"Root Signature");
 	}
 
 #ifdef EDUBINDINGDEBUG

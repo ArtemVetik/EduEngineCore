@@ -20,6 +20,7 @@ namespace EduEngine::EduBinding
 		staleResource.AddPageable(std::move(m_PSO));
 
 		m_Device->SafeReleaseObject(m_QueueId, std::move(staleResource));
+		m_Device = nullptr;
 	}
 
 	void PipelineStateBase::Build(RenderDeviceD3D12* device)

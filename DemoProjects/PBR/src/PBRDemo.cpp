@@ -89,7 +89,7 @@ namespace EduEngine
 		if (InputManager::GetInstance().IsKeyPressed(DIK_Q))
 			GetCamera()->Move(-upVector * moveScale * timer.GetDeltaTime());
 
-#ifdef _DEBUG
+#ifdef EDUBINDINGDEBUG
 		if (InputManager::GetInstance().IsKeyDown(DIK_P))
 			m_ColorPass->GetPipelineState().DebugPrint();
 #endif
