@@ -1,10 +1,9 @@
 #pragma once
-
 #include "framework.h"
 
 namespace EduEngine
 {
-	class RENDERENGINE_API Timer
+	class RENDERTECHNIQUES_API Timer
 	{
 	public:
 		Timer(HWND handle, LPCTSTR windowTitle);

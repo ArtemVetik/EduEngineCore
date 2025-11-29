@@ -3,8 +3,9 @@
 #include <memory>
 
 #include "framework.h"
-#include "Timer.h"
 #include "Window.h"
+
+#include <Timer.h>
 
 namespace EduEngine
 {

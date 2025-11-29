@@ -6,8 +6,14 @@
 #include <windows.h>
 #include <d3d12.h>
 
+#ifdef RENDERTECHNIQUES_STATIC
+#define RENDERTECHNIQUES_API
+#else
+
 #ifdef RENDERTECHNIQUES_EXPORTS
 #define RENDERTECHNIQUES_API __declspec(dllexport)
 #else
 #define RENDERTECHNIQUES_API __declspec(dllimport)
+#endif
+
 #endif

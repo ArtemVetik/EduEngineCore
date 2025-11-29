@@ -3,13 +3,13 @@
 #include <memory>
 
 #include "../../BaseDemo/include/RenderEngine.h"
-#include "../../BaseDemo/include/Camera.h"
 #include "../../BaseDemo/include/RenderPasses.h"
 #include "../../BaseDemo/include/Texture.h"
 #include "../../BaseDemo/include/Mesh.h"
 #include "../../Graphics/include/DynamicUploadBuffer.h"
 
 #include <DebugRendererSystem.h>
+#include <Camera.h>
 
 namespace EduEngine
 {

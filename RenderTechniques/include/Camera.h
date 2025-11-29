@@ -11,7 +11,7 @@ namespace EduEngine
 {
 	using namespace DirectX;
 
-	class Camera
+	class RENDERTECHNIQUES_API Camera
 	{
 	public:
 		Camera(RenderDeviceD3D12* device, UINT width, UINT height);

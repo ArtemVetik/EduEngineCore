@@ -25,6 +25,7 @@ if(NOT ASSIMP_LIB)
 endif()
 
 target_link_libraries(BaseDemo PUBLIC
+    RenderTechniques
     Graphics
     DiligentBinding
     EduBinding

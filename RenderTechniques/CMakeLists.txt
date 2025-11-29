@@ -12,7 +12,10 @@ target_include_directories(RenderTechniques PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
-target_compile_definitions(RenderTechniques PRIVATE UNICODE _UNICODE RENDERTECHNIQUES_EXPORTS)
+target_compile_definitions(RenderTechniques PRIVATE UNICODE _UNICODE)
+
+#target_compile_definitions(RenderTechniques PRIVATE RENDERTECHNIQUES_EXPORTS)
+target_compile_definitions(RenderTechniques PUBLIC RENDERTECHNIQUES_STATIC)
 
 target_link_libraries(RenderTechniques PUBLIC
     Graphics
