@@ -10,6 +10,7 @@
 
 #include <DebugRendererSystem.h>
 #include <Camera.h>
+#include <PBRPrepass.h>
 
 namespace EduEngine
 {
@@ -32,6 +33,7 @@ namespace EduEngine
 		std::shared_ptr<Texture> m_NormalMapTexture;
 		std::shared_ptr<Mesh> m_Mesh;
 
+		std::shared_ptr<PBRPrepass> m_Prepass;
 		std::shared_ptr<DebugRendererSystem> m_DebugRenderer;
 	
 		PBRLighting::Light m_LightConstants;

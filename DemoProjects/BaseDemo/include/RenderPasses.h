@@ -150,6 +150,8 @@ namespace EduEngine
 			XMFLOAT4X4 ViewProj;
 			UINT DirectionalLightsCount = 1;
 			XMFLOAT3 CamPos = { 0, 0, 0 };
+			UINT PrefilteredMapLods = 1;
+			XMUINT3 Padding = { 0, 0, 0 };
 		};
 
 		struct MaterialConstants
@@ -252,8 +254,6 @@ namespace EduEngine
 		};
 
 	private:
-		std::shared_ptr<EduEngine::EduBinding::ShaderD3D12> m_VertexShader;
-		std::shared_ptr<EduEngine::EduBinding::ShaderD3D12> m_PixelShader;
 		EduEngine::EduBinding::PipelineState m_Pso;
 
 	public:
@@ -277,8 +277,8 @@ namespace EduEngine
 			psDesc.ResourceNum = _countof(psVars);
 			psDesc.ResourceDesc = psVars;
 
-			m_VertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\DebugRender.hlsl", L"VS", L"vs_6_0", nullptr, vsDesc);
-			m_PixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\DebugRender.hlsl", L"PS", L"ps_6_0", nullptr, psDesc);
+			auto vertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\DebugRender.hlsl", L"VS", L"vs_6_0", nullptr, vsDesc);
+			auto pixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\DebugRender.hlsl", L"PS", L"ps_6_0", nullptr, psDesc);
 
 			std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout =
 			{
@@ -306,10 +306,11 @@ namespace EduEngine
 			m_Pso.SetBlendState(blendDesc);
 			m_Pso.SetDepthStencilState(dss);
 			m_Pso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
-			m_Pso.SetShader(m_VertexShader);
-			m_Pso.SetShader(m_PixelShader);
+			m_Pso.SetShader(vertexShader);
+			m_Pso.SetShader(pixelShader);
 			m_Pso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
 			m_Pso.Build(device);
+			m_Pso.SetName(L"PSO_DebugRender");
 		}
 
 		EduEngine::EduBinding::PipelineState& GetPipelineState() { return m_Pso; }

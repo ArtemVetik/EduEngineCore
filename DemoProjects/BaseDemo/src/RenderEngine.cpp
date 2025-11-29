@@ -88,7 +88,15 @@ namespace EduEngine
 
 		InitImGui(mainWindow);
 
+		ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+		m_MainContext->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
 		OnStartUp();
+
+		m_MainContext->GetCommandCtx()->FlushResourceBarriers();
+		auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		commandQueue.CloseAndExecuteCommandContext(m_MainContext->GetCommandCtx());
+		m_MainContext->GetCommandCtx()->Reset();
 
 		return true;
 	}
