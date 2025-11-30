@@ -3,12 +3,12 @@
 #include "CommandQueueD3D12.h"
 #include "QueryHeap.h"
 
-#include "../../Graphics.Heaps/include/IRenderDeviceD3D12.h"
-#include "../../Graphics.Heaps/include/CPUDescriptorHeap.h"
-#include "../../Graphics.Heaps/include/GPUDescriptorHeap.h"
-#include "../../Graphics.Heaps/include/DynamicSuballocationsManager.h"
-#include "../../Graphics.Heaps/include/ReleaseResourceWrapper.h"
-#include "../../Graphics.Heaps/include/QueueID.h"
+#include <IRenderDeviceD3D12.h>
+#include <CPUDescriptorHeap.h>
+#include <GPUDescriptorHeap.h>
+#include <DynamicSuballocationsManager.h>
+#include <ReleaseResourceWrapper.h>
+#include <QueueID.h>
 
 namespace EduEngine
 {

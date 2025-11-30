@@ -5,7 +5,7 @@
 
 #include "d3dx12.h"
 
-#include "../../../Common/include/EngineTypes.h"
+#include <EngineTypes.h>
 
 #if defined(DEBUG) || defined(_DEBUG)
 #define _CRTDBG_MAP_ALLOC

@@ -1,16 +1,18 @@
-file(GLOB_RECURSE COMMON_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp"
-)
-file(GLOB_RECURSE COMMON_HEADERS
-    "${CMAKE_CURRENT_LIST_DIR}/include/*.h"
-    "${CMAKE_CURRENT_LIST_DIR}/include/*.inl"
-)
+
 add_library(Common STATIC
-    ${COMMON_SOURCES}
-    ${COMMON_HEADERS}
+    src/SimpleMath.cpp
+    src/DxException.cpp
+    
+    include/Asserts.h
+    include/EngineTypes.h
+    include/StringUtils.h
+    include/DxException.h
+    include/FileUtils.h
+
+    include/SimpleMath.inl
 )
-target_include_directories(Common PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/include
+target_include_directories(Common
+    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
 target_compile_definitions(Common

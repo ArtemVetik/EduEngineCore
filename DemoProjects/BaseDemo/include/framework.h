@@ -5,9 +5,3 @@
 
 #include <windows.h>
 #include <d3d12.h>
-
-#ifdef RENDERENGINE_EXPORTS
-#define RENDERENGINE_API //__declspec(dllexport)
-#else
-#define RENDERENGINE_API //__declspec(dllimport)
-#endif

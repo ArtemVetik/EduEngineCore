@@ -1,12 +1,11 @@
 #pragma once
+#include "framework.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "framework.h"
-
-#include "../../Graphics/include/BufferD3D12.h"
+#include <BufferD3D12.h>
 
 namespace EduEngine
 {

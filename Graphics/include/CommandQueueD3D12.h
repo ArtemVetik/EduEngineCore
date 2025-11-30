@@ -2,8 +2,8 @@
 #include "framework.h"
 #include "CommandContext.h"
 
-#include "../../Graphics.Heaps/include/DynamicUploadHeap.h"
-#include "../../Graphics.Heaps/include/ReleaseResourceWrapper.h"
+#include <DynamicUploadHeap.h>
+#include <ReleaseResourceWrapper.h>
 
 namespace EduEngine
 {

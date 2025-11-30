@@ -9,7 +9,7 @@
 
 namespace EduEngine
 {
-	class RENDERENGINE_API IRenderEngine
+	class IRenderEngine
 	{
 	public:
 		virtual void Update(const Timer& timer) = 0;

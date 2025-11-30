@@ -29,4 +29,4 @@
 
 #include "framework.h"
 
-#include "../../Common/include/Asserts.h"
+#include <Asserts.h>

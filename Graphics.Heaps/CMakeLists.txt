@@ -1,15 +1,24 @@
-file(GLOB_RECURSE HEAPS_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp"
-)
-file(GLOB_RECURSE HEAPS_HEADERS
-    "${CMAKE_CURRENT_LIST_DIR}/include/*.h"
-)
 add_library(GraphicsHeaps STATIC
-    ${HEAPS_SOURCES}
-    ${HEAPS_HEADERS}
+    src/CPUDescriptorHeap.cpp
+    src/DescriptorHeapAllocation.cpp
+    src/DescriptorHeapAllocationManager.cpp
+    src/DynamicSuballocationsManager.cpp
+    src/DynamicUploadHeap.cpp
+    src/GPUDescriptorHeap.cpp
+    src/GPURingBuffer.cpp
+    src/pch.cpp
+    src/RingBuffer.cpp
+    src/VariableSizeMemoryAllocator.cpp
+
+    include/ReleaseResourceWrapper.h
 )
-target_include_directories(GraphicsHeaps PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/include
+
+target_include_directories(GraphicsHeaps
+    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
+)
+
+target_link_libraries(GraphicsHeaps PUBLIC
+    Common
 )
 
 target_compile_definitions(GraphicsHeaps PUBLIC UNICODE _UNICODE GRAPHICSHEAPS_STATIC)

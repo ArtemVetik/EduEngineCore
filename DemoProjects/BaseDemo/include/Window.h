@@ -8,7 +8,7 @@
 
 namespace EduEngine
 {
-	class RENDERENGINE_API Window
+	class Window
 	{
 	public:
 		Window(HINSTANCE hInstance, int width, int height);

@@ -1,10 +1,8 @@
 #pragma once
-
 #include "framework.h"
 #include "RootSignatureD3D12.h"
 
-#include "../../Common/include/SimpleMath.h"
-
+#include <SimpleMath.h>
 #include <PipelineStateD3D12.h>
 #include <PipelineState.h>
 

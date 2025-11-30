@@ -14,9 +14,10 @@ add_library(ImGui STATIC
     imgui/backends/imgui_impl_dx12.cpp
 )
 
-target_include_directories(ImGui PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
+target_include_directories(ImGui
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/imgui
+        ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
 )
 
 target_compile_features(ImGui PUBLIC cxx_std_17)
@@ -26,10 +27,11 @@ target_compile_definitions(ImGui PUBLIC
     IMGUI_ENABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS
 )
 
-target_link_libraries(ImGui PUBLIC
-    D3D12
-    dxgi
-    d3dcompiler
+target_link_libraries(ImGui
+    PUBLIC
+        D3D12
+        dxgi
+        d3dcompiler
 )
 
 # target_compile_definitions(ImGui PUBLIC IMGUI_USER_CONFIG="imgui_config.h")

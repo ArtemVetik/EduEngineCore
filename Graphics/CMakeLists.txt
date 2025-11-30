@@ -1,18 +1,28 @@
-file(GLOB_RECURSE GRAPHICS_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp"
-)
-file(GLOB_RECURSE GRAPHICS_HEADERS
-    "${CMAKE_CURRENT_LIST_DIR}/include/*.h"
-)
-add_library(Graphics SHARED
-    ${GRAPHICS_SOURCES}
-    ${GRAPHICS_HEADERS}
-  )
-target_include_directories(Graphics PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/include
+add_library(Graphics STATIC
+    src/BufferD3D12.cpp
+    src/CommandContext.cpp
+    src/CommandListManager.cpp
+    src/CommandQueueD3D12.cpp
+    src/CommandSignatureD3D12.cpp
+    src/DDSTextureLoader.cpp
+    src/DeviceContext.cpp
+    src/DynamicUploadBuffer.cpp
+    src/GBuffer.cpp
+    src/pch.cpp
+    src/QueryHeap.cpp
+    src/RenderDeviceD3D12.cpp
+    src/ResourceViewD3D12.cpp
+    src/stb_image_impl.cpp
+    src/SwapChain.cpp
+    src/TextureD3D12.cpp
 )
 
-target_compile_definitions(Graphics PRIVATE UNICODE _UNICODE GRAPHICS_EXPORTS)
+target_include_directories(Graphics
+    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
+)
+
+target_compile_definitions(Graphics PRIVATE UNICODE _UNICODE)
+target_compile_definitions(Graphics PUBLIC GRAPHICS_STATIC)
 
 target_link_libraries(Graphics PUBLIC
     GraphicsHeaps

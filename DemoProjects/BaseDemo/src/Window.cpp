@@ -1,7 +1,7 @@
 #include "Window.h"
 #include "RenderEngine.h"
 
-#include <cassert>
+#include <Asserts.h>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -21,7 +21,7 @@ namespace EduEngine
 		m_ScreenWidth(width),
 		m_ScreenHeight(height)
 	{
-		assert(m_Instance == nullptr);
+		VERIFY_EXPR(m_Instance == nullptr, "");
 		m_Instance = this;
 	}
 

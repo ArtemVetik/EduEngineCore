@@ -4,7 +4,7 @@
 #include "RenderDeviceD3D12.h"
 #include "DeviceContext.h"
 
-#include "../../Graphics.Heaps/include/DescriptorHeapAllocation.h"
+#include <DescriptorHeapAllocation.h>
 
 namespace EduEngine
 {

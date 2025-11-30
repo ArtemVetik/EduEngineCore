@@ -1,19 +1,21 @@
-file(GLOB_RECURSE GRAPHICS_SOURCES
-    "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp"
-)
-file(GLOB_RECURSE GRAPHICS_HEADERS
-    "${CMAKE_CURRENT_LIST_DIR}/include/*.h"
-)
-add_library(DiligentBinding SHARED
-    ${GRAPHICS_SOURCES}
-    ${GRAPHICS_HEADERS}
-)
-
-target_include_directories(DiligentBinding PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/include
+add_library(DiligentBinding STATIC
+    src/ComputePipelineStateD3D12.cpp
+    src/PipelineStateD3D12.cpp
+    src/PipelineStateD3D12Base.cpp
+    src/RootParamsManager.cpp
+    src/RootSignatureD3D12.cpp
+    src/ShaderD3D12.cpp
+    src/ShaderResourceCacheD3D12.cpp
+    src/ShaderResourceLayoutD3D12.cpp
+    src/ShaderResourcesD3D12.cpp
 )
 
-target_compile_definitions(DiligentBinding PRIVATE UNICODE _UNICODE DILIGENTBINDING_EXPORTS)
+target_include_directories(DiligentBinding
+    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
+)
+
+target_compile_definitions(DiligentBinding PRIVATE UNICODE _UNICODE)
+target_compile_definitions(DiligentBinding PUBLIC DILIGENTBINDING_STATIC)
 
 target_link_libraries(DiligentBinding PUBLIC
     Graphics

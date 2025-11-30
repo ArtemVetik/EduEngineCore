@@ -1,12 +1,12 @@
 #include "DeviceContext.h"
 
-#include <cassert>
+#include <Asserts.h>
 
 namespace EduEngine
 {
 	DeviceContext::DeviceContext(RenderDeviceD3D12& device, D3D12_COMMAND_LIST_TYPE type)
 	{
-		assert(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		VERIFY_EXPR(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE, "");
 
 		m_CmdCtx = new CommandContext(device, type);
 	}

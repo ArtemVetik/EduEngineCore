@@ -1,16 +1,15 @@
 #pragma once
+#include "framework.h"
 
 #include <DirectXColors.h>
 #include <vector>
-
-#include "framework.h"
 
 namespace EduEngine
 {
 	using uint16 = std::uint16_t;
 	using uint32 = std::uint32_t;
 
-	struct RENDERENGINE_API Vertex
+	struct Vertex
 	{
 		Vertex() = default;
 		Vertex(
@@ -40,7 +39,7 @@ namespace EduEngine
 		DirectX::XMFLOAT2 TexC;
 	};
 
-	struct RENDERENGINE_API VertexPU
+	struct VertexPU
 	{
 		VertexPU() = default;
 		VertexPU(
@@ -60,7 +59,7 @@ namespace EduEngine
 		DirectX::XMFLOAT2 TexC;
 	};
 
-	struct RENDERENGINE_API MeshData
+	struct MeshData
 	{
 		std::vector<Vertex> Vertices;
 		std::vector<uint32> Indices32;

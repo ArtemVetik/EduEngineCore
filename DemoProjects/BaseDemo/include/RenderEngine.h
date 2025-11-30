@@ -9,8 +9,8 @@
 #include "Mesh.h"
 #include "Texture.h"
 
-#include "../../Graphics/include/SwapChain.h"
-#include "../../Graphics/include/DynamicUploadBuffer.h"
+#include <SwapChain.h>
+#include <DynamicUploadBuffer.h>
 
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")

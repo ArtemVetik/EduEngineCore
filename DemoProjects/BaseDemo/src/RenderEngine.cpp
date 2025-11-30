@@ -2,8 +2,6 @@
 
 #include <dxgi1_6.h>
 
-#include "../../InputSystem/include/InputManager.h"
-
 namespace EduEngine
 {
 	RenderEngine* RenderEngine::m_Instance = nullptr;

@@ -1,5 +1,4 @@
 #include "InputManager.h"
-#include <iostream>
 
 namespace EduEngine
 {
@@ -11,7 +10,8 @@ namespace EduEngine
 		m_prevKeyboardState{},
 		m_mouseState{},
 		m_prevMouseState{},
-		m_VisibleCursor(true)
+		m_VisibleCursor(true),
+		m_window(nullptr)
 	{ }
 
 	InputManager::~InputManager()

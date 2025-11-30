@@ -2,7 +2,7 @@
 #include "framework.h"
 #include "RenderDeviceD3D12.h"
 
-#include "../../Graphics.Heaps/include/QueueID.h"
+#include <QueueID.h>
 
 namespace EduEngine
 {
