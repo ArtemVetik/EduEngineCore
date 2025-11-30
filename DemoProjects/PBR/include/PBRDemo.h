@@ -23,7 +23,7 @@ namespace EduEngine
 
 	private:
 		void RenderImGui(bool& genEnvMap, char* envMapFile);
-		void BuildPBRPass();
+		void BuildPBRPass(const wchar_t* debugView = nullptr);
 
 	private:
 		std::shared_ptr<BufferD3D12> m_MaterialBuffer;

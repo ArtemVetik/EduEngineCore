@@ -245,6 +245,29 @@ float4 PS(VertexOut pin) : SV_Target
     float3 color = ambient + Lo;
 	
     color = color / (color + 1.0);
+    
+#if DEBUGVIEW_ROUGHNESS
+    color = roughness;
+#elif DEBUGVIEW_METALLIC
+    color = metallic;
+#elif DEBUGVIEW_AO
+    color = ao;
+#elif DEBUGVIEW_NORMAL
+    color = N;
+#elif DEBUGVIEW_DIFFUSE_IBL
+    color = kD * diffuse;
+#elif DEBUGVIEW_SPECULAR_IBL
+    color = specular;
+#elif DEBUGVIEW_NDOTV
+    color = max(dot(N, V), 0.0);
+#elif DEBUGVIEW_FRESNEL
+    color = F;
+#elif DEBUGVIEW_BRDF_Y
+    color = envBRDF.y;
+#elif DEBUGVIEW_BRDF_X
+    color = envBRDF.x;
+#endif
+    
     color = pow(color, 1.0 / 2.2);
     
     return float4(color, 1.0);

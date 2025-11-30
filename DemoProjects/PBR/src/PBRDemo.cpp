@@ -320,18 +320,40 @@ namespace EduEngine
 			}
 		}
 
+		if (ImGui::CollapsingHeader("Debug View"))
+		{
+			static int currentView = 0;
+			const char* debugViews[] = 
+			{ 
+				"NONE", "DEBUGVIEW_ROUGHNESS", "DEBUGVIEW_METALLIC", "DEBUGVIEW_AO",
+				"DEBUGVIEW_NORMAL", "DEBUGVIEW_DIFFUSE_IBL", "DEBUGVIEW_SPECULAR_IBL",
+				"DEBUGVIEW_NDOTV", "DEBUGVIEW_FRESNEL", "DEBUGVIEW_BRDF_Y", "DEBUGVIEW_BRDF_X",
+			};
+			if (ImGui::Combo("Type##DebugView", &currentView, debugViews, IM_ARRAYSIZE(debugViews)))
+			{
+				UINT cSize = strlen(debugViews[currentView]) + 1;
+				wchar_t* wc = new wchar_t[cSize];
+				mbstowcs(wc, debugViews[currentView], cSize);
+
+				BuildPBRPass(wc);
+				
+				delete[] wc;
+			}
+		}
+
 		ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
 	}
 
-	void PBRDemo::BuildPBRPass()
+	void PBRDemo::BuildPBRPass(const wchar_t* debugView)
 	{
 		LPCWSTR macros[]
 		{
 			L"PBR_TEXTURED", (m_PBRTextured ? L"1" : L"0"),
-			NULL, NULL
+			debugView, L"1",
+			NULL, NULL,
 		};
 
 		m_ColorPass = std::make_unique<PBRLighting>(GetDevice(), macros);
