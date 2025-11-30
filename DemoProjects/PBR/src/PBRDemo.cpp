@@ -15,10 +15,10 @@ namespace EduEngine
 		m_MeshScale = 50.0f;
 		m_MeshRotation = { -90.0, 90.0, 0.0 };
 
-		m_AlbedoTexture.Load(L"Textures\\Default_albedo.dds", GetDevice(), GetMainContext(), nullptr, L"Tex Albedo");
-		m_MetallicRoughnessTexture.Load(L"Textures\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), nullptr, L"Tex MetalRough");
-		m_AOTexture.Load(L"Textures\\Default_AO.dds", GetDevice(), GetMainContext(), nullptr, L"Tex AO");
-		m_NormalMapTexture.Load(L"Textures\\Default_normal.dds", GetDevice(), GetMainContext(), nullptr, L"Tex NormalMap");
+		m_AlbedoTexture.Load(L"Textures\\DamagedHelmet\\Default_albedo.dds", GetDevice(), GetMainContext(), nullptr, L"Tex Albedo");
+		m_MetallicRoughnessTexture.Load(L"Textures\\DamagedHelmet\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), nullptr, L"Tex MetalRough");
+		m_AOTexture.Load(L"Textures\\DamagedHelmet\\Default_AO.dds", GetDevice(), GetMainContext(), nullptr, L"Tex AO");
+		m_NormalMapTexture.Load(L"Textures\\DamagedHelmet\\Default_normal.dds", GetDevice(), GetMainContext(), nullptr, L"Tex NormalMap");
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
@@ -45,7 +45,7 @@ namespace EduEngine
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
 		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
-		m_Prepass->GenerateTextures("Textures\\newport_loft.hdr", GetDevice(), GetMainContext());
+		m_Prepass->GenerateTextures("Textures\\HDR\\newport_loft.hdr", GetDevice(), GetMainContext());
 
 		m_PBRTextured = true;
 		BuildPBRPass();
