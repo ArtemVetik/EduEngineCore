@@ -78,9 +78,9 @@ float3 fresnelSchlick(float cosTheta, float3 F0)
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-float3 fresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+float3 fresnelSchlickRoughness(float VdotH, float3 F0, float roughness)
 {
-    return F0 + (max(1.0 - roughness, F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+    return F0 + (max(1.0 - roughness, F0) - F0) * pow(clamp(1.0 - VdotH, 0.0, 1.0), 5.0);
 }
 
 float DistributionGGX(float3 N, float3 H, float roughness)
@@ -139,6 +139,18 @@ float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, floa
     return bumpedNormalW;
 }
 
+float3x3 InverseTranspose3x3(float3x3 M)
+{
+    // Note that in HLSL, M_t[0] is the first row, while in GLSL, it is the
+    // first column. Luckily, determinant and inverse matrix can be equally
+    // defined through both rows and columns.
+    float det = dot(cross(M[0], M[1]), M[2]);
+    float3x3 adjugate = float3x3(cross(M[1], M[2]),
+                                 cross(M[2], M[0]),
+                                 cross(M[0], M[1]));
+    return adjugate / det;
+}
+
 VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
@@ -147,8 +159,12 @@ VertexOut VS(VertexIn vin)
     vout.PosW = posW.xyz;
     vout.PosH = mul(posW, gViewProj);
 
-    vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
-    vout.TangentW = mul(vin.TangentU, (float3x3) gWorld);
+    float3x3 NormalTransform = float3x3(gWorld[0].xyz, gWorld[1].xyz, gWorld[2].xyz);
+    NormalTransform = InverseTranspose3x3(NormalTransform);
+    
+    vout.NormalW = normalize(mul(vin.NormalL, NormalTransform));
+    
+    vout.TangentW = normalize(mul(vin.TangentU, float3x3(gWorld[0].xyz, gWorld[1].xyz, gWorld[2].xyz)));
     vout.TexC = vin.TexC;
     
     return vout;
@@ -175,7 +191,7 @@ float4 PS(VertexOut pin) : SV_Target
     float ao = gAOF;
     float3 N = pin.NormalW;
 #endif
-
+    
     float3 F0 = 0.04;
     F0 = lerp(F0, albedo, metallic);
     
@@ -211,7 +227,7 @@ float4 PS(VertexOut pin) : SV_Target
     }
     
     float3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
-
+    
     float3 kS = F;
     float3 kD = 1.0 - kS;
     kD *= 1.0 - metallic;
