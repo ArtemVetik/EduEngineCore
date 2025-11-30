@@ -6,6 +6,8 @@ cbuffer cbPass : register(b0)
 {
     float4x4 gView;
     float4x4 gProj;
+    float gLod;
+    uint3 gPadding;
 };
 
 struct VertexIn
@@ -40,7 +42,7 @@ VertexOut VS(VertexIn vIn)
 
 float4 PS(VertexOut vOut) : SV_Target
 {
-    float3 color = gCubeMap.Sample(gSamLinearClamp, vOut.PosL).rgb;
+    float3 color = gCubeMap.SampleLevel(gSamLinearClamp, vOut.PosL, gLod).rgb;
     
     color = color / (color + 1);
     color = pow(color, 1.0 / 2.2);

@@ -3,6 +3,8 @@
 #include "../../InputSystem/include/InputManager.h"
 #include "../../ShaderBinding/EduBinding/include/PipelineState.h"
 
+#include <FileUtils.h>
+
 namespace EduEngine
 {
 	void PBRDemo::OnStartUp()
@@ -10,29 +12,16 @@ namespace EduEngine
 		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), "Models\\DamagedHelmet.gltf");
 		m_Mesh->Load();
 
-		m_AlbedoTexture = std::make_shared<Texture>(GetDevice(), L"Textures\\Default_albedo.dds");
-		m_MetallicRoughnessTexture = std::make_shared<Texture>(GetDevice(), L"Textures\\Default_metalRoughness.dds");
-		m_AOTexture = std::make_shared<Texture>(GetDevice(), L"Textures\\Default_AO.dds");
-		m_NormalMapTexture = std::make_shared<Texture>(GetDevice(), L"Textures\\Default_normal.dds");
+		m_MeshScale = 50.0f;
+		m_MeshRotation = { -90.0, 90.0, 0.0 };
 
-		m_AlbedoTexture->Load(GetMainContext());
-		m_MetallicRoughnessTexture->Load(GetMainContext());
-		m_AOTexture->Load(GetMainContext());
-		m_NormalMapTexture->Load(GetMainContext());
-
-		m_AlbedoTexture->GetD3D12Texture()->SetName(L"Tex Albedo");
-		m_MetallicRoughnessTexture->GetD3D12Texture()->SetName(L"Tex MetalRough");
-		m_AOTexture->GetD3D12Texture()->SetName(L"Tex AO");
-		m_NormalMapTexture->GetD3D12Texture()->SetName(L"Tex NormalMap");
-
-		m_ColorPass = std::make_unique<PBRLighting>(GetDevice());
-		m_ColorPass->Build(GetDevice());
-		m_ColorPass->GetPipelineState().SetName(L"PSO_PBR");
+		m_AlbedoTexture.Load(L"Textures\\Default_albedo.dds", GetDevice(), GetMainContext(), nullptr, L"Tex Albedo");
+		m_MetallicRoughnessTexture.Load(L"Textures\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), nullptr, L"Tex MetalRough");
+		m_AOTexture.Load(L"Textures\\Default_AO.dds", GetDevice(), GetMainContext(), nullptr, L"Tex AO");
+		m_NormalMapTexture.Load(L"Textures\\Default_normal.dds", GetDevice(), GetMainContext(), nullptr, L"Tex NormalMap");
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
-
-		PBRLighting::MaterialConstants materialConstants = {};
 
 		D3D12_RESOURCE_DESC buffDesc = {};
 		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -46,28 +35,32 @@ namespace EduEngine
 		buffDesc.SampleDesc.Quality = 0;
 		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-		std::shared_ptr<BufferD3D12> matBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &materialConstants, QueueID::Direct);
-		matBuffer->SetName(L"Buffer Material");
+		m_MaterialConstants = { };
+		m_MaterialBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &m_MaterialConstants, QueueID::Direct);
+		m_MaterialBuffer->SetName(L"Buffer Material");
 
 		m_LightConstants = {};
 		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 		m_LightBuffer->LoadData(m_LightConstants);
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
-		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext(), "Textures\\newport_loft.hdr");
-		m_Prepass->GenerateTextures(GetDevice(), GetMainContext());
+		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
+		m_Prepass->GenerateTextures("Textures\\newport_loft.hdr", GetDevice(), GetMainContext());
+
+		m_PBRTextured = true;
+		BuildPBRPass();
 
 		auto binder = m_ColorPass->GetPipelineState().GetShaderBinder();
 
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture->GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture->GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture->GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture->GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture.GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture.GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture.GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture.GetD3D12Texture());
 		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gIrradianceMap", m_Prepass->GetIrradianceMap());
 		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gPrefilteredMap", m_Prepass->GetPrefilteredMap());
 		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gBRDFLut", m_Prepass->GetBrdfLut());
 
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", matBuffer);
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
 		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
 		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
 		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
@@ -136,19 +129,16 @@ namespace EduEngine
 	void PBRDemo::OnRender(const Timer& timer)
 	{
 		PBRLighting::ObjectConstants objConstants;
-		objConstants.World = (SimpleMath::Matrix::CreateScale(50.0f) * SimpleMath::Matrix::CreateRotationX(-XM_PIDIV2) * SimpleMath::Matrix::CreateRotationY(XM_PIDIV2)).Transpose();
+		objConstants.World = (SimpleMath::Matrix::CreateScale(m_MeshScale) *
+			SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(m_MeshRotation.x)) *
+			SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_MeshRotation.y)) *
+			SimpleMath::Matrix::CreateRotationZ(XMConvertToRadians(m_MeshRotation.z))).Transpose();
 
 		PBRLighting::PassConstants passConstants;
 		XMStoreFloat4x4(&passConstants.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		passConstants.CamPos = GetCamera()->GetPosition();
 		passConstants.DirectionalLightsCount = 1;
 		passConstants.PrefilteredMapLods = PBRPrepass::PREFILTERED_MIP_LEVELS;
-
-		m_LightConstants.Direction.x = cos(timer.GetTotalTime() * 0.5f);
-		m_LightConstants.Direction.z = sin(timer.GetTotalTime() * 0.5f);
-		m_LightConstants.Direction.y = -10.0f;
-		m_LightConstants.Strength = { 10, 10, 10 };
-		m_LightConstants.Position = XMFLOAT3(-m_LightConstants.Direction.x * 20, 200, -m_LightConstants.Direction.z * 20);
 
 		m_ObjBuffer->LoadData(objConstants);
 		m_PassBuffer->LoadData(passConstants);
@@ -168,22 +158,200 @@ namespace EduEngine
 
 		XMFLOAT3 lightEndDir =
 		{
-			m_LightConstants.Position.x + m_LightConstants.Direction.x * 10,
-			m_LightConstants.Position.y + m_LightConstants.Direction.y * 10,
-			m_LightConstants.Position.z + m_LightConstants.Direction.z * 10,
+			m_LightConstants.Position.x + m_LightConstants.Direction.x * 20,
+			m_LightConstants.Position.y + m_LightConstants.Direction.y * 20,
+			m_LightConstants.Position.z + m_LightConstants.Direction.z * 20,
 		};
-		m_DebugRenderer->DrawSphere(10.0f, { 1, 1, 0 }, DirectX::XMMatrixTranslation(m_LightConstants.Position.x, m_LightConstants.Position.y, m_LightConstants.Position.z), 16);
+		m_DebugRenderer->DrawSphere(5.0f, { 1, 1, 0 }, DirectX::XMMatrixTranslation(m_LightConstants.Position.x, m_LightConstants.Position.y, m_LightConstants.Position.z), 16);
 		m_DebugRenderer->DrawArrow(m_LightConstants.Position, lightEndDir, { 1, 1, 0 }, { 1, 0, 0 });
 
 		m_DebugRenderer->Render(GetMainContext(), GetCamera()->GetViewProjMatrix(), GetCamera()->GetPosition());
 
+		bool genEnvMap;
+		char envMapPath[MAX_PATH];
+		RenderImGui(genEnvMap, envMapPath);
+
+		if (genEnvMap)
+		{
+			m_Prepass->GenerateTextures(envMapPath, GetDevice(), GetMainContext());
+		}
+	}
+
+	void PBRDemo::RenderImGui(bool& genEnvMap, char* envMapFile)
+	{
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::ShowDemoWindow();
+		struct PBRTexLoad
+		{
+			const char* Name;
+			const char* BindName;
+			Texture* PBRTex = nullptr;
+		};
+
+		PBRTexLoad pbrTexLoad[]
+		{
+			{ "Albedo: ", "gAlbedo", &m_AlbedoTexture},
+			{ "MetalRough: ", "gMetallicRoughness", &m_MetallicRoughnessTexture},
+			{ "AO: ", "gAO", &m_AOTexture },
+			{ "NormalMap: ", "gNormalMap", &m_NormalMapTexture },
+		};
+
+		genEnvMap = false;
+
+		ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(350, ImGui::GetIO().DisplaySize.y), ImGuiCond_Always);
+
+		ImGui::Begin("Editor", nullptr,
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoResize);
+
+		if (ImGui::Checkbox("PBR Textured", &m_PBRTextured))
+		{
+			BuildPBRPass();
+		}
+
+		if (ImGui::CollapsingHeader("Light Settings"))
+		{
+
+			ImGui::DragFloat3("Position", (float*)&m_LightConstants.Position);
+			if (ImGui::SliderFloat3("Direction", (float*)&m_LightConstants.Direction, -1.0f, 1.0f))
+			{
+				XMVECTOR dir = XMLoadFloat3(&m_LightConstants.Direction);
+				dir = XMVector3Normalize(dir);
+				XMStoreFloat3(&m_LightConstants.Direction, dir);
+			}
+
+			ImGui::ColorEdit3("Color", (float*)&m_LightConstants.Color);
+			ImGui::SliderFloat("Strength", &m_LightConstants.Strength, 0.0f, 10.0f);
+		}
+
+		if (ImGui::CollapsingHeader("Mesh Settings"))
+		{
+			if (ImGui::Button("Load Model"))
+			{
+				char selectedFile[MAX_PATH];
+				memset(selectedFile, 0, sizeof(char) * MAX_PATH);
+				if (FileUtils::OpenFile("Models\0*.fbx;*.obj;*.gltf;\0", selectedFile))
+				{
+					m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), selectedFile);
+					m_Mesh->Load();
+				}
+			}
+
+			ImGui::DragFloat("Scale", &m_MeshScale);
+			ImGui::DragFloat3("Rotation", (float*)&m_MeshRotation, 1.0f, -180.0, 180.0);
+		}
+
+		if (m_PBRTextured)
+		{
+			if (ImGui::CollapsingHeader("PBR Textures"))
+			{
+				if (ImGui::ColorEdit4("Diffuse Albedo", (float*)&m_MaterialConstants.DiffuseAlbedo))
+				{
+					m_MaterialBuffer->LoadData(&m_MaterialConstants);
+				}
+
+				ImVec2 previewSize(128, 128);
+
+				for (uint8 i = 0; i < _countof(pbrTexLoad); i++)
+				{
+					ImGui::Text(pbrTexLoad[i].Name);
+					ImGui::SameLine();
+					ImGui::Text("(%s)", pbrTexLoad[i].BindName);
+					ImGui::SameLine();
+					if (ImGui::Button(("Load##" + std::to_string(i)).c_str()))
+					{
+						wchar_t selectedFileW[MAX_PATH];
+						memset(selectedFileW, 0, sizeof(wchar_t) * MAX_PATH);
+						if (FileUtils::OpenFileW(L"Models\0*.dds\0", selectedFileW))
+						{
+							auto tex = pbrTexLoad[i].PBRTex;
+							tex->Load(selectedFileW, GetDevice(), GetMainContext());
+							m_ColorPass->GetPipelineState().GetShaderBinder()->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, pbrTexLoad[i].BindName, tex->GetD3D12Texture());
+						}
+					}
+					if (pbrTexLoad[i].PBRTex->GetGPUPtr())
+						ImGui::Image((ImTextureID)(intptr_t)pbrTexLoad[i].PBRTex->GetGPUPtr(), previewSize);
+
+					ImGui::Separator();
+				}
+			}
+		}
+		else
+		{
+			if (ImGui::CollapsingHeader("PBR Settings"))
+			{
+
+				if (ImGui::ColorEdit4("Diffuse Albedo", (float*)&m_MaterialConstants.DiffuseAlbedo) ||
+					ImGui::SliderFloat("Roughness", &m_MaterialConstants.Roughness, 0.0f, 1.0f) ||
+					ImGui::SliderFloat("Metallic", &m_MaterialConstants.Metallic, 0.0f, 1.0f) ||
+					ImGui::SliderFloat("AO", &m_MaterialConstants.AO, 0.0f, 1.0f))
+				{
+					m_MaterialBuffer->LoadData(&m_MaterialConstants);
+				}
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Environment"))
+		{
+			if (ImGui::Button("Load Environment"))
+			{
+				memset(envMapFile, 0, sizeof(char) * MAX_PATH);
+				if (FileUtils::OpenFile("HDR files\0*.hdr\0", envMapFile))
+					genEnvMap = true;
+			}
+
+			static float lod = 0.0f;
+			static int current = 0;
+			const char* items[] = { "EnvMap", "IrradianceMap", "PrefilteredMap" };
+
+			if (ImGui::Combo("Type", &current, items, IM_ARRAYSIZE(items)))
+			{
+				if (current == 0) m_Prepass->SetSkyTex(m_Prepass->GetHDREnvCubeMap());
+				else if (current == 1) m_Prepass->SetSkyTex(m_Prepass->GetIrradianceMap());
+				else if (current == 2) m_Prepass->SetSkyTex(m_Prepass->GetPrefilteredMap());
+			}
+
+			if (ImGui::SliderFloat("Lod", &lod, 0.0f, PBRPrepass::PREFILTERED_MIP_LEVELS))
+			{
+				m_Prepass->SetSkyLod(lod);
+			}
+		}
+
+		ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
+	}
+
+	void PBRDemo::BuildPBRPass()
+	{
+		LPCWSTR macros[]
+		{
+			L"PBR_TEXTURED", (m_PBRTextured ? L"1" : L"0"),
+			NULL, NULL
+		};
+
+		m_ColorPass = std::make_unique<PBRLighting>(GetDevice(), macros);
+		m_ColorPass->Build(GetDevice());
+		m_ColorPass->GetPipelineState().SetName(L"PSO_PBR");
+
+		auto binder = m_ColorPass->GetPipelineState().GetShaderBinder();
+
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture.GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture.GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture.GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture.GetD3D12Texture());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gIrradianceMap", m_Prepass->GetIrradianceMap());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gPrefilteredMap", m_Prepass->GetPrefilteredMap());
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gBRDFLut", m_Prepass->GetBrdfLut());
+
+		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
+		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
 	}
 }

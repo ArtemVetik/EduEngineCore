@@ -157,6 +157,10 @@ namespace EduEngine
 		struct MaterialConstants
 		{
 			XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+			float Roughness = 0;
+			float Metallic = 0;
+			float AO = 1;
+			UINT Padding = 0;
 		};
 
 		struct Light
@@ -170,12 +174,13 @@ namespace EduEngine
 			};
 
 			Type LightType = Type::Directional;
-			DirectX::XMFLOAT3 Padding = { 0, 0, 0 };
-			DirectX::XMFLOAT3 Strength = { 0.9f, 0.9f, 0.9f };
+			float Strength = 3;
+			DirectX::XMFLOAT2 Padding = { 0, 0 };
+			DirectX::XMFLOAT3 Color = { 0.9f, 0.9f, 0.9f };
 			float FalloffStart = 1.04f;							 // point/spot light only
 			DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f }; // directional/spot light only
 			float FalloffEnd = 10.0f;							 // point/spot light only
-			DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };	 // point/spot light only
+			DirectX::XMFLOAT3 Position = { 0.0f, 100.0f, 0.0f }; // point/spot light only
 			float SpotPower = 64.0f;							 // spot light only
 		};
 

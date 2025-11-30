@@ -22,20 +22,29 @@ namespace EduEngine
 		void OnRender(const Timer& timer) override;
 
 	private:
+		void RenderImGui(bool& genEnvMap, char* envMapFile);
+		void BuildPBRPass();
+
+	private:
+		std::shared_ptr<BufferD3D12> m_MaterialBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_LightBuffer;
 		std::unique_ptr<PBRLighting> m_ColorPass;
+		bool m_PBRTextured;
 
-		std::shared_ptr<Texture> m_AlbedoTexture;
-		std::shared_ptr<Texture> m_MetallicRoughnessTexture;
-		std::shared_ptr<Texture> m_AOTexture;
-		std::shared_ptr<Texture> m_NormalMapTexture;
+		Texture m_AlbedoTexture;
+		Texture m_MetallicRoughnessTexture;
+		Texture m_AOTexture;
+		Texture m_NormalMapTexture;
 		std::shared_ptr<Mesh> m_Mesh;
 
 		std::shared_ptr<PBRPrepass> m_Prepass;
 		std::shared_ptr<DebugRendererSystem> m_DebugRenderer;
 	
+		float m_MeshScale;
+		XMFLOAT3 m_MeshRotation;
+		PBRLighting::MaterialConstants m_MaterialConstants;
 		PBRLighting::Light m_LightConstants;
 	};
 }

@@ -7,22 +7,23 @@ namespace EduEngine
 	class Texture
 	{
 	public:
-		Texture(RenderDeviceD3D12* device, const wchar_t* filePath);
+		Texture();
 		~Texture();
 
 		void* GetGPUPtr();
 
-		void Load(DeviceContext* context, D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc = nullptr);
-		void Free();
-
+		void Load(const wchar_t* filePath,
+				  RenderDeviceD3D12* device,
+				  DeviceContext* context,
+				  D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc = nullptr,
+				  wchar_t* name = nullptr);
+		
 		std::shared_ptr<TextureD3D12>& GetD3D12Texture() { return m_Texture; }
-		const wchar_t* GetFilePath() const { return m_FilePath; }
-		int GetRefCount() const { return m_RefCount; }
 
 	private:
 		RenderDeviceD3D12* m_Device;
-		const wchar_t* m_FilePath;
 		std::shared_ptr<TextureD3D12> m_Texture;
-		int m_RefCount;
+
+		DescriptorHeapAllocation m_GpuAllocation;
 	};
 }

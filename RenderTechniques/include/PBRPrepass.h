@@ -13,12 +13,16 @@ namespace EduEngine
 	class PBRPrepass
 	{
 	public:
-		PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context, const char* hdrFileName);
+		PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context);
 
-		void GenerateTextures(RenderDeviceD3D12* device, DeviceContext* context);
+		void GenerateTextures(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context);
 
 		void RenderSky(RenderDeviceD3D12* device, DeviceContext* context, Camera* camera);
 
+		void SetSkyTex(std::shared_ptr<TextureD3D12> texture);
+		void SetSkyLod(float lod) { m_SkyLod = lod; }
+
+		std::shared_ptr<TextureD3D12> GetHDREnvCubeMap() const { return m_HDRCubeEnvMap; }
 		std::shared_ptr<TextureD3D12> GetIrradianceMap() const { return m_IrradianceMap; }
 		std::shared_ptr<TextureD3D12> GetPrefilteredMap() const { return m_PrefilteredMap; }
 		std::shared_ptr<TextureD3D12> GetBrdfLut() const { return m_BrdfLut; }
@@ -27,7 +31,7 @@ namespace EduEngine
 
 	private:
 		void InitCube(RenderDeviceD3D12* device, DeviceContext* context);
-		void InitTextures(RenderDeviceD3D12* device, DeviceContext* context, const char* hdrFileName);
+		void InitTextures(RenderDeviceD3D12* device, DeviceContext* context);
 		void InitSkyboxPSO(RenderDeviceD3D12* device);
 
 	private:
@@ -38,13 +42,13 @@ namespace EduEngine
 
 		EduEngine::EduBinding::PipelineState m_PsoSkybox;
 
-		std::shared_ptr<TextureD3D12> m_HDREnvMap;
 		std::shared_ptr<TextureD3D12> m_HDRCubeEnvMap;
 		std::shared_ptr<TextureD3D12> m_IrradianceMap;
 		std::shared_ptr<TextureD3D12> m_PrefilteredMap;
 		std::shared_ptr<TextureD3D12> m_BrdfLut;
 
 		std::shared_ptr<DynamicUploadBuffer> m_SkyboxPassBuff;
+		float m_SkyLod;
 
 		std::shared_ptr<IndexBufferD3D12> m_CubeIB;
 		std::shared_ptr<VertexBufferD3D12> m_CubeVB;

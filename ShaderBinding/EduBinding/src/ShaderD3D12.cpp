@@ -56,14 +56,16 @@ namespace EduEngine::EduBinding
 #endif
 		};
 
+		std::vector<std::wstring> macroStr;
 		if (defines)
 		{
-			for (uint32 i = 0; defines[i] != NULL; i++)
+			for (uint32 i = 0; defines[i] != NULL; i += 2)
 			{
-				pszArgs.push_back(L"-D ");
-				pszArgs.push_back(defines[i++]);
-				pszArgs.push_back(L"=");
-				pszArgs.push_back(defines[i]);
+				macroStr.emplace_back(defines[i]);
+				macroStr.back().append(L"=").append(defines[i + 1]);
+
+				pszArgs.push_back(L"-D");
+				pszArgs.push_back(macroStr.back().c_str());
 			}
 		}
 

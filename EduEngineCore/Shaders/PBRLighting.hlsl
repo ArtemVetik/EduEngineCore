@@ -1,14 +1,19 @@
 struct Light
 {
     int Type;
-    float3 Padding;
-    float3 Strength;
+    float Strength;
+    float2 Padding;
+    float3 Color;
     float FalloffStart; // point/spot light only
     float3 Direction;   // directional/spot light only
     float FalloffEnd;   // point/spot light only
     float3 Position;    // point light only
     float SpotPower;    // spot light only
 };
+
+#ifndef PBR_TEXTURED
+#define PBR_TEXTURED 1
+#endif
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -43,6 +48,10 @@ cbuffer cbPerPass : register(b1)
 cbuffer cbMaterial : register(b2)
 {
     float4 gDiffuseAlbedo;
+    float gRoughnessF;
+    float gMetallicF;
+    float gAOF;
+    uint gPadding2;
 }
 
 struct VertexIn
@@ -147,6 +156,9 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
+    pin.NormalW = normalize(pin.NormalW);
+    
+#if PBR_TEXTURED
     float3 albedo = pow(gAlbedo.Sample(gsamLinearWrap, pin.TexC), 2.2) * gDiffuseAlbedo;
     float2 metallicRoughness = gMetallicRoughness.Sample(gsamLinearWrap, pin.TexC).gb;
     float ao = gAO.Sample(gsamLinearWrap, pin.TexC).r;
@@ -154,10 +166,16 @@ float4 PS(VertexOut pin) : SV_Target
     float roughness = metallicRoughness.r;
     float metallic = metallicRoughness.g;
     
-    pin.NormalW = normalize(pin.NormalW);
     float3 normalMapSample = gNormalMap.Sample(gsamAnisotropicWrap, pin.TexC).xyz;
     float3 N = NormalSampleToWorldSpace(normalMapSample, pin.NormalW, pin.TangentW);
-    
+#else
+    float3 albedo = gDiffuseAlbedo;
+    float roughness = gRoughnessF;
+    float metallic = gMetallicF;
+    float ao = gAOF;
+    float3 N = pin.NormalW;
+#endif
+
     float3 F0 = 0.04;
     F0 = lerp(F0, albedo, metallic);
     
@@ -172,7 +190,7 @@ float4 PS(VertexOut pin) : SV_Target
         float3 L = normalize(-gLight[i].Direction);
         float3 H = normalize(V + L);
         
-        float3 radiance = gLight[i].Strength;
+        float3 radiance = gLight[i].Color * gLight[i].Strength;
         
         // cook-torrance brdf
         float NDF = DistributionGGX(N, H, roughness);

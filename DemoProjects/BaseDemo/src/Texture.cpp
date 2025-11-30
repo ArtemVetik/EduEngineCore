@@ -2,29 +2,25 @@
 
 namespace EduEngine
 {
-	Texture::Texture(RenderDeviceD3D12* device, const wchar_t* filePath) :
-		m_Device(device),
-		m_FilePath(filePath),
-		m_Texture(),
-		m_RefCount(0)
-	{
-	}
+	Texture::Texture() :
+		m_Device(nullptr),
+		m_Texture(nullptr),
+		m_GpuAllocation{}
+	{ }
 
 	Texture::~Texture()
 	{
-		m_RefCount = 0;
 		m_Texture.reset();
 	}
 
-	void Texture::Load(DeviceContext* context, D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc)
+	void Texture::Load(const wchar_t* filePath,
+					   RenderDeviceD3D12* device,
+					   DeviceContext* context,
+					   D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc,
+					   wchar_t* name)
 	{
-		if (m_RefCount > 0)
-		{
-			m_RefCount++;
-			return;
-		}
-
-		m_Texture = std::make_shared<TextureD3D12>(m_Device, context, std::wstring(m_FilePath), QueueID::Direct);
+		m_Device = device;
+		m_Texture = std::make_shared<TextureD3D12>(m_Device, context, std::wstring(filePath), QueueID::Direct);
 
 		auto texDesc = m_Texture->GetD3D12Resource()->GetDesc();
 		bool cubeMap = texDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && texDesc.DepthOrArraySize == 6;
@@ -57,27 +53,22 @@ namespace EduEngine
 		}
 
 		m_Texture->CreateSRV(&srvDesc, true);
+		if (name)
+			m_Texture->SetName(name);
 
-		m_RefCount = 1;
-	}
-
-	void Texture::Free()
-	{
-		if (m_RefCount <= 0)
-			return;
-
-		m_RefCount--;
-
-		if (m_RefCount == 0)
-		{
-			m_Texture.reset();
-		}
+		m_GpuAllocation.Reset();
 	}
 
 	void* Texture::GetGPUPtr()
 	{
+		if (m_GpuAllocation.IsNull())
+		{
+			m_GpuAllocation = m_Device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+			m_Device->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuAllocation.GetCpuHandle(), m_Texture->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		}
+
 		if (m_Texture.get())
-			return reinterpret_cast<void*>(m_Texture->GetSRVView()->GetGpuHandle().ptr);
+			return reinterpret_cast<void*>(m_GpuAllocation.GetGpuHandle().ptr);
 
 		return nullptr;
 	}

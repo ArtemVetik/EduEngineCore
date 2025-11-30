@@ -9,15 +9,65 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	PBRPrepass::PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context, const char* hdrFileName)
+	PBRPrepass::PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context) :
+		m_SkyLod(0)
 	{
 		InitCube(device, context);
-		InitTextures(device, context, hdrFileName);
+		InitTextures(device, context);
 		InitSkyboxPSO(device);
 	}
 
-	void PBRPrepass::GenerateTextures(RenderDeviceD3D12* device, DeviceContext* context)
+	void PBRPrepass::GenerateTextures(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context)
 	{
+		stbi_set_flip_vertically_on_load(true);
+		int width, height, nrComponents;
+		float* data = stbi_loadf(hdrFileName, &width, &height, &nrComponents, 3);
+		unsigned int hdrTexture;
+
+		if (!data)
+		{
+			ASSERT_FAILED("Failed to load HDR image: ", hdrFileName);
+			return;
+		}
+
+		//
+		// HDR Environment 2D Map
+		//
+		D3D12_RESOURCE_DESC texDesc = {};
+		texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		texDesc.Alignment = 0;
+		texDesc.MipLevels = 1;
+		texDesc.DepthOrArraySize = 1;
+		texDesc.Width = width;
+		texDesc.Height = height;
+		texDesc.SampleDesc.Count = 1;
+		texDesc.SampleDesc.Quality = 0;
+		texDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = texDesc.Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+		auto HDREnvMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueID::Direct);
+		HDREnvMap->SetName(L"PBR_HDR_Env_Map");
+		HDREnvMap->LoadData(context, data);
+		HDREnvMap->CreateSRV(&srvDesc);
+
+		stbi_image_free(data);
+
+		CommandContext* cmdCtx = context->GetCommandCtx();
+
+		cmdCtx->TransitionResource(HDREnvMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		cmdCtx->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		cmdCtx->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		cmdCtx->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		cmdCtx->TransitionResource(m_BrdfLut.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		cmdCtx->FlushResourceBarriers();
+
 		//
 		//	Generate PSO
 		//
@@ -83,7 +133,7 @@ namespace EduEngine
 		auto m_PassBuffPS = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
 
 		psoHDR2Cube.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
-		psoHDR2Cube.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvMap2D", m_HDREnvMap);
+		psoHDR2Cube.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvMap2D", HDREnvMap);
 
 		psoGenIrrMap.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
 		psoGenIrrMap.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvCubeMap", m_HDRCubeEnvMap);
@@ -107,8 +157,6 @@ namespace EduEngine
 			XMMatrixLookToLH({0,0,0}, {0,0,1}, {0,1,0}),   // +Z
 			XMMatrixLookToLH({0,0,0}, {0,0,-1}, {0,1,0}),  // -Z
 		};
-
-		CommandContext* cmdCtx = context->GetCommandCtx();
 
 		auto RenderCubeMap = [&](PipelineState& pso, TextureD3D12* texture, uint16 size, uint16 mipLevel = 0)
 			{
@@ -212,11 +260,14 @@ namespace EduEngine
 		{
 			XMFLOAT4X4 View;
 			XMFLOAT4X4 Proj;
+			float Lod;
+			XMUINT3 Padding;
 		};
 
 		PassCB cb = {};
 		XMStoreFloat4x4(&cb.View, DirectX::XMMatrixTranspose(XMLoadFloat4x4(&camera->GetViewMatrix())));
 		XMStoreFloat4x4(&cb.Proj, DirectX::XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
+		cb.Lod = m_SkyLod;
 
 		m_SkyboxPassBuff->LoadData(cb);
 
@@ -227,6 +278,11 @@ namespace EduEngine
 		context->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
 
 		context->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
+	}
+
+	void PBRPrepass::SetSkyTex(std::shared_ptr<TextureD3D12> texture)
+	{
+		m_PsoSkybox.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", texture);
 	}
 
 	void PBRPrepass::InitCube(RenderDeviceD3D12* device, DeviceContext* context)
@@ -263,52 +319,8 @@ namespace EduEngine
 		m_CubeIB->SetName(L"IB Cube");
 	}
 
-	void PBRPrepass::InitTextures(RenderDeviceD3D12* device, DeviceContext* context, const char* hdrFileName)
+	void PBRPrepass::InitTextures(RenderDeviceD3D12* device, DeviceContext* context)
 	{
-		stbi_set_flip_vertically_on_load(true);
-		int width, height, nrComponents;
-		float* data = stbi_loadf(hdrFileName, &width, &height, &nrComponents, 3);
-		unsigned int hdrTexture;
-
-		if (!data)
-		{
-			ASSERT_FAILED("Failed to load HDR image: ", hdrFileName);
-			return;
-		}
-
-		//
-		// HDR Environment 2D Map
-		//
-		{
-			D3D12_RESOURCE_DESC texDesc = {};
-			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-			texDesc.Alignment = 0;
-			texDesc.MipLevels = 1;
-			texDesc.DepthOrArraySize = 1;
-			texDesc.Width = width;
-			texDesc.Height = height;
-			texDesc.SampleDesc.Count = 1;
-			texDesc.SampleDesc.Quality = 0;
-			texDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
-
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = texDesc.Format;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			srvDesc.Texture2D.MipLevels = 1;
-			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-			m_HDREnvMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueID::Direct);
-			m_HDREnvMap->SetName(L"PBR_HDR_Env_Map");
-			m_HDREnvMap->LoadData(context, data);
-			m_HDREnvMap->CreateSRV(&srvDesc);
-
-			context->GetCommandCtx()->TransitionResource(m_HDREnvMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-			stbi_image_free(data);
-		}
-
 		//
 		// HDR Environment CubeMap
 		//
@@ -348,8 +360,6 @@ namespace EduEngine
 			m_HDRCubeEnvMap->SetName(L"PBR_HDR_Env_CubeMap");
 			m_HDRCubeEnvMap->CreateRTV_Array(rtvDesc);
 			m_HDRCubeEnvMap->CreateSRV(&srvDesc);
-
-			context->GetCommandCtx()->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
 		//
@@ -385,8 +395,6 @@ namespace EduEngine
 			m_IrradianceMap->SetName(L"PBR_Irradiance_Map");
 			m_IrradianceMap->CreateRTV_Array(rtvDesc);
 			m_IrradianceMap->CreateSRV(&srvDesc);
-
-			context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
 		//
@@ -422,8 +430,6 @@ namespace EduEngine
 			m_PrefilteredMap->SetName(L"PBR_Prefiltered_Map");
 			m_PrefilteredMap->CreateRTV_Array(rtvDesc);
 			m_PrefilteredMap->CreateSRV(&srvDesc);
-
-			context->GetCommandCtx()->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 
 		//
@@ -460,11 +466,7 @@ namespace EduEngine
 			m_BrdfLut->SetName(L"PBR_BRDF_Lut");
 			m_BrdfLut->CreateRTV(&rtvDesc);
 			m_BrdfLut->CreateSRV(&srvDesc);
-
-			context->GetCommandCtx()->TransitionResource(m_BrdfLut.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
-
-		context->GetCommandCtx()->FlushResourceBarriers();
 	}
 
 	void PBRPrepass::InitSkyboxPSO(RenderDeviceD3D12* device)
@@ -503,6 +505,7 @@ namespace EduEngine
 		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
 
 		m_PsoSkybox.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_SkyboxPassBuff);
+		m_PsoSkybox.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_SkyboxPassBuff);
 		m_PsoSkybox.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", m_HDRCubeEnvMap);
 	}
 }
