@@ -12,7 +12,7 @@ namespace EduEngine
 		desc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
 		desc.ResourceNum = 0;
 
-		auto shader = std::make_shared<ShaderD3D12>(L"Shaders\\GenerateMipsCS.hlsl", L"main", L"cs_6_6", nullptr, desc);
+		auto shader = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GenerateMipsCS.hlsl", L"main", L"cs_6_6", nullptr, desc);
 
 		m_PSO.SetShader(shader);
 		m_PSO.Build(device);

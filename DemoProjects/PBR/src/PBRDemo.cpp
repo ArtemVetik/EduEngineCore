@@ -9,16 +9,22 @@ namespace EduEngine
 {
 	void PBRDemo::OnStartUp()
 	{
-		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), "Models\\DamagedHelmet.gltf");
+		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), "assets\\Models\\DamagedHelmet.gltf");
 		m_Mesh->Load();
 
 		m_MeshScale = 50.0f;
 		m_MeshRotation = { -90.0, 90.0, 0.0 };
 
-		m_AlbedoTexture.Load(L"Textures\\DamagedHelmet\\Default_albedo.dds", GetDevice(), GetMainContext(), nullptr, L"Tex Albedo");
-		m_MetallicRoughnessTexture.Load(L"Textures\\DamagedHelmet\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), nullptr, L"Tex MetalRough");
-		m_AOTexture.Load(L"Textures\\DamagedHelmet\\Default_AO.dds", GetDevice(), GetMainContext(), nullptr, L"Tex AO");
-		m_NormalMapTexture.Load(L"Textures\\DamagedHelmet\\Default_normal.dds", GetDevice(), GetMainContext(), nullptr, L"Tex NormalMap");
+		XMFLOAT3 camPos = { -150, 0, 0 };
+		XMFLOAT3 camDir = { 1, 0, 0 };
+		XMFLOAT3 camUp = { 0, 1, 0 };
+		XMFLOAT3 camRight = { 0, 0, -1 };
+		GetCamera()->Setup(camPos, camDir, camRight, camUp);
+
+		m_AlbedoTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_albedo.dds", GetDevice(), GetMainContext(), nullptr, L"Tex Albedo");
+		m_MetallicRoughnessTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), nullptr, L"Tex MetalRough");
+		m_AOTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_AO.dds", GetDevice(), GetMainContext(), nullptr, L"Tex AO");
+		m_NormalMapTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_normal.dds", GetDevice(), GetMainContext(), nullptr, L"Tex NormalMap");
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
@@ -45,7 +51,7 @@ namespace EduEngine
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
 
 		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
-		m_Prepass->GenerateTextures("Textures\\HDR\\newport_loft.hdr", GetDevice(), GetMainContext());
+		m_Prepass->GenerateTextures("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext());
 
 		m_PBRTextured = true;
 		BuildPBRPass();

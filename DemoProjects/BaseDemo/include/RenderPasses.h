@@ -101,8 +101,8 @@ namespace EduEngine
 			m_vsDesc.VarDesc = vsVars;
 			m_vsDesc.NumStaticSamplers = 0;
 
-			m_VertexShader = std::make_shared<EduEngine::DiligentBinding::ShaderD3D12>(L"Shaders\\Opaque.hlsl", macros, L"VS", L"vs_6_0", device, m_vsDesc);
-			m_PixelShader = std::make_shared<EduEngine::DiligentBinding::ShaderD3D12>(L"Shaders\\Opaque.hlsl", macros, L"PS", L"ps_6_0", device, m_psDesc);
+			m_VertexShader = std::make_shared<EduEngine::DiligentBinding::ShaderD3D12>(L"assets\\Shaders\\Opaque.hlsl", macros, L"VS", L"vs_6_0", device, m_vsDesc);
+			m_PixelShader = std::make_shared<EduEngine::DiligentBinding::ShaderD3D12>(L"assets\\Shaders\\Opaque.hlsl", macros, L"PS", L"ps_6_0", device, m_psDesc);
 		}
 
 		EduEngine::DiligentBinding::ShaderResourceLayoutD3D12::SRV_CBV_UAV& GetStaticVSVariable(const char* name) { return m_VertexShader->GetStaticVariable(name); }
@@ -215,8 +215,8 @@ namespace EduEngine
 			m_psDesc.ResourceNum = _countof(psVars);
 			m_psDesc.ResourceDesc = psVars;
 
-			m_VertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\PBRLighting.hlsl", L"VS", L"vs_6_0", macros, m_vsDesc);
-			m_PixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\PBRLighting.hlsl", L"PS", L"ps_6_0", macros, m_psDesc);
+			m_VertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\PBRLighting.hlsl", L"VS", L"vs_6_0", macros, m_vsDesc);
+			m_PixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\PBRLighting.hlsl", L"PS", L"ps_6_0", macros, m_psDesc);
 		}
 
 		void Build(RenderDeviceD3D12* device)
@@ -280,8 +280,8 @@ namespace EduEngine
 			psDesc.ResourceNum = _countof(psVars);
 			psDesc.ResourceDesc = psVars;
 
-			auto vertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\DebugRender.hlsl", L"VS", L"vs_6_0", nullptr, vsDesc);
-			auto pixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"Shaders\\DebugRender.hlsl", L"PS", L"ps_6_0", nullptr, psDesc);
+			auto vertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\DebugRender.hlsl", L"VS", L"vs_6_0", nullptr, vsDesc);
+			auto pixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\DebugRender.hlsl", L"PS", L"ps_6_0", nullptr, psDesc);
 
 			std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout =
 			{

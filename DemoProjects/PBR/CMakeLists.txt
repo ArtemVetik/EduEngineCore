@@ -20,14 +20,8 @@ target_link_libraries(PBR PRIVATE
 
 add_custom_command(TARGET PBR POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_LIST_DIR}/Shaders"
-        "$<TARGET_FILE_DIR:PBR>/Shaders"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_LIST_DIR}/Textures"
-        "$<TARGET_FILE_DIR:PBR>/Textures"
-	COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_LIST_DIR}/Models"
-        "$<TARGET_FILE_DIR:PBR>/Models"
+        "${CMAKE_CURRENT_LIST_DIR}/assets"
+        "$<TARGET_FILE_DIR:PBR>/assets"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${LIBS_ROOT}/lib"
         "$<TARGET_FILE_DIR:PBR>"

@@ -82,12 +82,12 @@ namespace EduEngine
 		sDesc.ResourceDesc = resDesc;
 		sDesc.ResourceNum = _countof(resDesc);
 
-		auto vs_Cube = std::make_shared<ShaderD3D12>(L"Shaders\\PBRPrepass.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto vs_Plane = std::make_shared<ShaderD3D12>(L"Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ps_HDR2Cube = std::make_shared<ShaderD3D12>(L"Shaders\\PBRPrepass.hlsl", L"PS_HDR2Cube", L"ps_6_0", nullptr, sDesc);
-		auto ps_GenIrradianceMap = std::make_shared<ShaderD3D12>(L"Shaders\\PBRPrepass.hlsl", L"PS_GenIrradianceMap", L"ps_6_0", nullptr, sDesc);
-		auto ps_GenPrefilteredMap = std::make_shared<ShaderD3D12>(L"Shaders\\PBRPrepass.hlsl", L"PS_GenPrefilteredMap", L"ps_6_0", nullptr, sDesc);
-		auto ps_GenBrdfLut = std::make_shared<ShaderD3D12>(L"Shaders\\PBRPrepass.hlsl", L"PS_GenBrdfLut", L"ps_6_0", nullptr, sDesc);
+		auto vs_Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto ps_HDR2Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_HDR2Cube", L"ps_6_0", nullptr, sDesc);
+		auto ps_GenIrradianceMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenIrradianceMap", L"ps_6_0", nullptr, sDesc);
+		auto ps_GenPrefilteredMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenPrefilteredMap", L"ps_6_0", nullptr, sDesc);
+		auto ps_GenBrdfLut = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenBrdfLut", L"ps_6_0", nullptr, sDesc);
 
 		std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout =
 		{
@@ -491,8 +491,8 @@ namespace EduEngine
 		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 
-		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"Shaders\\Skybox.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ps_Skybox = std::make_shared<ShaderD3D12>(L"Shaders\\Skybox.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto ps_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
 
 		m_PsoSkybox.SetDepthStencilState(dss);
 		m_PsoSkybox.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
