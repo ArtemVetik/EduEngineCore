@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../BaseDemo/include/IRenderEngine.h"
+#include <IRenderEngine.h>
 
 namespace EduEngine
 {

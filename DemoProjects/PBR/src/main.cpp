@@ -2,8 +2,9 @@
 #include <crtdbg.h>
 #include <sstream>
 
-#include "../InputSystem/include/InputManager.h"
-#include "../DemoProjects/PBR/include/PBRDemoFactory.h"
+#include "PBRDemoFactory.h"
+
+#include <InputManager.h>
 
 using namespace EduEngine;
 
@@ -12,7 +13,7 @@ void UpdateWindowTitle(HWND window, int rFps, float rMspf)
 	std::wstringstream out;
 	out.precision(6);
 
-	out << "EduEngine Core22 (" << " fps: " << rFps << " frame time: " << rMspf << " ms)";
+	out << "PBR Demo (" << " fps: " << rFps << " frame time: " << rMspf << " ms)";
 
 	SetWindowText(window, out.str().c_str());
 }
@@ -39,7 +40,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 	auto demo = PBRDemoFactory::Create(window);
 
-	MSG msg = { 0 };
+	MSG msg = {0};
 	int fps;
 	float mspf;
 
