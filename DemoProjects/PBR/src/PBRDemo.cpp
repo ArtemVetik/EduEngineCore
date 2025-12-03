@@ -130,10 +130,7 @@ namespace EduEngine
 		GetCamera()->Pitch(currentDelta.y - prevY);
 
 		GetCamera()->Update(timer);
-	}
 
-	void PBRDemo::OnRender(const Timer& timer)
-	{
 		PBRLighting::ObjectConstants objConstants;
 		objConstants.World = (SimpleMath::Matrix::CreateScale(m_MeshScale) *
 			SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(m_MeshRotation.x)) *
@@ -151,6 +148,24 @@ namespace EduEngine
 
 		m_LightBuffer->LoadData(m_LightConstants);
 		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
+	}
+
+	void PBRDemo::OnRender(const Timer& timer)
+	{
+		ID3D12DescriptorHeap* descriptorHeaps[] = { GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+
+		GetMainContext()->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(GetSwapChain()->CurrentBackBuffer(),
+			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
+		GetMainContext()->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
+		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
+		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
+
+		const float clear[4] = { 0, 0, 0, 1 };
+		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(GetSwapChain()->CurrentBackBufferView(), clear, 0, nullptr);
+		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(GetSwapChain()->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
 		m_ColorPass->GetPipelineState().CommitAll(GetMainContext());
 

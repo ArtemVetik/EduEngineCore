@@ -20,6 +20,7 @@ namespace EduEngine::EduBinding
 		void SetDepthStencilFormat(DXGI_FORMAT format);
 		void SetShader(const std::shared_ptr<ShaderD3D12>& shader);
 
+	protected:
 		void BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso) override;
 
 	private:

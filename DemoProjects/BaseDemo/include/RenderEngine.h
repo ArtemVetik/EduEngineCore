@@ -46,6 +46,12 @@ namespace EduEngine
 		RenderDeviceD3D12* GetDevice() const { return m_Device.get(); }
 		Camera* GetCamera() const { return m_Camera.get(); }
 		DeviceContext* GetMainContext() const { return m_MainContext.get(); }
+		DeviceContext* GetDeferredContext(uint16 idx) const;
+		SwapChain* GetSwapChain() const { return m_SwapChain.get(); }
+		D3D12_VIEWPORT GetViewport() const { return m_Viewport; }
+		D3D12_RECT GetScissorRect() const { return m_ScissorRect; }
+
+		virtual uint16 GetNumDeferredContexts() const { return 0; };
 
 	private:
 		void InitImGui(const Window& mainWindow);
@@ -68,5 +74,6 @@ namespace EduEngine
 		DirectX::SimpleMath::Rectangle m_PendingResize = EmptyResize;
 	
 		std::unique_ptr<DeviceContext> m_MainContext;
+		std::vector<std::unique_ptr<DeviceContext>> m_DeferredContexts;
 	};
 }

@@ -25,24 +25,32 @@ namespace EduEngine
 		ProcessReleaseQueue(true);
 	}
 
-	void CommandQueueD3D12::CloseAndExecuteCommandContext(CommandContext* commandContext)
+	void CommandQueueD3D12::CloseAndExecuteCommandContexts(CommandContext** commandContexts, uint32 numContexts)
 	{
-		assert(m_CommandQueue->GetDesc().Type == commandContext->GetType());
+		std::vector<ID3D12CommandList*> cmdLists; // TODO: remove vector
+		cmdLists.reserve(numContexts);
 
-		commandContext->FlushResourceBarriers();
+		for (uint32 i = 0; i < numContexts; i++)
+		{
+			assert(m_CommandQueue->GetDesc().Type == commandContexts[i]->GetType());
 
-		auto* commandList = commandContext->Close();
+			commandContexts[i]->FlushResourceBarriers();
+
+			cmdLists.emplace_back(commandContexts[i]->Close());
+		}
 
 		std::lock_guard<std::mutex> LockGuard(m_CmdQueueMutex);
 
-		ID3D12CommandList* const ppCmdLists[] = { commandList };
-		m_CommandQueue->ExecuteCommandLists(1, ppCmdLists);
+		m_CommandQueue->ExecuteCommandLists(numContexts, cmdLists.data());
 
 		m_NextCmdList.fetch_add(1);
 
 		m_CommandQueue->Signal(m_Fence.Get(), m_NextCmdList);
 
-		commandContext->DiscardAllocator(m_NextCmdList.load());
+		for (uint32 i = 0; i < numContexts; i++)
+		{
+			commandContexts[i]->DiscardAllocator(m_NextCmdList.load());
+		}
 	}
 
 	void CommandQueueD3D12::Signal()

@@ -80,6 +80,9 @@ namespace EduEngine
 
 		m_MainContext = std::make_unique<DeviceContext>(*m_Device.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 
+		for (uint16 i = 0; i < GetNumDeferredContexts(); i++)
+			m_DeferredContexts.emplace_back(std::make_unique<DeviceContext>(*m_Device.get(), D3D12_COMMAND_LIST_TYPE_DIRECT));
+
 		Resize(mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
 
 		m_MainContext->GetCommandCtx()->Reset();
@@ -93,7 +96,9 @@ namespace EduEngine
 
 		m_MainContext->GetCommandCtx()->FlushResourceBarriers();
 		auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		commandQueue.CloseAndExecuteCommandContext(m_MainContext->GetCommandCtx());
+
+		CommandContext* contexts[]{ m_MainContext->GetCommandCtx() };
+		commandQueue.CloseAndExecuteCommandContexts(contexts, 1);
 		m_MainContext->GetCommandCtx()->Reset();
 
 		return true;
@@ -106,33 +111,16 @@ namespace EduEngine
 
 	void RenderEngine::Render(const Timer& timer)
 	{
-		ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
-
-		auto& dCommandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-		m_MainContext->GetCommandCtx()->Reset();
-		m_MainContext->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
-			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		m_MainContext->GetCommandCtx()->FlushResourceBarriers();
-		m_MainContext->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-		m_MainContext->GetCommandCtx()->SetRenderTargets(1, &m_SwapChain->CurrentBackBufferView(), true, &m_SwapChain->DepthStencilView());
-		m_MainContext->GetCommandCtx()->SetViewports(&m_Viewport, 1);
-		m_MainContext->GetCommandCtx()->SetScissorRects(&m_ScissorRect, 1);
-
-		const float clear[4] = { 0, 0, 0, 1 };
-		m_MainContext->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_SwapChain->CurrentBackBufferView(), clear, 0, nullptr);
-		m_MainContext->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(m_SwapChain->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
-	
-		///////////
 		OnRender(timer);
-		///////////
-
+		
 		m_MainContext->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 		m_MainContext->GetCommandCtx()->FlushResourceBarriers();
 
-		dCommandQueue.CloseAndExecuteCommandContext(m_MainContext->GetCommandCtx());
+		CommandContext* contexts[]{ m_MainContext->GetCommandCtx() };
+		auto& dCommandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		dCommandQueue.CloseAndExecuteCommandContexts(contexts, 1);
+		
 		m_MainContext->GetCommandCtx()->Reset();
 
 		m_SwapChain->Present();
@@ -156,7 +144,7 @@ namespace EduEngine
 		if (lw != w || lh != h)
 			m_PendingResize = { (long)lx, (long)ly, (long)w, (long)h };
 	}
-	
+
 	void RenderEngine::AllocImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
 	{
 		m_ImGuiTex = m_Device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
@@ -207,7 +195,9 @@ namespace EduEngine
 		m_SwapChain->Resize(m_MainContext.get(), w, h);
 
 		m_MainContext->GetCommandCtx()->FlushResourceBarriers();
-		commandQueue.CloseAndExecuteCommandContext(m_MainContext->GetCommandCtx());
+
+		CommandContext* contexts[]{ m_MainContext->GetCommandCtx() };
+		commandQueue.CloseAndExecuteCommandContexts(contexts, 1);
 		m_MainContext->GetCommandCtx()->Reset();
 
 		m_Viewport.TopLeftX = 0;
@@ -220,5 +210,12 @@ namespace EduEngine
 		m_ScissorRect = { 0, 0, (int)w, (int)h };
 
 		m_Camera->SetProjectionMatrix(w, h);
+	}
+
+	DeviceContext* RenderEngine::GetDeferredContext(uint16 idx) const
+	{
+		VERIFY_EXPR(idx < GetNumDeferredContexts(), "");
+
+		return m_DeferredContexts[idx].get();
 	}
 }

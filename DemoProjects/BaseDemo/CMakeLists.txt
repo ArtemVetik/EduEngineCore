@@ -15,7 +15,6 @@ target_include_directories(BaseDemo
         ${LIBS_ROOT}/include
     PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/src
-        ${CMAKE_CURRENT_LIST_DIR}/internal
 )
 
 find_library(ASSIMP_LIB

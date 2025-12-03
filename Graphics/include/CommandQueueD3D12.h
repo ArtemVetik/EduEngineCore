@@ -18,7 +18,7 @@ namespace EduEngine
 		CommandQueueD3D12& operator = (const CommandQueueD3D12&) = delete;
 		CommandQueueD3D12& operator = (CommandQueueD3D12&&) = delete;
 
-		void CloseAndExecuteCommandContext(CommandContext* commandContext);
+		void CloseAndExecuteCommandContexts(CommandContext** commandContexts, uint32 numContexts);
 		
 		void Signal();
 		void Wait(CommandQueueD3D12* other, UINT64 fenceValue);
