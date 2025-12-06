@@ -9,7 +9,7 @@ namespace EduEngine
 {
 #define DEFAULT_ALIGN 256
 
-	class GRAPHICS_HEAPS_API DynamicUploadHeap
+	class [[deprecated("Use DynamicHeap instead")]] DynamicUploadHeap
 	{
     public:
         DynamicUploadHeap(bool bIsCPUAccessible, class IRenderDeviceD3D12* pDevice, size_t initialSize);

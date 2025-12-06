@@ -7,7 +7,6 @@
 #include <IRenderDeviceD3D12.h>
 #include <CPUDescriptorHeap.h>
 #include <GPUDescriptorHeap.h>
-#include <DynamicSuballocationsManager.h>
 #include <ReleaseResourceWrapper.h>
 #include <QueueID.h>
 
@@ -52,7 +51,6 @@ namespace EduEngine
 		
 	private:
 		Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
-
 		CPUDescriptorHeap m_CPUDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		GPUDescriptorHeap m_GPUDescriptorHeaps[2];
 

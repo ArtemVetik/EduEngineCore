@@ -30,7 +30,6 @@ endif()
 target_link_libraries(BaseDemo PUBLIC
     RenderTechniques
     Graphics
-    DiligentBinding
     EduBinding
     Common
     ImGui

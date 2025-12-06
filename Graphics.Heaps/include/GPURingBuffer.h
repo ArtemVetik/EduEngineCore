@@ -4,7 +4,7 @@
 
 namespace EduEngine
 {
-    struct GRAPHICS_HEAPS_API DynamicAllocation
+    struct [[deprecated]] DynamicAllocation
     {
         DynamicAllocation() = default;
 
@@ -18,7 +18,7 @@ namespace EduEngine
         D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = 0;
     };
 
-	class GRAPHICS_HEAPS_API GPURingBuffer : public RingBuffer
+	class [[deprecated]] GPURingBuffer : public RingBuffer
 	{
     public:
         GPURingBuffer(size_t maxSize, ID3D12Device* pd3d12Device, bool allowCPUAccess);

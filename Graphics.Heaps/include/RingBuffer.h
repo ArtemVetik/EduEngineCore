@@ -4,10 +4,10 @@
 
 namespace EduEngine
 {
-	class GRAPHICS_HEAPS_API RingBuffer
+	class [[deprecated]] RingBuffer
 	{
 	public:
-		struct GRAPHICS_HEAPS_API FrameTailAttribs
+		struct [[deprecated]] FrameTailAttribs
 		{
 			FrameTailAttribs(FenceValues fv, size_t off, size_t sz) :
 				FenceValue(fv),
