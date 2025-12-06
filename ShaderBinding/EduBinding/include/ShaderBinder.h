@@ -1,9 +1,10 @@
 #pragma once
 #include "framework.h"
 #include "ShaderD3D12.h"
-#include "IShaderBinder.h"
 
 #include <DeviceContext.h>
+#include <DynamicUploadBuffer.h>
+#include <ResourceViewD3D12.h>
 
 namespace EduEngine::EduBinding
 {
@@ -110,7 +111,7 @@ namespace EduEngine::EduBinding
 		bool m_IsDynamic = false;
 	};
 
-	class ShaderBinder : public IShaderBinder
+	class EDUBINDING_API ShaderBinder
 	{
 	public:
 		ShaderBinder(RenderDeviceD3D12* device);
@@ -118,9 +119,9 @@ namespace EduEngine::EduBinding
 
 		void Build(ShaderD3D12** shaders, uint8 shadersNum);
 
-		void BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource, uint32 descriptorOffset = 0) override;
-		void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<DynamicUploadBuffer> resource) override;
-		void DryMutableResources() override;
+		void BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource, uint32 descriptorOffset = 0);
+		void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<DynamicUploadBuffer> resource);
+		void DryMutableResources();
 
 		void CommitAll(DeviceContext* context, bool isCompute);
 

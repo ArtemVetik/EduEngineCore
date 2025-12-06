@@ -32,6 +32,7 @@ namespace EduEngine
 		void GenerateInternal(DeviceContext* context, std::shared_ptr<TextureD3D12> texture, BufferD3D12* cbRes);
 
 		ComputePipelineState m_PSO;
+		std::shared_ptr<ShaderBinder> m_Binder;
 		RenderDeviceD3D12* m_Device;
 	};
 }

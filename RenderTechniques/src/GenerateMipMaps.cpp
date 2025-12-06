@@ -17,6 +17,8 @@ namespace EduEngine
 		m_PSO.SetShader(shader);
 		m_PSO.Build(device);
 		m_PSO.SetName(L"GenerateMipMaps PSO");
+
+		m_Binder = m_PSO.CreateShaderBinder();
 	}
 
 	void GenerateMipMaps::Generate(DeviceContext* context, std::shared_ptr<TextureD3D12> texture)
@@ -61,7 +63,7 @@ namespace EduEngine
 		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 		std::shared_ptr<BufferD3D12> cbRes = std::make_shared<BufferD3D12>(m_Device, context, buffDesc, QueueID::Direct);
-		m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "CB0", cbRes);
+		m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "CB0", cbRes);
 
 		std::shared_ptr<TextureD3D12> tmpTexture = nullptr;
 
@@ -153,14 +155,14 @@ namespace EduEngine
 			cbData.NonPowerTwo = (UINT)((texDesc.Height & 1u) << 1) | (texDesc.Width & 1u);
 			cbRes->LoadData(context, &cbData);
 
-			m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "SrcMip", texture);
-			m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip1", texture, srcMip + 1);
-			m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip2", texture, srcMip + 2);
-			m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip3", texture, srcMip + 3);
-			m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip4", texture, srcMip + 4);
+			m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "SrcMip", texture);
+			m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip1", texture, srcMip + 1);
+			m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip2", texture, srcMip + 2);
+			m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip3", texture, srcMip + 3);
+			m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip4", texture, srcMip + 4);
 
-			m_PSO.CommitAll(context);
-			m_PSO.GetShaderBinder()->DryMutableResources();
+			m_PSO.CommitAll(context, m_Binder.get());
+			m_Binder->DryMutableResources();
 
 			context->GetCommandCtx()->GetCmdList()->Dispatch(dstWidth / 8 + 1, dstHeight / 8 + 1, 1);
 

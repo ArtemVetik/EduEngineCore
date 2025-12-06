@@ -54,23 +54,8 @@ namespace EduEngine
 		m_Prepass->GenerateTextures("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext());
 
 		m_PBRTextured = true;
+		
 		BuildPBRPass();
-
-		auto binder = m_ColorPass->GetPipelineState().GetShaderBinder();
-
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gIrradianceMap", m_Prepass->GetIrradianceMap());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gPrefilteredMap", m_Prepass->GetPrefilteredMap());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gBRDFLut", m_Prepass->GetBrdfLut());
-
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
 
 		m_DebugRenderer = std::make_shared<DebugRendererSystem>(GetDevice());
 	}
@@ -167,7 +152,7 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(GetSwapChain()->CurrentBackBufferView(), clear, 0, nullptr);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(GetSwapChain()->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
-		m_ColorPass->GetPipelineState().CommitAll(GetMainContext());
+		m_ColorPass->GetPipelineState().CommitAll(GetMainContext(), m_Binder.get());
 
 		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &(m_Mesh->GetVertexBuffer()->GetView()));
 		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&(m_Mesh->GetIndexBuffer()->GetView()));
@@ -290,7 +275,7 @@ namespace EduEngine
 						{
 							auto tex = pbrTexLoad[i].PBRTex;
 							tex->Load(selectedFileW, GetDevice(), GetMainContext());
-							m_ColorPass->GetPipelineState().GetShaderBinder()->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, pbrTexLoad[i].BindName, tex->GetD3D12Texture());
+							m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, pbrTexLoad[i].BindName, tex->GetD3D12Texture());
 						}
 					}
 					if (pbrTexLoad[i].PBRTex->GetGPUPtr())
@@ -381,20 +366,20 @@ namespace EduEngine
 		m_ColorPass->Build(GetDevice());
 		m_ColorPass->GetPipelineState().SetName(L"PSO_PBR");
 
-		auto binder = m_ColorPass->GetPipelineState().GetShaderBinder();
+		m_Binder = m_ColorPass->GetPipelineState().CreateShaderBinder();
 
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture.GetD3D12Texture());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gIrradianceMap", m_Prepass->GetIrradianceMap());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gPrefilteredMap", m_Prepass->GetPrefilteredMap());
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gBRDFLut", m_Prepass->GetBrdfLut());
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture.GetD3D12Texture());
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture.GetD3D12Texture());
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture.GetD3D12Texture());
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture.GetD3D12Texture());
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gIrradianceMap", m_Prepass->GetIrradianceMap());
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gPrefilteredMap", m_Prepass->GetPrefilteredMap());
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gBRDFLut", m_Prepass->GetBrdfLut());
 
-		binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
-		binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
+		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
+		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
+		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
+		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
 	}
 }

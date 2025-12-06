@@ -25,7 +25,7 @@ namespace EduEngine::EduBinding
 
 	void PipelineStateBase::Build(RenderDeviceD3D12* device)
 	{
-		VERIFY_EXPR(m_Device == nullptr, "");
+		VERIFY_EXPR(m_Device == nullptr, "PipelineState has already been built");
 		m_Device = device;
 
 		uint8 shadersNum = 0;
@@ -41,13 +41,10 @@ namespace EduEngine::EduBinding
 
 		m_RootSignature.Build(device, activeShaders, shadersNum);
 
-		m_ShaderBinder = std::make_shared<ShaderBinder>(device);
-		m_ShaderBinder->Build(activeShaders, shadersNum);
-
 		BuildPSO(device->GetD3D12Device(), m_RootSignature.GetD3D12RootSignature(), m_PSO);
 	}
 
-	void PipelineStateBase::CommitAll(DeviceContext* context)
+	void PipelineStateBase::CommitAll(DeviceContext* context, ShaderBinder* shaderBinder)
 	{
 		context->GetCommandCtx()->GetCmdList()->SetPipelineState(m_PSO.Get());
 
@@ -56,7 +53,28 @@ namespace EduEngine::EduBinding
 		else
 			context->GetCommandCtx()->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
 
-		m_ShaderBinder->CommitAll(context, m_IsCompute);
+		shaderBinder->CommitAll(context, m_IsCompute);
+	}
+
+	std::shared_ptr<ShaderBinder> PipelineStateBase::CreateShaderBinder()
+	{
+		VERIFY_EXPR(m_Device != nullptr, "You must first call PipelineStateBase::Build() before creating IShaderBinder");
+
+		uint8 shadersNum = 0;
+		ShaderD3D12* activeShaders[EDU_SHADER_TYPE_NUM];
+
+		for (uint8 i = 0; i < EDU_SHADER_TYPE_NUM; i++)
+		{
+			if (m_Shaders[i].get())
+			{
+				activeShaders[shadersNum++] = m_Shaders[i].get();
+			}
+		}
+
+		auto shaderBinder = std::make_shared<ShaderBinder>(m_Device);
+		shaderBinder->Build(activeShaders, shadersNum);
+
+		return shaderBinder;
 	}
 
 	void PipelineStateBase::SetShaderBase(const std::shared_ptr<ShaderD3D12>& shader)
@@ -78,7 +96,6 @@ namespace EduEngine::EduBinding
 		}
 
 		m_RootSignature.DebugPrint();
-		m_ShaderBinder->DebugPrint();
 	}
 #endif
 }

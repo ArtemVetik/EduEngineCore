@@ -41,6 +41,7 @@ namespace EduEngine
 		static constexpr uint16 BRDF_LUT_SIZE = 512;
 
 		EduEngine::EduBinding::PipelineState m_PsoSkybox;
+		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_PsoSkyboxBinder;
 
 		std::shared_ptr<TextureD3D12> m_HDRCubeEnvMap;
 		std::shared_ptr<TextureD3D12> m_IrradianceMap;

@@ -106,6 +106,8 @@ namespace EduEngine
 		psoHDR2Cube.SetRTVFormat(m_HDRCubeEnvMap->GetD3D12Resource()->GetDesc().Format);
 		psoHDR2Cube.Build(device);
 
+		std::shared_ptr<ShaderBinder> psoHDR2CubeBinder = psoHDR2Cube.CreateShaderBinder();
+
 		PipelineState psoGenIrrMap;
 		psoGenIrrMap.SetDepthStencilState(dss);
 		psoGenIrrMap.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
@@ -113,6 +115,8 @@ namespace EduEngine
 		psoGenIrrMap.SetShader(ps_GenIrradianceMap);
 		psoGenIrrMap.SetRTVFormat(m_IrradianceMap->GetD3D12Resource()->GetDesc().Format);
 		psoGenIrrMap.Build(device);
+
+		std::shared_ptr<ShaderBinder> psoGenIrrMapBinder = psoGenIrrMap.CreateShaderBinder();
 
 		PipelineState psoGenPrefilteredMap;
 		psoGenPrefilteredMap.SetDepthStencilState(dss);
@@ -122,6 +126,8 @@ namespace EduEngine
 		psoGenPrefilteredMap.SetRTVFormat(m_PrefilteredMap->GetD3D12Resource()->GetDesc().Format);
 		psoGenPrefilteredMap.Build(device);
 
+		std::shared_ptr<ShaderBinder> psoGenPrefilteredMapBinder = psoGenPrefilteredMap.CreateShaderBinder();
+
 		PipelineState psoGenBrdfLut;
 		psoGenBrdfLut.SetDepthStencilState(dss);
 		psoGenBrdfLut.SetShader(vs_Plane);
@@ -129,18 +135,20 @@ namespace EduEngine
 		psoGenBrdfLut.SetRTVFormat(m_BrdfLut->GetD3D12Resource()->GetDesc().Format);
 		psoGenBrdfLut.Build(device);
 
+		std::shared_ptr<ShaderBinder> psoGenBrdfLutBinder = psoGenBrdfLut.CreateShaderBinder();
+
 		auto m_PassBuffVS = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
 		auto m_PassBuffPS = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
 
-		psoHDR2Cube.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
-		psoHDR2Cube.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvMap2D", HDREnvMap);
+		psoHDR2CubeBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
+		psoHDR2CubeBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvMap2D", HDREnvMap);
 
-		psoGenIrrMap.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
-		psoGenIrrMap.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvCubeMap", m_HDRCubeEnvMap);
+		psoGenIrrMapBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
+		psoGenIrrMapBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvCubeMap", m_HDRCubeEnvMap);
 
-		psoGenPrefilteredMap.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
-		psoGenPrefilteredMap.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvCubeMap", m_HDRCubeEnvMap);
-		psoGenPrefilteredMap.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffPS);
+		psoGenPrefilteredMapBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
+		psoGenPrefilteredMapBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvCubeMap", m_HDRCubeEnvMap);
+		psoGenPrefilteredMapBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffPS);
 
 		//
 		//	Render Pass
@@ -158,7 +166,7 @@ namespace EduEngine
 			XMMatrixLookToLH({0,0,0}, {0,0,-1}, {0,1,0}),  // -Z
 		};
 
-		auto RenderCubeMap = [&](PipelineState& pso, TextureD3D12* texture, uint16 size, uint16 mipLevel = 0)
+		auto RenderCubeMap = [&](PipelineState& pso, ShaderBinder* binder, TextureD3D12* texture, uint16 size, uint16 mipLevel = 0)
 			{
 				for (uint8 depth = 0; depth < 6; depth++)
 				{
@@ -181,7 +189,7 @@ namespace EduEngine
 					cmdCtx->SetViewports(&vp, 1);
 					cmdCtx->SetScissorRects(&scissor, 1);
 
-					pso.CommitAll(context);
+					pso.CommitAll(context, binder);
 
 					cmdCtx->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 					cmdCtx->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
@@ -192,7 +200,7 @@ namespace EduEngine
 			};
 
 		// Generate HDR Environment CubeMap
-		RenderCubeMap(psoHDR2Cube, m_HDRCubeEnvMap.get(), ENV_CUBEMAP_SIZE);
+		RenderCubeMap(psoHDR2Cube, psoHDR2CubeBinder.get(), m_HDRCubeEnvMap.get(), ENV_CUBEMAP_SIZE);
 
 		GenerateMipMaps genMipMaps(device);
 		genMipMaps.Generate(context, m_HDRCubeEnvMap);
@@ -201,7 +209,7 @@ namespace EduEngine
 		cmdCtx->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
 		// Generate Irradiance Map
-		RenderCubeMap(psoGenIrrMap, m_IrradianceMap.get(), IRRADIANCE_MAP_SIZE);
+		RenderCubeMap(psoGenIrrMap, psoGenIrrMapBinder.get(), m_IrradianceMap.get(), IRRADIANCE_MAP_SIZE);
 
 		for (uint16 mip = 0; mip < PREFILTERED_MIP_LEVELS; mip++)
 		{
@@ -221,7 +229,7 @@ namespace EduEngine
 			m_PassBuffPS->LoadData(context, passCB);
 
 			// Generate Prefiltered Map (for each mip level)
-			RenderCubeMap(psoGenPrefilteredMap, m_PrefilteredMap.get(), PREFILTERED_MAP_SIZE / (1 << mip), mip);
+			RenderCubeMap(psoGenPrefilteredMap, psoGenPrefilteredMapBinder.get(), m_PrefilteredMap.get(), PREFILTERED_MAP_SIZE / (1 << mip), mip);
 		}
 
 		//
@@ -242,7 +250,7 @@ namespace EduEngine
 		cmdCtx->SetViewports(&vp, 1);
 		cmdCtx->SetScissorRects(&scissor, 1);
 
-		psoGenBrdfLut.CommitAll(context);
+		psoGenBrdfLut.CommitAll(context, psoGenBrdfLutBinder.get());
 
 		cmdCtx->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmdCtx->GetCmdList()->DrawInstanced(3, 1, 0, 0);
@@ -271,7 +279,7 @@ namespace EduEngine
 
 		m_SkyboxPassBuff->LoadData(context, cb);
 
-		m_PsoSkybox.CommitAll(context);
+		m_PsoSkybox.CommitAll(context, m_PsoSkyboxBinder.get());
 
 		context->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		context->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
@@ -282,7 +290,7 @@ namespace EduEngine
 
 	void PBRPrepass::SetSkyTex(std::shared_ptr<TextureD3D12> texture)
 	{
-		m_PsoSkybox.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", texture);
+		m_PsoSkyboxBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", texture);
 	}
 
 	void PBRPrepass::InitCube(RenderDeviceD3D12* device, DeviceContext* context)
@@ -504,8 +512,9 @@ namespace EduEngine
 
 		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
 
-		m_PsoSkybox.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_SkyboxPassBuff);
-		m_PsoSkybox.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_SkyboxPassBuff);
-		m_PsoSkybox.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", m_HDRCubeEnvMap);
+		m_PsoSkyboxBinder = m_PsoSkybox.CreateShaderBinder();
+		m_PsoSkyboxBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_SkyboxPassBuff);
+		m_PsoSkyboxBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_SkyboxPassBuff);
+		m_PsoSkyboxBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", m_HDRCubeEnvMap);
 	}
 }

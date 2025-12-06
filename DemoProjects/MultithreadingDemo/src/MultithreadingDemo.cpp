@@ -91,8 +91,9 @@ namespace EduEngine
 		m_ObjBuff = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 		m_PassBuff = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 
-		m_PSO.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuff);
-		m_PSO.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuff);
+		m_Binder = m_PSO.CreateShaderBinder();
+		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuff);
+		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuff);
 
 		m_GridSize = { 5, 5, 5 };
 		m_ActiveThreads = GetInitInfo().NumDeferredContexts;
@@ -280,7 +281,7 @@ namespace EduEngine
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetViewports(&pThis->GetViewport(), 1);
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetScissorRects(&pThis->GetScissorRect(), 1);
 
-				pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId));
+				pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId), pThis->m_Binder.get());
 
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &pThis->m_CubeVB->GetView());

@@ -25,6 +25,7 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuff;
 
 		EduEngine::EduBinding::PipelineState m_PSO;
+		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_Binder;
 
 		const Timer* m_Timer;
 		DirectX::XMUINT3 m_GridSize;

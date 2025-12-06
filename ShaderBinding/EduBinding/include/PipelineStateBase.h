@@ -14,11 +14,11 @@ namespace EduEngine::EduBinding
 		virtual ~PipelineStateBase();
 
 		void Build(RenderDeviceD3D12* pDevice);
-		void CommitAll(DeviceContext* context);
+		void CommitAll(DeviceContext* context, ShaderBinder* shaderBinder);
+
+		std::shared_ptr<ShaderBinder> CreateShaderBinder();
 
 		void SetName(const wchar_t* name) const { m_PSO->SetName(name); }
-
-		IShaderBinder* GetShaderBinder() const { return m_ShaderBinder.get(); }
 
 #ifdef EDUBINDINGDEBUG
 		void DebugPrint();
@@ -33,7 +33,6 @@ namespace EduEngine::EduBinding
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO;
 
 		std::shared_ptr<ShaderD3D12> m_Shaders[EDU_SHADER_TYPE_NUM];
-		std::shared_ptr<ShaderBinder> m_ShaderBinder;
 		RootSignature m_RootSignature;
 
 		QueueID m_QueueId;

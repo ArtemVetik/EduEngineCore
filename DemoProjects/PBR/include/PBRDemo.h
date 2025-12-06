@@ -31,6 +31,7 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_LightBuffer;
 		std::unique_ptr<PBRLighting> m_ColorPass;
+		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_Binder;
 		bool m_PBRTextured;
 
 		Texture m_AlbedoTexture;

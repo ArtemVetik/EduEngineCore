@@ -12,8 +12,10 @@ namespace EduEngine
 	{
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(pDevice, QueueID::Direct);
 
-		m_RenderPass.GetPipelineState().GetShaderBinder()->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
-		m_RenderPass.GetPipelineState().GetShaderBinder()->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
+		m_RenderPassBinder = m_RenderPass.GetPipelineState().CreateShaderBinder();
+
+		m_RenderPassBinder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
+		m_RenderPassBinder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
 	}
 
 	void DebugRendererSystem::DrawBoundingBox(const DirectX::BoundingBox& box, DirectX::XMVECTOR color)
@@ -190,7 +192,7 @@ namespace EduEngine
 		vertexView.StrideInBytes = sizeof(VertexPointColor);
 		vertexView.SizeInBytes = m_Lines.size() * sizeof(VertexPointColor);
 
-		m_RenderPass.GetPipelineState().CommitAll(context);
+		m_RenderPass.GetPipelineState().CommitAll(context, m_RenderPassBinder.get());
 
 		auto* cmdList = context->GetCommandCtx()->GetCmdList();
 		cmdList->IASetVertexBuffers(0, 1, &vertexView);

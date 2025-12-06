@@ -47,6 +47,7 @@ namespace EduEngine
 
 		RenderDeviceD3D12* m_Device;
 		DebugRenderPass m_RenderPass;
+		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_RenderPassBinder;
 		std::vector<VertexPointColor> m_Lines;
 	};
 }
