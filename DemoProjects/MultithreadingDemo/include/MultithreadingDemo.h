@@ -7,13 +7,15 @@ namespace EduEngine
 	class MultithreadingDemo : public RenderEngine
 	{
 	public:
+		~MultithreadingDemo();
+
 		void ChangeInitInfo(EngineInitInfo& info) override;
 		void OnStartUp() override;
 		void OnUpdate(const Timer& timer) override;
 		void OnRender(const Timer& timer) override;
 
 	protected:
-		static void ThreadWorker(MultithreadingDemo* pThis, const Timer& timer, uint64 contextId);
+		static void ThreadWorker(MultithreadingDemo* pThis, uint64 contextId);
 
 	private:
 		std::shared_ptr<VertexBufferD3D12> m_CubeVB;
@@ -24,7 +26,15 @@ namespace EduEngine
 
 		EduEngine::EduBinding::PipelineState m_PSO;
 
+		const Timer* m_Timer;
+		DirectX::XMUINT3 m_GridSize;
+		uint32 m_ActiveThreads;
+
 		std::vector<std::thread> m_Threads;
+		HANDLE m_MainSemaphore;
+		HANDLE m_WorkerSemaphore;
+
 		std::vector<CommandContext*> m_Contexts;
+		bool m_ExitApp = false;
 	};
 }

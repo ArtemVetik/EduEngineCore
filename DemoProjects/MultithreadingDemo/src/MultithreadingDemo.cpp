@@ -1,10 +1,25 @@
 #include "MultithreadingDemo.h"
+
 #include <InputManager.h>
 
 namespace EduEngine
 {
 	using namespace EduEngine::EduBinding;
 	using namespace DirectX::SimpleMath;
+
+	MultithreadingDemo::~MultithreadingDemo()
+	{
+		m_ExitApp = true;
+
+		ReleaseSemaphore(m_WorkerSemaphore, m_ActiveThreads, nullptr);
+		ReleaseSemaphore(m_MainSemaphore, m_ActiveThreads, nullptr);
+
+		for (uint32 i = 0; i < m_Threads.size(); i++)
+			m_Threads[i].join();
+
+		CloseHandle(m_MainSemaphore);
+		CloseHandle(m_WorkerSemaphore);
+	}
 
 	void MultithreadingDemo::ChangeInitInfo(EngineInitInfo& info)
 	{
@@ -79,7 +94,17 @@ namespace EduEngine
 		m_PSO.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuff);
 		m_PSO.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuff);
 
-		m_Threads.resize(GetInitInfo().NumDeferredContexts);
+		m_GridSize = { 5, 5, 5 };
+		m_ActiveThreads = GetInitInfo().NumDeferredContexts;
+
+		m_MainSemaphore = CreateSemaphore(nullptr, 0, m_ActiveThreads, nullptr);
+		m_WorkerSemaphore = CreateSemaphore(nullptr, 0, m_ActiveThreads, nullptr);
+
+		m_Threads.resize(m_ActiveThreads);
+		for (uint32 i = 0; i < m_ActiveThreads; i++)
+		{
+			m_Threads[i] = std::thread(ThreadWorker, this, i);
+		}
 	}
 
 	void MultithreadingDemo::OnUpdate(const Timer& timer)
@@ -136,10 +161,9 @@ namespace EduEngine
 
 	void MultithreadingDemo::OnRender(const Timer& timer)
 	{
-		for (uint32 i = 0; i < GetInitInfo().NumDeferredContexts; i++)
-		{
-			m_Threads[i] = std::thread(ThreadWorker, this, timer, i);
-		}
+		m_Timer = &timer;
+
+		ReleaseSemaphore(m_WorkerSemaphore, m_ActiveThreads, nullptr);
 
 		GetMainContext()->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(GetSwapChain()->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
@@ -149,59 +173,123 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(GetSwapChain()->CurrentBackBufferView(), clear, 0, nullptr);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(GetSwapChain()->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
-		for (std::thread& thread : m_Threads)
-		{
-			thread.join();
-		}
+		for (size_t i = 0; i < m_ActiveThreads; i++)
+			WaitForSingleObject(m_MainSemaphore, INFINITE);
 
 		m_Contexts[0] = GetMainContext()->GetCommandCtx();
 
-		for (uint32 i = 0; i < GetInitInfo().NumDeferredContexts; i++)
+		for (uint32 i = 0; i < m_ActiveThreads; i++)
 			m_Contexts[i + 1] = GetDeferredContext(i)->GetCommandCtx();
 
 		auto& dCommandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		dCommandQueue.CloseAndExecuteCommandContexts(m_Contexts.data(), m_Contexts.size());
+		dCommandQueue.CloseAndExecuteCommandContexts(m_Contexts.data(), m_ActiveThreads + 1);
 
 		GetMainContext()->FinishFrame();
 		GetMainContext()->GetCommandCtx()->Reset();
 
-		for (uint32 i = 0; i < GetInitInfo().NumDeferredContexts; i++)
+		for (uint32 i = 0; i < m_ActiveThreads; i++)
 		{
 			GetDeferredContext(i)->FinishFrame();
 			GetDeferredContext(i)->GetCommandCtx()->Reset();
 		}
+
+		ID3D12DescriptorHeap* descriptorHeaps[] = { GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+		GetMainContext()->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
+		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
+		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
+
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::Begin("Multithreading Demo");
+
+		ImGui::SliderInt3("Grid Size", (int*)&m_GridSize, 0, 10);
+
+		uint32 prevActiveThreads = m_ActiveThreads;
+		if (ImGui::SliderInt("Thread Count", (int*)&m_ActiveThreads, 1, GetInitInfo().NumDeferredContexts))
+		{
+			m_ExitApp = true;
+
+			ReleaseSemaphore(m_WorkerSemaphore, prevActiveThreads, nullptr);
+			ReleaseSemaphore(m_MainSemaphore, prevActiveThreads, nullptr);
+
+			for (uint32 i = 0; i < m_Threads.size(); i++)
+				m_Threads[i].join();
+
+			CloseHandle(m_MainSemaphore);
+			CloseHandle(m_WorkerSemaphore);
+
+			m_ExitApp = false;
+
+			m_MainSemaphore = CreateSemaphore(nullptr, 0, m_ActiveThreads, nullptr);
+			m_WorkerSemaphore = CreateSemaphore(nullptr, 0, m_ActiveThreads, nullptr);
+
+			m_Threads.resize(m_ActiveThreads);
+			for (uint32 i = 0; i < m_ActiveThreads; i++)
+			{
+				m_Threads[i] = std::thread(ThreadWorker, this, i);
+			}
+		}
+
+		ImGui::End();
+
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
 	}
 
-	void MultithreadingDemo::ThreadWorker(MultithreadingDemo* pThis, const Timer& timer, uint64 contextId)
+	void MultithreadingDemo::ThreadWorker(MultithreadingDemo* pThis, uint64 contextId)
 	{
-		float radius = 40.0f;
-		float x = cos(XM_2PI * contextId / (float)pThis->GetInitInfo().NumDeferredContexts) * radius;
-		float y = sin(XM_2PI * contextId / (float)pThis->GetInitInfo().NumDeferredContexts) * radius;
+		while (true)
+		{
+			WaitForSingleObject(pThis->m_WorkerSemaphore, INFINITE);
 
-		char sign = contextId % 2 == 0 ? 1 : -1;
+			if (pThis->m_ExitApp)
+				break;
 
-		Matrix world = Matrix::CreateScale(10.0f) * Matrix::CreateRotationY(sign * timer.GetTotalTime()) * Matrix::CreateTranslation(x, y, 0);
-		
-		XMFLOAT4X4 viewProj;
-		XMStoreFloat4x4(&viewProj, XMMatrixTranspose(pThis->GetCamera()->GetViewProjMatrix()));
+			uint32 numToRender = (pThis->m_GridSize.x * pThis->m_GridSize.y * pThis->m_GridSize.z) / pThis->m_ActiveThreads;
+			uint32 startIndex = contextId * numToRender;
 
-		pThis->m_ObjBuff->LoadData(pThis->GetDeferredContext(contextId), world.Transpose());
-		pThis->m_PassBuff->LoadData(pThis->GetDeferredContext(contextId), viewProj);
+			if (contextId == pThis->m_ActiveThreads - 1)
+				numToRender = (pThis->m_GridSize.x * pThis->m_GridSize.y * pThis->m_GridSize.z) - startIndex;
+			
+			for (uint32 idx = startIndex; idx < startIndex + numToRender; idx++)
+			{
+				uint32 x = idx % pThis->m_GridSize.x;
+				uint32 y = (idx / pThis->m_GridSize.x) % pThis->m_GridSize.y;
+				uint32 z = idx / (pThis->m_GridSize.x * pThis->m_GridSize.y);
 
-		ID3D12DescriptorHeap* descriptorHeaps[] = { pThis->GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+				float radius = 40.0f;
 
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+				char sign = contextId % 2 == 0 ? 1 : -1;
 
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetRenderTargets(1, &pThis->GetSwapChain()->CurrentBackBufferView(), true, &pThis->GetSwapChain()->DepthStencilView());
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetViewports(&pThis->GetViewport(), 1);
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetScissorRects(&pThis->GetScissorRect(), 1);
+				Matrix world = Matrix::CreateScale(10.0f) * Matrix::CreateRotationY(sign * pThis->m_Timer->GetTotalTime()) * Matrix::CreateTranslation(x * radius, y * radius, z * radius);
 
-		pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId));
+				XMFLOAT4X4 viewProj;
+				XMStoreFloat4x4(&viewProj, XMMatrixTranspose(pThis->GetCamera()->GetViewProjMatrix()));
 
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &pThis->m_CubeVB->GetView());
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&pThis->m_CubeIB->GetView());
+				pThis->m_ObjBuff->LoadData(pThis->GetDeferredContext(contextId), world.Transpose());
+				pThis->m_PassBuff->LoadData(pThis->GetDeferredContext(contextId), viewProj);
 
-		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(pThis->m_CubeIB->GetLength(), 1, 0, 0, 0);
+				ID3D12DescriptorHeap* descriptorHeaps[] = { pThis->GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetRenderTargets(1, &pThis->GetSwapChain()->CurrentBackBufferView(), true, &pThis->GetSwapChain()->DepthStencilView());
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetViewports(&pThis->GetViewport(), 1);
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetScissorRects(&pThis->GetScissorRect(), 1);
+
+				pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId));
+
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &pThis->m_CubeVB->GetView());
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&pThis->m_CubeIB->GetView());
+
+				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(pThis->m_CubeIB->GetLength(), 1, 0, 0, 0);
+			}
+
+			ReleaseSemaphore(pThis->m_MainSemaphore, 1, nullptr);
+		}
 	}
 }

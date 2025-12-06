@@ -26,7 +26,7 @@ namespace EduEngine
 	{
 	public:
 		RenderEngine();
-		~RenderEngine();
+		virtual ~RenderEngine();
 
 		RenderEngine(const RenderEngine& rhs) = delete;
 		RenderEngine& operator=(const RenderEngine& rhs) = delete;
