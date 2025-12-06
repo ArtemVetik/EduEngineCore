@@ -24,12 +24,12 @@ namespace EduEngine::DiligentBinding
 		void InitStaticSampler(EDU_SHADER_TYPE shaderType, const String& textureName, const ShaderResourceAttribs& samplerAttribs);
 
 		void CommitRootViews(ShaderResourceCacheD3D12& resourceCache,
-							 class CommandContext* ctx,
+							 class DeviceContext* ctx,
 							 bool isCompute) const;
 
 		void CommitDescriptorHandles(RenderDeviceD3D12* device,
 									 ShaderResourceCacheD3D12& resourceCache,
-									 class CommandContext* ctx,
+									 class DeviceContext* ctx,
 									 bool isCompute,
 									 bool transitionResources) const;
 
@@ -46,13 +46,13 @@ namespace EduEngine::DiligentBinding
 
 		void CommitDescriptorHandlesInternal_SM(RenderDeviceD3D12* pRenderDeviceD3D12,
 												ShaderResourceCacheD3D12& ResourceCache,
-												class CommandContext* Ctx,
+												class DeviceContext* Ctx,
 												bool IsCompute,
 												bool transitionResources) const;
 
 		void CommitDescriptorHandlesInternal_SMD(RenderDeviceD3D12* pRenderDeviceD3D12,
 												 ShaderResourceCacheD3D12& ResourceCache,
-												 class CommandContext* Ctx,
+												 class DeviceContext* Ctx,
 												 bool IsCompute,
 												 bool transitionResources) const;
 

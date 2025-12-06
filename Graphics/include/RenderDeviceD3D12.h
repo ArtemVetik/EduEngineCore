@@ -1,6 +1,7 @@
 #pragma once
 #include "framework.h"
 #include "CommandQueueD3D12.h"
+#include "DeviceContext.h"
 #include "QueryHeap.h"
 
 #include <IRenderDeviceD3D12.h>
@@ -25,8 +26,6 @@ namespace EduEngine
 
 		DescriptorHeapAllocation AllocateCPUDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 		DescriptorHeapAllocation AllocateGPUDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
-		DescriptorHeapAllocation AllocateDynamicDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
-		DynamicAllocation AllocateDynamicUploadGPUDescriptor(QueueID queueId, size_t sizeInBytes);
 
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 		const QueryHeap& GetQueryHeap() const { return m_QueryHeap; }
@@ -36,27 +35,36 @@ namespace EduEngine
 		
 		void FlushQueues();
 
+
 		ID3D12DescriptorHeap* GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 		
 		ID3D12Device* GetD3D12Device() const override { return mDevice.Get(); }
 
+		static constexpr uint32 MaxDeviceContexts = 32;
+
 	private:
 		void SafeReleaseObject(ReleaseResourceWrapper&& wrapper);
-
+		GPUDescriptorHeap& GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type);
+		DynamicHeapManager& GetDynamicHeapManager() { return m_GlobalDynamicHeap; }
+		uint32 GetAvailableContextId();
+		
+		friend DeviceContext::DeviceContext(RenderDeviceD3D12& device, D3D12_COMMAND_LIST_TYPE type);
+		
 	private:
 		Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
 
 		CPUDescriptorHeap m_CPUDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		GPUDescriptorHeap m_GPUDescriptorHeaps[2];
-		DynamicSuballocationsManager m_DynamicSuballocationMgr[2];
 
 		typedef std::pair<FenceValues, ReleaseResourceWrapper> ReleaseObject;
 
 		std::mutex m_ReleasedObjectsMutex;
-		DynamicUploadHeap m_DynUploadHeap; // must be before m_ReleaseObjectsQueue
+		DynamicHeapManager m_GlobalDynamicHeap; // must be before m_ReleaseObjectsQueue
 		std::deque<ReleaseObject> m_ReleaseObjectsQueue;
 
 		CommandQueueD3D12 m_CommandQueues[2]; // must be after descriptor heaps (release in destructor)
 		QueryHeap m_QueryHeap;
+
+		std::vector<uint32> m_AvailableContextIds;
 	};
 }

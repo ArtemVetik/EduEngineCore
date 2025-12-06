@@ -25,7 +25,7 @@ namespace EduEngine
 					const void*				   initData,
 					QueueID					   queueId);
 
-		void LoadData(const void* data, UINT* byteSize = nullptr);
+		void LoadData(DeviceContext* context, const void* data, UINT* byteSize = nullptr);
 
 	private:
 		DeviceContext* m_Context;

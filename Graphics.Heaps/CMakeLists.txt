@@ -9,6 +9,7 @@ add_library(GraphicsHeaps STATIC
     src/pch.cpp
     src/RingBuffer.cpp
     src/VariableSizeMemoryAllocator.cpp
+    src/DynamicHeap.cpp
 
     include/ReleaseResourceWrapper.h
 )

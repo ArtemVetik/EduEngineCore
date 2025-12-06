@@ -7,9 +7,9 @@ namespace EduEngine
 	class GRAPHICS_API DynamicUploadBuffer
 	{
 	private:
-		DynamicAllocation m_DynamicAllocation;
-		DescriptorHeapAllocation m_SrvDescriptorAllocation;
-		DescriptorHeapAllocation m_UavDescriptorAllocation;
+		DynamicHeapAllocation m_DynHeapAllocation[RenderDeviceD3D12::MaxDeviceContexts];
+		DescriptorHeapAllocation m_SrvDescriptorAllocation[RenderDeviceD3D12::MaxDeviceContexts];
+		DescriptorHeapAllocation m_UavDescriptorAllocation[RenderDeviceD3D12::MaxDeviceContexts];
 
 		RenderDeviceD3D12* m_Device;
 		QueueID m_QueueId;
@@ -21,31 +21,21 @@ namespace EduEngine
 		{
 		}
 
-		void CreateAllocation(size_t size);
-
 		template <class T>
-		void LoadData(const T& initialData);
-		template <class T>
-		void PutData(size_t index, const T& data);
+		void LoadData(DeviceContext* context, const T& initialData);
 
-		void DynamicUploadBuffer::CreateSRV(size_t elemCount, size_t byteStride);
-		void DynamicUploadBuffer::CreateUAV(size_t elemCount, size_t byteStride);
+		void DynamicUploadBuffer::CreateSRV(DeviceContext* context, size_t elemCount, size_t byteStride);
+		void DynamicUploadBuffer::CreateUAV(DeviceContext* context, size_t elemCount, size_t byteStride);
 
-		DynamicAllocation GetAllocation() const { return m_DynamicAllocation; }
-		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVDescriptorCPUHandle() { return m_SrvDescriptorAllocation.GetCpuHandle(); }
-		D3D12_CPU_DESCRIPTOR_HANDLE GetUAVDescriptorCPUHandle() { return m_UavDescriptorAllocation.GetCpuHandle(); }
+		DynamicHeapAllocation GetHeapAllocation(DeviceContext* context) const { return m_DynHeapAllocation[context->GetContextId()]; }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVDescriptorCPUHandle(DeviceContext* context) { return m_SrvDescriptorAllocation[context->GetContextId()].GetCpuHandle(); }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetUAVDescriptorCPUHandle(DeviceContext* context) { return m_UavDescriptorAllocation[context->GetContextId()].GetCpuHandle(); }
 	};
 
 	template<class T>
-	inline void DynamicUploadBuffer::LoadData(const T& initialData)
+	inline void DynamicUploadBuffer::LoadData(DeviceContext* context, const T& initialData)
 	{
-		m_DynamicAllocation = m_Device->AllocateDynamicUploadGPUDescriptor(m_QueueId, sizeof(T));
-		memcpy(m_DynamicAllocation.CPUAddress, &initialData, sizeof(T));
-	}
-
-	template<class T>
-	inline void DynamicUploadBuffer::PutData(size_t index, const T& data)
-	{
-		memcpy((T*)m_DynamicAllocation.CPUAddress + index, &data, sizeof(T));
+		m_DynHeapAllocation[context->GetContextId()] = context->AllocateDynamicSpace(sizeof(T), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		memcpy(m_DynHeapAllocation[context->GetContextId()].GetCpuAddress(), &initialData, sizeof(T));
 	}
 }

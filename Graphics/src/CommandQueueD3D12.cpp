@@ -16,8 +16,6 @@ namespace EduEngine
 		pDevice->GetD3D12Device()->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&m_Fence));
 
 		m_CommandQueue->SetName(type == D3D12_COMMAND_LIST_TYPE_DIRECT ? L"DirectCommandQueue" : L"ComputeCommandQueue");
-
-		m_DynUploadHeap = std::make_unique<DynamicUploadHeap>(true, pDevice, 2048);
 	}
 
 	CommandQueueD3D12::~CommandQueueD3D12()
@@ -86,7 +84,6 @@ namespace EduEngine
 		}
 
 		auto nextCmdList = m_NextCmdList.load();
-		m_DynUploadHeap->FinishFrame({ nextCmdList , nextCmdList }, { numCompletedCmdLists , numCompletedCmdLists });
 	}
 
 	void CommandQueueD3D12::Flush()
@@ -112,10 +109,5 @@ namespace EduEngine
 			WaitForSingleObject(eventHandle, INFINITE);
 			CloseHandle(eventHandle);
 		}
-	}
-
-	DynamicAllocation CommandQueueD3D12::AllocateInDynamicHeap(size_t sizeInBytes)
-	{
-		return m_DynUploadHeap->Allocate(sizeInBytes);
 	}
 }

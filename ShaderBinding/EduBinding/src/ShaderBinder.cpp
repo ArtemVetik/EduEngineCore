@@ -206,9 +206,9 @@ namespace EduEngine::EduBinding
 				{
 					VERIFY_EXPR(param->RootView.Dynamic.get(), "Dynamic GPU resource (", param->RootView.Name, ") for Root CBV is not set");
 					if (isCompute)
-						cmdList->SetComputeRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetAllocation().GPUAddress);
+						cmdList->SetComputeRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetHeapAllocation(context).GetGpuAddress());
 					else
-						cmdList->SetGraphicsRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetAllocation().GPUAddress);
+						cmdList->SetGraphicsRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetHeapAllocation(context).GetGpuAddress());
 				}
 				else
 				{
@@ -230,7 +230,7 @@ namespace EduEngine::EduBinding
 				}
 				else
 				{
-					auto dynHeapSpace = m_Device->AllocateDynamicDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, param->DescriptorTable.DescriptorsNum);
+					auto dynHeapSpace = context->AllocateDynamicDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, param->DescriptorTable.DescriptorsNum);
 
 					for (uint16 i = 0; i < param->DescriptorTable.DescriptorsNum; i++)
 					{
@@ -239,8 +239,8 @@ namespace EduEngine::EduBinding
 						VERIFY_EXPR(descriptor.Dynamic.get(), "Dynamic GPU resource (", descriptor.Name, ") for descriptor is not set");
 
 						auto srcHandle = descriptor.Type == CachedDescriptorType::SRV ?
-							descriptor.Dynamic->GetSRVDescriptorCPUHandle() :
-							descriptor.Dynamic->GetUAVDescriptorCPUHandle();
+							descriptor.Dynamic->GetSRVDescriptorCPUHandle(context) :
+							descriptor.Dynamic->GetUAVDescriptorCPUHandle(context);
 
 						auto dstHandle = dynHeapSpace.GetCpuHandle(i);
 

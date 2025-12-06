@@ -151,7 +151,7 @@ namespace EduEngine
 			// 0b10(2): Width is even, height is odd.
 			// 0b11(3): Both width and height are odd.
 			cbData.NonPowerTwo = (UINT)((texDesc.Height & 1u) << 1) | (texDesc.Width & 1u);
-			cbRes->LoadData(&cbData);
+			cbRes->LoadData(context, &cbData);
 
 			m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "SrcMip", texture);
 			m_PSO.GetShaderBinder()->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip1", texture, srcMip + 1);

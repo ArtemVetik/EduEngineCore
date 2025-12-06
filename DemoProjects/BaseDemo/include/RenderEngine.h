@@ -17,6 +17,11 @@
 
 namespace EduEngine
 {
+	struct EngineInitInfo
+	{
+		uint32 NumDeferredContexts = 0;
+	};
+
 	class RenderEngine : public IRenderEngine
 	{
 	public:
@@ -39,6 +44,7 @@ namespace EduEngine
 		static RenderEngine* GetInstance();
 
 	protected:
+		virtual void ChangeInitInfo(EngineInitInfo& info) {};
 		virtual void OnStartUp() {};
 		virtual void OnUpdate(const Timer& timer) {};
 		virtual void OnRender(const Timer& timer) {};
@@ -50,8 +56,7 @@ namespace EduEngine
 		SwapChain* GetSwapChain() const { return m_SwapChain.get(); }
 		D3D12_VIEWPORT GetViewport() const { return m_Viewport; }
 		D3D12_RECT GetScissorRect() const { return m_ScissorRect; }
-
-		virtual uint16 GetNumDeferredContexts() const { return 0; };
+		EngineInitInfo GetInitInfo() const { return m_InitInfo; }
 
 	private:
 		void InitImGui(const Window& mainWindow);
@@ -61,6 +66,7 @@ namespace EduEngine
 		static RenderEngine* m_Instance;
 
 		std::unique_ptr<RenderDeviceD3D12> m_Device;
+
 		std::unique_ptr<SwapChain> m_SwapChain;
 		std::unique_ptr<Camera> m_Camera;
 
@@ -73,7 +79,9 @@ namespace EduEngine
 		static constexpr DirectX::SimpleMath::Rectangle EmptyResize = { -1, -1, -1, -1 };
 		DirectX::SimpleMath::Rectangle m_PendingResize = EmptyResize;
 	
-		std::unique_ptr<DeviceContext> m_MainContext;
 		std::vector<std::unique_ptr<DeviceContext>> m_DeferredContexts;
+		std::unique_ptr<DeviceContext> m_MainContext;
+
+		EngineInitInfo m_InitInfo;
 	};
 }

@@ -47,8 +47,8 @@ namespace EduEngine
 
 		m_LightConstants = {};
 		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
-		m_LightBuffer->LoadData(m_LightConstants);
-		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
+		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
+		m_LightBuffer->CreateSRV(GetMainContext(), 1, sizeof(PBRLighting::Light));
 
 		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
 		m_Prepass->GenerateTextures("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext());
@@ -143,11 +143,11 @@ namespace EduEngine
 		passConstants.DirectionalLightsCount = 1;
 		passConstants.PrefilteredMapLods = PBRPrepass::PREFILTERED_MIP_LEVELS;
 
-		m_ObjBuffer->LoadData(objConstants);
-		m_PassBuffer->LoadData(passConstants);
+		m_ObjBuffer->LoadData(GetMainContext(), objConstants);
+		m_PassBuffer->LoadData(GetMainContext(), passConstants);
 
-		m_LightBuffer->LoadData(m_LightConstants);
-		m_LightBuffer->CreateSRV(1, sizeof(PBRLighting::Light));
+		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
+		m_LightBuffer->CreateSRV(GetMainContext(), 1, sizeof(PBRLighting::Light));
 	}
 
 	void PBRDemo::OnRender(const Timer& timer)
@@ -271,7 +271,7 @@ namespace EduEngine
 			{
 				if (ImGui::ColorEdit4("Diffuse Albedo", (float*)&m_MaterialConstants.DiffuseAlbedo))
 				{
-					m_MaterialBuffer->LoadData(&m_MaterialConstants);
+					m_MaterialBuffer->LoadData(GetMainContext(), & m_MaterialConstants);
 				}
 
 				ImVec2 previewSize(128, 128);
@@ -310,7 +310,7 @@ namespace EduEngine
 					ImGui::SliderFloat("Metallic", &m_MaterialConstants.Metallic, 0.0f, 1.0f) ||
 					ImGui::SliderFloat("AO", &m_MaterialConstants.AO, 0.0f, 1.0f))
 				{
-					m_MaterialBuffer->LoadData(&m_MaterialConstants);
+					m_MaterialBuffer->LoadData(GetMainContext(), &m_MaterialConstants);
 				}
 			}
 		}

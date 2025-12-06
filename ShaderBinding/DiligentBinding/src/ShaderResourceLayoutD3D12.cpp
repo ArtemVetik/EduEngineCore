@@ -396,12 +396,12 @@ namespace EduEngine::DiligentBinding
 		BindResource_Internal(resourceView, nullptr);
 	}
 
-	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindDynamicResource(std::shared_ptr<DynamicUploadBuffer> dynamicResource)
+	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindDynamicResource(std::shared_ptr<DynamicUploadBuffer> dynamicResource, DeviceContext* ctx)
 	{
-		BindResource_Internal(nullptr, dynamicResource);
+		BindResource_Internal(nullptr, dynamicResource, ctx);
 	}
 
-	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, std::shared_ptr<DynamicUploadBuffer> dynamicResource)
+	void ShaderResourceLayoutD3D12::SRV_CBV_UAV::BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, std::shared_ptr<DynamicUploadBuffer> dynamicResource, DeviceContext* ctx)
 	{
 		VERIFY_EXPR(resourceView != nullptr || dynamicResource != nullptr, "");
 		
@@ -423,13 +423,13 @@ namespace EduEngine::DiligentBinding
 		case CachedResourceType::BufSRV:
 			dstRes.CPUDescriptorHandle = resourceView ?
 				dstRes.CPUDescriptorHandle = resourceView->GetSRVView()->GetCpuHandle() :
-				dynamicResource->GetSRVDescriptorCPUHandle();
+				dynamicResource->GetSRVDescriptorCPUHandle(ctx);
 			break;
 		case CachedResourceType::TexUAV:
 		case CachedResourceType::BufUAV:
 			dstRes.CPUDescriptorHandle = resourceView ?
 				dstRes.CPUDescriptorHandle = resourceView->GetUAVView()->GetCpuHandle() :
-				dynamicResource->GetUAVDescriptorCPUHandle();
+				dynamicResource->GetUAVDescriptorCPUHandle(ctx);
 			break;
 		default:
 			ASSERT_FAILED("Invalid resource type");

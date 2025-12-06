@@ -6,6 +6,12 @@ namespace EduEngine
 	using namespace EduEngine::EduBinding;
 	using namespace DirectX::SimpleMath;
 
+	void MultithreadingDemo::ChangeInitInfo(EngineInitInfo& info)
+	{
+		info.NumDeferredContexts = 6;
+		m_Contexts.resize(1 + info.NumDeferredContexts);
+	}
+
 	void MultithreadingDemo::OnStartUp()
 	{
 		struct Vertex
@@ -72,6 +78,8 @@ namespace EduEngine
 
 		m_PSO.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuff);
 		m_PSO.GetShaderBinder()->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuff);
+
+		m_Threads.resize(GetInitInfo().NumDeferredContexts);
 	}
 
 	void MultithreadingDemo::OnUpdate(const Timer& timer)
@@ -124,47 +132,76 @@ namespace EduEngine
 		GetCamera()->Pitch(currentDelta.y - prevY);
 
 		GetCamera()->Update(timer);
-
-		Matrix world = Matrix::CreateScale(10.0f) * Matrix::CreateRotationY(timer.GetTotalTime());
-
-		XMFLOAT4X4 viewProj;
-		XMStoreFloat4x4(&viewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
-
-		m_ObjBuff->LoadData(world.Transpose());
-		m_PassBuff->LoadData(viewProj);
 	}
 
 	void MultithreadingDemo::OnRender(const Timer& timer)
 	{
+		for (uint32 i = 0; i < GetInitInfo().NumDeferredContexts; i++)
+		{
+			m_Threads[i] = std::thread(ThreadWorker, this, timer, i);
+		}
+
 		GetMainContext()->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(GetSwapChain()->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
-		
+
 		const float clear[4] = { 0, 0, 0, 1 };
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(GetSwapChain()->CurrentBackBufferView(), clear, 0, nullptr);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(GetSwapChain()->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
-		ID3D12DescriptorHeap* descriptorHeaps[] = { GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+		for (std::thread& thread : m_Threads)
+		{
+			thread.join();
+		}
 
-		GetDeferredContext(0)->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+		m_Contexts[0] = GetMainContext()->GetCommandCtx();
 
-		GetDeferredContext(0)->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
-		GetDeferredContext(0)->GetCommandCtx()->SetViewports(&GetViewport(), 1);
-		GetDeferredContext(0)->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
+		for (uint32 i = 0; i < GetInitInfo().NumDeferredContexts; i++)
+			m_Contexts[i + 1] = GetDeferredContext(i)->GetCommandCtx();
 
-		m_PSO.CommitAll(GetDeferredContext(0));
-
-		GetDeferredContext(0)->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		GetDeferredContext(0)->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
-		GetDeferredContext(0)->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
-
-		GetDeferredContext(0)->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
-
-		CommandContext* contexts[]{ GetMainContext()->GetCommandCtx(), GetDeferredContext(0)->GetCommandCtx()};
 		auto& dCommandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		dCommandQueue.CloseAndExecuteCommandContexts(contexts, 2);
+		dCommandQueue.CloseAndExecuteCommandContexts(m_Contexts.data(), m_Contexts.size());
 
+		GetMainContext()->FinishFrame();
 		GetMainContext()->GetCommandCtx()->Reset();
-		GetDeferredContext(0)->GetCommandCtx()->Reset();
+
+		for (uint32 i = 0; i < GetInitInfo().NumDeferredContexts; i++)
+		{
+			GetDeferredContext(i)->FinishFrame();
+			GetDeferredContext(i)->GetCommandCtx()->Reset();
+		}
+	}
+
+	void MultithreadingDemo::ThreadWorker(MultithreadingDemo* pThis, const Timer& timer, uint64 contextId)
+	{
+		float radius = 40.0f;
+		float x = cos(XM_2PI * contextId / (float)pThis->GetInitInfo().NumDeferredContexts) * radius;
+		float y = sin(XM_2PI * contextId / (float)pThis->GetInitInfo().NumDeferredContexts) * radius;
+
+		char sign = contextId % 2 == 0 ? 1 : -1;
+
+		Matrix world = Matrix::CreateScale(10.0f) * Matrix::CreateRotationY(sign * timer.GetTotalTime()) * Matrix::CreateTranslation(x, y, 0);
+		
+		XMFLOAT4X4 viewProj;
+		XMStoreFloat4x4(&viewProj, XMMatrixTranspose(pThis->GetCamera()->GetViewProjMatrix()));
+
+		pThis->m_ObjBuff->LoadData(pThis->GetDeferredContext(contextId), world.Transpose());
+		pThis->m_PassBuff->LoadData(pThis->GetDeferredContext(contextId), viewProj);
+
+		ID3D12DescriptorHeap* descriptorHeaps[] = { pThis->GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetRenderTargets(1, &pThis->GetSwapChain()->CurrentBackBufferView(), true, &pThis->GetSwapChain()->DepthStencilView());
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetViewports(&pThis->GetViewport(), 1);
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetScissorRects(&pThis->GetScissorRect(), 1);
+
+		pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId));
+
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &pThis->m_CubeVB->GetView());
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&pThis->m_CubeIB->GetView());
+
+		pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(pThis->m_CubeIB->GetLength(), 1, 0, 0, 0);
 	}
 }

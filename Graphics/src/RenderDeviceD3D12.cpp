@@ -24,18 +24,19 @@ namespace EduEngine
 			{ this, D3D12_COMMAND_LIST_TYPE_DIRECT  },
 			{ this, D3D12_COMMAND_LIST_TYPE_COMPUTE }
 		},
-		m_DynamicSuballocationMgr
-		{
-			{ m_GPUDescriptorHeaps[0], 2048, "CBV_SRV_UAV_DynSuballocationMgr" },
-			{ m_GPUDescriptorHeaps[1], 2048, "SAMPLER_DynSuballocationMgr" }
-		},
-		m_DynUploadHeap{ true, this, 2048 },
+		m_GlobalDynamicHeap{ this, 1, 1 << 20 },
 		m_QueryHeap{ this, 16, D3D12_QUERY_HEAP_TYPE_TIMESTAMP }
-	{ }
+	{
+		m_AvailableContextIds.resize(MaxDeviceContexts);
+
+		for (uint32 i = 0; i < MaxDeviceContexts; i++)
+			m_AvailableContextIds[MaxDeviceContexts - 1 - i ] = i;
+	}
 
 	RenderDeviceD3D12::~RenderDeviceD3D12()
 	{
 		FinishFrame(true);
+		m_GlobalDynamicHeap.Destroy();
 	}
 
 	DescriptorHeapAllocation RenderDeviceD3D12::AllocateCPUDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
@@ -48,23 +49,6 @@ namespace EduEngine
 	{
 		assert(type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 		return m_GPUDescriptorHeaps[type].Allocate(queueId, count);
-	}
-
-	DescriptorHeapAllocation RenderDeviceD3D12::AllocateDynamicDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
-	{
-		assert(type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-		return m_DynamicSuballocationMgr[type].Allocate(queueId, count);
-	}
-
-	DynamicAllocation RenderDeviceD3D12::AllocateDynamicUploadGPUDescriptor(QueueID queueId, size_t sizeInBytes)
-	{
-		assert(queueId >= QueueID::Direct && queueId <= QueueID::Both);
-		if (queueId == QueueID::Direct)
-			return m_CommandQueues[0].AllocateInDynamicHeap(sizeInBytes);
-		else if (queueId == QueueID::Compute)
-			return m_CommandQueues[1].AllocateInDynamicHeap(sizeInBytes);
-		else if (queueId == QueueID::Both)
-			return m_DynUploadHeap.Allocate(sizeInBytes);
 	}
 
 	CommandQueueD3D12& RenderDeviceD3D12::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)
@@ -111,11 +95,6 @@ namespace EduEngine
 			else
 				break;
 		}
-
-		for (size_t i = 0; i < 2; i++)
-			m_DynamicSuballocationMgr[i].DiscardAllocations();
-
-		m_DynUploadHeap.FinishFrame({ numDirectNextCmdLists, numComputeNextCmdLists }, { numDirectCompletedCmdLists, numComputeCompletedCmdLists });
 	}
 
 	void RenderDeviceD3D12::FlushQueues()
@@ -139,5 +118,28 @@ namespace EduEngine
 		uint64_t computeNum = m_CommandQueues[1].GetNextCmdListNum();
 
 		m_ReleaseObjectsQueue.emplace_back(FenceValues{ directNum, computeNum }, std::move(wrapper));
+	}
+
+	GPUDescriptorHeap& RenderDeviceD3D12::GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type)
+	{
+		VERIFY_EXPR(type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, "Incorrect heap type");
+
+		return type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ?
+			m_GPUDescriptorHeaps[0] :
+			m_GPUDescriptorHeaps[1];
+	}
+
+	uint32 RenderDeviceD3D12::GetAvailableContextId()
+	{
+		if (m_AvailableContextIds.empty())
+		{
+			ASSERT_FAILED("There are no free context id's");
+			return -1;
+		}
+
+		uint32 id = m_AvailableContextIds.back();
+		m_AvailableContextIds.pop_back();
+
+		return id;
 	}
 }

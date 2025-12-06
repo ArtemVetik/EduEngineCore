@@ -73,6 +73,9 @@ namespace EduEngine
 		pFactory->Release();
 		m_Device = std::make_unique<RenderDeviceD3D12>(device);
 
+		m_InitInfo = {};
+		ChangeInitInfo(m_InitInfo);
+
 		m_SwapChain = std::make_unique<SwapChain>(m_Device.get(),
 			mainWindow.GetClientWidth(), mainWindow.GetClientHeight(), mainWindow.GetMainWindow());
 
@@ -80,7 +83,13 @@ namespace EduEngine
 
 		m_MainContext = std::make_unique<DeviceContext>(*m_Device.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		for (uint16 i = 0; i < GetNumDeferredContexts(); i++)
+		if (m_InitInfo.NumDeferredContexts > RenderDeviceD3D12::MaxDeviceContexts)
+		{
+			ASSERT_FAILED("Maximum number of deferred contexts has been exceeded. (", m_InitInfo.NumDeferredContexts, ">", RenderDeviceD3D12::MaxDeviceContexts, ")");
+			return false;
+		}
+
+		for (uint16 i = 0; i < m_InitInfo.NumDeferredContexts; i++)
 			m_DeferredContexts.emplace_back(std::make_unique<DeviceContext>(*m_Device.get(), D3D12_COMMAND_LIST_TYPE_DIRECT));
 
 		Resize(mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
@@ -99,6 +108,7 @@ namespace EduEngine
 
 		CommandContext* contexts[]{ m_MainContext->GetCommandCtx() };
 		commandQueue.CloseAndExecuteCommandContexts(contexts, 1);
+		m_MainContext->FinishFrame();
 		m_MainContext->GetCommandCtx()->Reset();
 
 		return true;
@@ -112,7 +122,7 @@ namespace EduEngine
 	void RenderEngine::Render(const Timer& timer)
 	{
 		OnRender(timer);
-		
+
 		m_MainContext->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_SwapChain->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 		m_MainContext->GetCommandCtx()->FlushResourceBarriers();
@@ -120,7 +130,8 @@ namespace EduEngine
 		CommandContext* contexts[]{ m_MainContext->GetCommandCtx() };
 		auto& dCommandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		dCommandQueue.CloseAndExecuteCommandContexts(contexts, 1);
-		
+
+		m_MainContext->FinishFrame();
 		m_MainContext->GetCommandCtx()->Reset();
 
 		m_SwapChain->Present();
@@ -214,7 +225,8 @@ namespace EduEngine
 
 	DeviceContext* RenderEngine::GetDeferredContext(uint16 idx) const
 	{
-		VERIFY_EXPR(idx < GetNumDeferredContexts(), "");
+		VERIFY_EXPR(idx < m_InitInfo.NumDeferredContexts, "The maximum possible number of deferred contexts is ", m_InitInfo.NumDeferredContexts,
+			". It is impossible to take the context with the index: ", idx);
 
 		return m_DeferredContexts[idx].get();
 	}

@@ -180,13 +180,13 @@ namespace EduEngine
 		DirectX::XMStoreFloat4x4(&passConstants.MVP, DirectX::XMMatrixTranspose(mvp));
 		passConstants.CamPos = cameraPosition;
 
-		m_PassBuffer->LoadData(passConstants);
+		m_PassBuffer->LoadData(context, passConstants);
 
-		auto allocation = m_Device->AllocateDynamicUploadGPUDescriptor(QueueID::Direct, m_Lines.size() * sizeof(VertexPointColor));
-		memcpy(allocation.CPUAddress, m_Lines.data(), m_Lines.size() * sizeof(VertexPointColor));
+		DynamicHeapAllocation allocation = context->AllocateDynamicSpace(m_Lines.size() * sizeof(VertexPointColor), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		memcpy(allocation.GetCpuAddress(), m_Lines.data(), m_Lines.size() * sizeof(VertexPointColor));
 
 		D3D12_VERTEX_BUFFER_VIEW vertexView;
-		vertexView.BufferLocation = allocation.GPUAddress;
+		vertexView.BufferLocation = allocation.GetGpuAddress();
 		vertexView.StrideInBytes = sizeof(VertexPointColor);
 		vertexView.SizeInBytes = m_Lines.size() * sizeof(VertexPointColor);
 

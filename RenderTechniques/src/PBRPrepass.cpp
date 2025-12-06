@@ -164,7 +164,7 @@ namespace EduEngine
 				{
 					XMFLOAT4X4 MVP;
 					DirectX::XMStoreFloat4x4(&MVP, DirectX::XMMatrixTranspose(viewM[depth] * projM));
-					m_PassBuffVS->LoadData(MVP);
+					m_PassBuffVS->LoadData(context, MVP);
 
 					auto handle = texture->GetRTVView()->GetCpuHandle(mipLevel * 6 + depth);
 					cmdCtx->SetRenderTargets(1, &handle, true, nullptr);
@@ -218,7 +218,7 @@ namespace EduEngine
 			passCB.EnvMapSize = PREFILTERED_MAP_SIZE;
 			passCB.EnvMapLods = PREFILTERED_MIP_LEVELS;
 
-			m_PassBuffPS->LoadData(passCB);
+			m_PassBuffPS->LoadData(context, passCB);
 
 			// Generate Prefiltered Map (for each mip level)
 			RenderCubeMap(psoGenPrefilteredMap, m_PrefilteredMap.get(), PREFILTERED_MAP_SIZE / (1 << mip), mip);
@@ -269,7 +269,7 @@ namespace EduEngine
 		XMStoreFloat4x4(&cb.Proj, DirectX::XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
 		cb.Lod = m_SkyLod;
 
-		m_SkyboxPassBuff->LoadData(cb);
+		m_SkyboxPassBuff->LoadData(context, cb);
 
 		m_PsoSkybox.CommitAll(context);
 

@@ -53,10 +53,10 @@ namespace EduEngine
 
 		SetState(D3D12_RESOURCE_STATE_GENERIC_READ);
 
-		LoadData(initData);
+		LoadData(context, initData);
 	}
 
-	void BufferD3D12::LoadData(const void* data, UINT* byteSize /* = nullptr */)
+	void BufferD3D12::LoadData(DeviceContext* context, const void* data, UINT* byteSize /* = nullptr */)
 	{
 		UINT64 uploadBufferSize = 0;
 
@@ -65,9 +65,9 @@ namespace EduEngine
 		else
 			m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, 0, nullptr, nullptr, nullptr, &uploadBufferSize);
 
-		auto uploadBuff = m_Device->AllocateDynamicUploadGPUDescriptor(m_QueueId, uploadBufferSize);
+		DynamicHeapAllocation uploadBuff = context->AllocateDynamicSpace(uploadBufferSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
-		memcpy(reinterpret_cast<char*>(uploadBuff.CPUAddress), data, uploadBufferSize);
+		memcpy(reinterpret_cast<char*>(uploadBuff.GetCpuAddress()), data, uploadBufferSize);
 
 		auto beforeState = m_QueueId != QueueID::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
 
@@ -75,7 +75,7 @@ namespace EduEngine
 			beforeState, D3D12_RESOURCE_STATE_COPY_DEST));
 		m_Context->GetCommandCtx()->FlushResourceBarriers();
 
-		m_Context->GetCommandCtx()->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.pBuffer, uploadBuff.Offset, uploadBufferSize);
+		m_Context->GetCommandCtx()->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.GetResource(), uploadBuff.GetOffset(), uploadBufferSize);
 
 		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			D3D12_RESOURCE_STATE_COPY_DEST, beforeState));

@@ -63,10 +63,10 @@ namespace EduEngine::DiligentBinding
 			}
 
 			void BindResource(std::shared_ptr<ResourceViewD3D12> resourceView);
-			void BindDynamicResource(std::shared_ptr<DynamicUploadBuffer> dynamicResource);
+			void BindDynamicResource(std::shared_ptr<DynamicUploadBuffer> dynamicResource, DeviceContext* ctx);
 
 		private:
-			void BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, std::shared_ptr<DynamicUploadBuffer> dynamicResource);
+			void BindResource_Internal(std::shared_ptr<ResourceViewD3D12> resourceView, std::shared_ptr<DynamicUploadBuffer> dynamicResource, DeviceContext* ctx = nullptr);
 
 			ShaderResourceLayoutD3D12& m_ParentLayout;
 		};

@@ -69,10 +69,10 @@ namespace EduEngine::DiligentBinding
 		m_ShaderLayouts[shaderType]->GetVariable(varName).BindResource(resource);
 	}
 
-	void PipelineStateD3D12Base::BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<DynamicUploadBuffer> resource)
+	void PipelineStateD3D12Base::BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* varName, std::shared_ptr<DynamicUploadBuffer> resource, DeviceContext* ctx)
 	{
 		VERIFY_EXPR(m_ShaderLayouts[shaderType] != nullptr, "");
-		m_ShaderLayouts[shaderType]->GetVariable(varName).BindDynamicResource(resource);
+		m_ShaderLayouts[shaderType]->GetVariable(varName).BindDynamicResource(resource, ctx);
 	}
 
 	void PipelineStateD3D12Base::CommitAll(DeviceContext* context, bool transitionResources)
@@ -83,8 +83,8 @@ namespace EduEngine::DiligentBinding
 		else
 			context->GetCommandCtx()->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
 
-		m_RootSignature.CommitRootViews(m_ShaderResourceCache, context->GetCommandCtx(), m_IsCompute);
-		m_RootSignature.CommitDescriptorHandles(m_Device, m_ShaderResourceCache, context->GetCommandCtx(), m_IsCompute, transitionResources);
+		m_RootSignature.CommitRootViews(m_ShaderResourceCache, context, m_IsCompute);
+		m_RootSignature.CommitDescriptorHandles(m_Device, m_ShaderResourceCache, context, m_IsCompute, transitionResources);
 	}
 
 #ifdef _DEBUG

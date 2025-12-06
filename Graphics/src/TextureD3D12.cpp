@@ -56,10 +56,9 @@ namespace EduEngine
 		UINT64 uploadBufferSize = 0;
 		m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, 0, nullptr, nullptr, nullptr, &uploadBufferSize);
 
-		auto uploadBuff = m_Device->AllocateDynamicUploadGPUDescriptor(m_QueueId, uploadBufferSize + D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
-		int alignOffset = uploadBuff.Offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-
-		memcpy(reinterpret_cast<char*>(uploadBuff.CPUAddress) + alignOffset, dataPtr, uploadBufferSize);
+		DynamicHeapAllocation uploadBuff = context->AllocateDynamicSpace(uploadBufferSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+		
+		memcpy(reinterpret_cast<char*>(uploadBuff.GetCpuAddress()), dataPtr, uploadBufferSize);
 
 		D3D12_TEXTURE_COPY_LOCATION dst = {};
 		dst.pResource = m_d3d12Resource.Get();
@@ -67,11 +66,11 @@ namespace EduEngine
 		dst.SubresourceIndex = 0;
 
 		D3D12_TEXTURE_COPY_LOCATION src = {};
-		src.pResource = uploadBuff.pBuffer;
-		src.PlacedFootprint.Offset = uploadBuff.Offset + alignOffset;
+		src.pResource = uploadBuff.GetResource();
+		src.PlacedFootprint.Offset = uploadBuff.GetOffset();
 		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
-		m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, uploadBuff.Offset + alignOffset, &src.PlacedFootprint, nullptr, nullptr, nullptr);
+		m_Device->GetD3D12Device()->GetCopyableFootprints(&m_d3d12Resource->GetDesc(), 0, 1, uploadBuff.GetOffset(), &src.PlacedFootprint, nullptr, nullptr, nullptr);
 		context->GetCommandCtx()->GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
 
 		SetState(D3D12_RESOURCE_STATE_COPY_DEST);
