@@ -18,6 +18,8 @@ namespace EduEngine
 		static void ThreadWorker(MultithreadingDemo* pThis, uint64 contextId);
 
 	private:
+		static constexpr uint32 TextureCount = 5;
+
 		std::shared_ptr<VertexBufferD3D12> m_CubeVB;
 		std::shared_ptr<IndexBufferD3D12> m_CubeIB;
 
@@ -25,7 +27,7 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuff;
 
 		EduEngine::EduBinding::PipelineState m_PSO;
-		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_Binder;
+		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_Binder[TextureCount];
 
 		const Timer* m_Timer;
 		DirectX::XMUINT3 m_GridSize;

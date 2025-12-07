@@ -23,7 +23,7 @@ namespace EduEngine
 
 	void MultithreadingDemo::ChangeInitInfo(EngineInitInfo& info)
 	{
-		info.NumDeferredContexts = 6;
+		info.NumDeferredContexts = std::thread::hardware_concurrency() - 1;
 		m_Contexts.resize(1 + info.NumDeferredContexts);
 	}
 
@@ -63,9 +63,16 @@ namespace EduEngine
 		m_CubeVB = std::make_shared<VertexBufferD3D12>(GetDevice(), GetMainContext(), vertices, sizeof(Vertex), _countof(vertices));
 		m_CubeIB = std::make_shared<IndexBufferD3D12>(GetDevice(), GetMainContext(), indices, sizeof(uint16), _countof(indices), DXGI_FORMAT_R16_UINT);
 
+		ShaderResourceDesc resDesc[]
+		{
+			ShaderResourceDesc("cbPerObject", SHADER_RESOURCE_TYPE_DYNAMIC),
+			ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
+		};
+
 		ShaderDesc sDesc = {};
-		sDesc.ResourceNum = 0;
-		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
+		sDesc.ResourceNum = _countof(resDesc);
+		sDesc.ResourceDesc = resDesc;
+		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
 
 		auto vertexShader = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Color.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
 		auto pixelShader = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Color.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
@@ -91,12 +98,33 @@ namespace EduEngine
 		m_ObjBuff = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 		m_PassBuff = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueID::Direct);
 
-		m_Binder = m_PSO.CreateShaderBinder();
-		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuff);
-		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuff);
+		XMFLOAT3 pos = { 80, 80, -200 };
+		XMFLOAT3 look = { 0, 0, 1 };
+		XMFLOAT3 right = { 1, 0, 0 };
+		GetCamera()->Setup(pos, look, right, { 0, 1, 0 });
+
+		const wchar_t* texturePaths[]
+		{
+			L"assets/Textures/Yellow1.dds",
+			L"assets/Textures/Blue1.dds",
+			L"assets/Textures/Orange1.dds",
+			L"assets/Textures/Green1.dds",
+			L"assets/Textures/Red1.dds",
+		};
+
+		for (uint32 i = 0; i < TextureCount; i++)
+		{
+			Texture texture;
+			texture.Load(texturePaths[i % TextureCount], GetDevice(), GetMainContext());
+
+			m_Binder[i] = m_PSO.CreateShaderBinder();
+			m_Binder[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuff);
+			m_Binder[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuff);
+			m_Binder[i]->BindResource(EDU_SHADER_TYPE_PIXEL, "gAlbedo", texture.GetD3D12Texture());
+		}
 
 		m_GridSize = { 5, 5, 5 };
-		m_ActiveThreads = GetInitInfo().NumDeferredContexts;
+		m_ActiveThreads = GetInitInfo().NumDeferredContexts / 2;
 
 		m_MainSemaphore = CreateSemaphore(nullptr, 0, m_ActiveThreads, nullptr);
 		m_WorkerSemaphore = CreateSemaphore(nullptr, 0, m_ActiveThreads, nullptr);
@@ -204,9 +232,17 @@ namespace EduEngine
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::Begin("Multithreading Demo");
+		ImGuiWindowFlags flags =
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_AlwaysAutoResize;
 
-		ImGui::SliderInt3("Grid Size", (int*)&m_GridSize, 0, 10);
+		ImGui::SetNextWindowPos(ImVec2(5.0f, 5.0f), ImGuiCond_Always, ImVec2(0.0f, 0.0f));
+
+		ImGui::Begin("Multithreading Demo", nullptr, flags);
+
+		ImGui::SliderInt3("Grid Size", (int*)&m_GridSize, 1, 15);
 
 		uint32 prevActiveThreads = m_ActiveThreads;
 		if (ImGui::SliderInt("Thread Count", (int*)&m_ActiveThreads, 1, GetInitInfo().NumDeferredContexts))
@@ -234,6 +270,8 @@ namespace EduEngine
 			}
 		}
 
+		ImGui::Text("CPU Time: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
 		ImGui::End();
 
 		ImGui::Render();
@@ -254,7 +292,7 @@ namespace EduEngine
 
 			if (contextId == pThis->m_ActiveThreads - 1)
 				numToRender = (pThis->m_GridSize.x * pThis->m_GridSize.y * pThis->m_GridSize.z) - startIndex;
-			
+
 			for (uint32 idx = startIndex; idx < startIndex + numToRender; idx++)
 			{
 				uint32 x = idx % pThis->m_GridSize.x;
@@ -281,7 +319,7 @@ namespace EduEngine
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetViewports(&pThis->GetViewport(), 1);
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetScissorRects(&pThis->GetScissorRect(), 1);
 
-				pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId), pThis->m_Binder.get());
+				pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId), pThis->m_Binder[contextId % TextureCount].get());
 
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &pThis->m_CubeVB->GetView());

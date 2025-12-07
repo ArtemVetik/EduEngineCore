@@ -1,3 +1,11 @@
+Texture2D gAlbedo : register(t0);
+
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
+SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
 
 cbuffer cbPerObject : register(b0)
 {
@@ -33,5 +41,5 @@ VertexOut VS(VertexIn vIn)
 
 float4 PS(VertexOut vOut) : SV_Target
 {
-    return float4(vOut.TexC, 0, 1);
+    return gAlbedo.Sample(gsamLinearWrap, vOut.TexC);
 }
