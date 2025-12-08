@@ -2,9 +2,9 @@
 
 namespace EduEngine::DiligentBinding
 {
-	PipelineStateD3D12Base::PipelineStateD3D12Base(QueueID queueId, bool isCompute) :
+	PipelineStateD3D12Base::PipelineStateD3D12Base(QueueMask queueMask, bool isCompute) :
 		m_Device(nullptr),
-		m_QueueId(queueId),
+		m_QueueMask(queueMask),
 		m_IsCompute(isCompute)
 	{
 		for (uint32 i = 0; i < EDU_SHADER_TYPE_NUM_TYPES; i++)
@@ -22,7 +22,7 @@ namespace EduEngine::DiligentBinding
 		ReleaseResourceWrapper staleResource = {};
 		staleResource.AddPageable(std::move(m_PSO));
 
-		m_Device->SafeReleaseObject(m_QueueId, std::move(staleResource));
+		m_Device->SafeReleaseObject(m_QueueMask, std::move(staleResource));
 	}
 
 	void PipelineStateD3D12Base::Build(RenderDeviceD3D12* pDevice)

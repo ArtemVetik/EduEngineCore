@@ -6,7 +6,7 @@ namespace EduEngine
 {
 	GenerateMipMaps::GenerateMipMaps(RenderDeviceD3D12* device) :
 		m_Device(device),
-		m_PSO(QueueID::Direct)
+		m_PSO(QueueMask::Direct)
 	{
 		ShaderDesc desc = {};
 		desc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
@@ -62,7 +62,7 @@ namespace EduEngine
 		buffDesc.SampleDesc.Quality = 0;
 		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-		std::shared_ptr<BufferD3D12> cbRes = std::make_shared<BufferD3D12>(m_Device, context, buffDesc, QueueID::Direct);
+		std::shared_ptr<BufferD3D12> cbRes = std::make_shared<BufferD3D12>(m_Device, context, buffDesc, QueueMask::Direct);
 		m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "CB0", cbRes);
 
 		std::shared_ptr<TextureD3D12> tmpTexture = nullptr;
@@ -94,7 +94,7 @@ namespace EduEngine
 			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 			uavDesc.Format = texDesc.Format;
 
-			tmpTexture = std::make_shared<TextureD3D12>(m_Device, tmpTexDesc, nullptr, QueueID::Direct);
+			tmpTexture = std::make_shared<TextureD3D12>(m_Device, tmpTexDesc, nullptr, QueueMask::Direct);
 			tmpTexture->CreateSRV(&srvDesc);
 			tmpTexture->CreateUAV_Array(uavDesc);
 

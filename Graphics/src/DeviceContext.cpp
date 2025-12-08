@@ -30,19 +30,19 @@ namespace EduEngine
 		return m_DynamicHeap.Allocate(sizeInBytes, alignment);
 	}
 
-	DescriptorHeapAllocation DeviceContext::AllocateDynamicDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
+	DescriptorHeapAllocation DeviceContext::AllocateDynamicDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
 	{
 		VERIFY_EXPR(type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, "");
-		return m_DynamicSuballocationMgr[type].Allocate(queueId, count);
+		return m_DynamicSuballocationMgr[type].Allocate(queueMask, count);
 	}
 
 	void DeviceContext::FinishFrame()
 	{
-		QueueID queueId = m_CmdCtx->GetType() == D3D12_COMMAND_LIST_TYPE_DIRECT ? QueueID::Direct : QueueID::Compute;
+		QueueMask queueMask = m_CmdCtx->GetType() == D3D12_COMMAND_LIST_TYPE_DIRECT ? QueueMask::Direct : QueueMask::Compute;
 
 		for (size_t i = 0; i < 2; i++)
 			m_DynamicSuballocationMgr[i].DiscardAllocations();
 
-		m_DynamicHeap.ReleasePages(queueId);
+		m_DynamicHeap.ReleasePages(queueMask);
 	}
 }

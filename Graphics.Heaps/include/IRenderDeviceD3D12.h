@@ -1,6 +1,6 @@
 #pragma once
 #include "framework.h"
-#include "QueueID.h"
+#include "QueueMask.h"
 
 namespace EduEngine
 {
@@ -10,6 +10,6 @@ namespace EduEngine
     {
     public:
         virtual ID3D12Device* GetD3D12Device() const = 0;
-        virtual void SafeReleaseObject(QueueID queueId, ReleaseResourceWrapper&& wrapper) = 0;
+        virtual void SafeReleaseObject(QueueMask queueMask, ReleaseResourceWrapper&& wrapper) = 0;
     };
 }

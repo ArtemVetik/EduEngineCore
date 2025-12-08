@@ -113,9 +113,9 @@ namespace EduEngine::EduBinding
 		VERIFY_EXPR(m_RootViewNum + m_DescriptorTablesNum == rootIndex, "Incorrect ShaderBinder build: root parameter count mismatch");
 		VERIFY_EXPR(descriptorsOffset == m_DescriptorsNum, "Incorrect ShaderBinder build: descriptors count mismatch");
 
-		// TODO: Set QueueID
+		// TODO: Set QueueMask
 		if (totalMutableDescriptors != 0)
-			m_MutableHeapSpace = std::move(m_Device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalMutableDescriptors));
+			m_MutableHeapSpace = std::move(m_Device->AllocateGPUDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalMutableDescriptors));
 	}
 
 	void ShaderBinder::BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource, uint32 descriptorOffset)
@@ -189,7 +189,7 @@ namespace EduEngine::EduBinding
 			return;
 
 		m_MutableHeapSpace = std::move(m_Device->AllocateGPUDescriptor(
-			QueueID::Direct,
+			QueueMask::Direct,
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 			m_MutableHeapSpace.GetNumHandles())
 		);
@@ -230,7 +230,7 @@ namespace EduEngine::EduBinding
 				}
 				else
 				{
-					auto dynHeapSpace = context->AllocateDynamicDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, param->DescriptorTable.DescriptorsNum);
+					auto dynHeapSpace = context->AllocateDynamicDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, param->DescriptorTable.DescriptorsNum);
 
 					for (uint16 i = 0; i < param->DescriptorTable.DescriptorsNum; i++)
 					{

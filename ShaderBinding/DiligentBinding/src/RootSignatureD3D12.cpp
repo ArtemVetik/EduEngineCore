@@ -173,10 +173,10 @@ namespace EduEngine::DiligentBinding
 
 		DescriptorHeapAllocation cbcSrvUavHeapSpace, samplerHeapSpace;
 		if (totalSrvCbvUavDescriptors)
-			cbcSrvUavHeapSpace = device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalSrvCbvUavDescriptors);
-		// TODO: set QueueID
+			cbcSrvUavHeapSpace = device->AllocateGPUDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalSrvCbvUavDescriptors);
+		// TODO: set QueueMask
 		if (totalSamplerDescriptors)
-			samplerHeapSpace = device->AllocateGPUDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, totalSamplerDescriptors);
+			samplerHeapSpace = device->AllocateGPUDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, totalSamplerDescriptors);
 
 		uint32 SrvCbvUavTblStartOffset = 0;
 		uint32 SamplerTblStartOffset = 0;
@@ -460,9 +460,9 @@ namespace EduEngine::DiligentBinding
 
 		DescriptorHeapAllocation dynamicCbvSrvUavDescriptors, dynamicSamplerDescriptors;
 		if (numDynamicCbvSrvUavDescriptors)
-			dynamicCbvSrvUavDescriptors = ctx->AllocateDynamicDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, numDynamicCbvSrvUavDescriptors);
+			dynamicCbvSrvUavDescriptors = ctx->AllocateDynamicDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, numDynamicCbvSrvUavDescriptors);
 		if (numDynamicSamplerDescriptors)
-			dynamicSamplerDescriptors = ctx->AllocateDynamicDescriptor(QueueID::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, numDynamicSamplerDescriptors);
+			dynamicSamplerDescriptors = ctx->AllocateDynamicDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, numDynamicSamplerDescriptors);
 
 		ID3D12DescriptorHeap* descriptorHeaps[] =
 		{

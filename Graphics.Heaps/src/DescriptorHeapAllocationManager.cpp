@@ -63,7 +63,7 @@ namespace EduEngine
 		rhs.m_FirstGPUHandle.ptr = 0;
 	}
 
-	DescriptorHeapAllocation DescriptorHeapAllocationManager::Allocate(QueueID queueId, uint32 count)
+	DescriptorHeapAllocation DescriptorHeapAllocationManager::Allocate(QueueMask queueMask, uint32 count)
 	{
 		std::lock_guard<std::mutex> LockGuard(m_AllocationMutex);
 
@@ -79,7 +79,7 @@ namespace EduEngine
 		if (m_HeapDesc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
 			GPUHandle.ptr += descriptorHandleOffset * m_DescriptorSize;
 
-		return DescriptorHeapAllocation(m_ParentAllocator, m_pDescriptorHeap.Get(), CPUHandle, GPUHandle, count, static_cast<uint16>(m_ThisManagerId), queueId);
+		return DescriptorHeapAllocation(m_ParentAllocator, m_pDescriptorHeap.Get(), CPUHandle, GPUHandle, count, static_cast<uint16>(m_ThisManagerId), queueMask);
 	}
 
 	void DescriptorHeapAllocationManager::FreeAllocation(DescriptorHeapAllocation&& allocation)

@@ -130,7 +130,7 @@ namespace EduEngine
 			Microsoft::WRL::ComPtr<ID3D12Resource> backBuffer;
 			m_SwapChain->GetBuffer(i, IID_PPV_ARGS(backBuffer.GetAddressOf()));
 
-			m_SwapChainBuffers[i] = std::make_unique<TextureD3D12>(m_Device, backBuffer, QueueID::Direct);
+			m_SwapChainBuffers[i] = std::make_unique<TextureD3D12>(m_Device, backBuffer, QueueMask::Direct);
 			m_SwapChainBuffers[i]->CreateRTV(nullptr);
 			m_SwapChainBuffers[i]->SetName(L"SwapChain");
 		}
@@ -159,7 +159,7 @@ namespace EduEngine
 		dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		dsvDesc.Texture2D.MipSlice = 0;
 
-		m_DepthStencilTexture = std::make_unique<TextureD3D12>(m_Device, dsDesc, &dsClear, QueueID::Direct);
+		m_DepthStencilTexture = std::make_unique<TextureD3D12>(m_Device, dsDesc, &dsClear, QueueMask::Direct);
 		m_DepthStencilTexture->SetName(L"MainDepthStencil");
 		m_DepthStencilTexture->CreateDSV(&dsvDesc);
 

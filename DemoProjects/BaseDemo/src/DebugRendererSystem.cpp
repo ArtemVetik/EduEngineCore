@@ -10,7 +10,7 @@ namespace EduEngine
 		m_Device(pDevice),
 		m_RenderPass(pDevice)
 	{
-		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(pDevice, QueueID::Direct);
+		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(pDevice, QueueMask::Direct);
 
 		m_RenderPassBinder = m_RenderPass.GetPipelineState().CreateShaderBinder();
 

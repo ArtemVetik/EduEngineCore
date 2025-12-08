@@ -2,8 +2,8 @@
 
 namespace EduEngine::EduBinding
 {
-	ComputePipelineState::ComputePipelineState(QueueID queueId) :
-		PipelineStateBase(queueId, true)
+	ComputePipelineState::ComputePipelineState(QueueMask queueMask) :
+		PipelineStateBase(queueMask, true)
 	{
 		ZeroMemory(&m_Desc, sizeof(D3D12_COMPUTE_PIPELINE_STATE_DESC));
 		m_Desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;

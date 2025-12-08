@@ -1,6 +1,6 @@
 #pragma once
 #include "framework.h"
-#include "QueueID.h"
+#include "QueueMask.h"
 #include "ShaderD3D12.h"
 #include "RootSignature.h"
 #include "ShaderBinder.h"
@@ -10,7 +10,7 @@ namespace EduEngine::EduBinding
 	class EDUBINDING_API PipelineStateBase
 	{
 	public:
-		PipelineStateBase(QueueID queueId, bool isCompute);
+		PipelineStateBase(QueueMask queueMask, bool isCompute);
 		virtual ~PipelineStateBase();
 
 		void Build(RenderDeviceD3D12* pDevice);
@@ -35,7 +35,7 @@ namespace EduEngine::EduBinding
 		std::shared_ptr<ShaderD3D12> m_Shaders[EDU_SHADER_TYPE_NUM];
 		RootSignature m_RootSignature;
 
-		QueueID m_QueueId;
+		QueueMask m_QueueMask;
 		RenderDeviceD3D12* m_Device;
 		bool m_IsCompute;
 	};

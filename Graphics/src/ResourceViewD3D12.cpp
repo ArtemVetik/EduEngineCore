@@ -157,7 +157,7 @@ namespace EduEngine
 	DescriptorHeapAllocation ResourceViewD3D12::Allocate(const D3D12_DESCRIPTOR_HEAP_TYPE& type, size_t count, bool onCpu)
 	{
 		return onCpu ?
-			m_Device->AllocateCPUDescriptor(m_QueueId, type, count) :
-			m_Device->AllocateGPUDescriptor(m_QueueId, type, count);
+			m_Device->AllocateCPUDescriptor(m_QueueMask, type, count) :
+			m_Device->AllocateGPUDescriptor(m_QueueMask, type, count);
 	}
 }

@@ -4,7 +4,7 @@
 namespace EduEngine::DiligentBinding
 {
 	PipelineStateD3D12::PipelineStateD3D12() :
-		PipelineStateD3D12Base(QueueID::Direct, false)
+		PipelineStateD3D12Base(QueueMask::Direct, false)
 	{
 		ZeroMemory(&m_Desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 

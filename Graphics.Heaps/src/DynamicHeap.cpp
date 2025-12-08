@@ -112,7 +112,7 @@ namespace EduEngine
 		return std::move(DynamicHeapPage(m_Device, std::max(m_PageSize, sizeInBytes)));
 	}
 
-	void DynamicHeapManager::ReleasePages(std::vector<DynamicHeapPage>& usedPages, QueueID queueId)
+	void DynamicHeapManager::ReleasePages(std::vector<DynamicHeapPage>& usedPages, QueueMask queueMask)
 	{
 		for (auto& page : usedPages)
 		{
@@ -121,7 +121,7 @@ namespace EduEngine
 			ReleaseResourceWrapper staleWrapper = {};
 			staleWrapper.AddStaleDynamicPage(std::move(stalePage));
 
-			m_Device->SafeReleaseObject(queueId, std::move(staleWrapper));
+			m_Device->SafeReleaseObject(queueMask, std::move(staleWrapper));
 		}
 
 		usedPages.clear();
@@ -165,9 +165,9 @@ namespace EduEngine
 		return DynamicHeapAllocation(back.GetResource(), alignedOffset, back.GetGpuVirtualAddress(alignedOffset), back.GetCpuVirtualAddress(alignedOffset));
 	}
 
-	void DynamicHeap::ReleasePages(QueueID queueId)
+	void DynamicHeap::ReleasePages(QueueMask queueMask)
 	{
-		m_Manager.ReleasePages(m_UsedPages, queueId);
+		m_Manager.ReleasePages(m_UsedPages, queueMask);
 
 		m_CurrentOffset = 0;
 	}

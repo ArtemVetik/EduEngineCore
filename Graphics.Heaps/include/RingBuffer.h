@@ -1,6 +1,6 @@
 #pragma once
 #include "framework.h"
-#include "QueueID.h"
+#include "QueueMask.h"
 
 namespace EduEngine
 {

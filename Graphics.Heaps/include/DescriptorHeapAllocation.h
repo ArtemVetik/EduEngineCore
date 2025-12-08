@@ -1,6 +1,6 @@
 #pragma once
 #include "framework.h"
-#include "QueueID.h"
+#include "QueueMask.h"
 
 namespace EduEngine
 {
@@ -10,7 +10,7 @@ namespace EduEngine
 	class GRAPHICS_HEAPS_API IDescriptorAllocator
 	{
 	public:
-		virtual DescriptorHeapAllocation Allocate(QueueID queueId, uint32 count) = 0;
+		virtual DescriptorHeapAllocation Allocate(QueueMask queueMask, uint32 count) = 0;
 		virtual void SafeFree(DescriptorHeapAllocation&& allocation) = 0;
 		virtual uint32 GetDescriptorSize() const = 0;
 		virtual void FreeAllocation(DescriptorHeapAllocation&& allocation) = 0;
@@ -29,7 +29,7 @@ namespace EduEngine
 								 D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle,
 								 uint32						 nHandles,
 								 uint16						 allocationManagerId,
-								 QueueID queueId);
+								 QueueMask					 queueMask);
 
 		DescriptorHeapAllocation(DescriptorHeapAllocation&& allocation) noexcept;
 
@@ -51,7 +51,7 @@ namespace EduEngine
 		bool IsShaderVisible() const { return m_FirstGpuHandle.ptr != 0; }
 		size_t GetAllocationManagerId() { return m_AllocationManagerId; }
 		uint16 GetDescriptorSize() const { return m_DescriptorSize; }
-		QueueID GetQueueID() const { return m_QueueId; }
+		QueueMask GetQueueMask() const { return m_QueueMask; }
 
 		static constexpr uint16 InvalidAllocationMgrId = 0xFFFF;
 
@@ -66,6 +66,6 @@ namespace EduEngine
 		uint32 m_NumHandles = 0;
 		uint16 m_AllocationManagerId = static_cast<uint16>(-1);
 		uint16 m_DescriptorSize = 0;
-		QueueID m_QueueId;
+		QueueMask m_QueueMask;
 	};
 }

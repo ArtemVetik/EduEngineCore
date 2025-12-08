@@ -7,7 +7,7 @@ namespace EduEngine
         m_pDescriptorHeap{ nullptr },
         m_NumHandles{ 1 },
         m_DescriptorSize{ 0 },
-        m_QueueId { }
+        m_QueueMask { }
     {
         m_FirstCpuHandle.ptr = 0;
         m_FirstGpuHandle.ptr = 0;
@@ -19,14 +19,14 @@ namespace EduEngine
                                                        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle,
                                                        uint32                      nHandles,
                                                        uint16                      allocationManagerId,
-                                                       QueueID                     queueId) :
+                                                       QueueMask                   queueMask) :
         m_FirstCpuHandle{ cpuHandle },
         m_FirstGpuHandle{ gpuHandle },
         m_pAllocator{ &allocator },
         m_pDescriptorHeap{ heap },
         m_NumHandles{ nHandles },
         m_AllocationManagerId{ allocationManagerId },
-        m_QueueId { queueId }
+        m_QueueMask { queueMask }
     {
         assert(m_pAllocator != nullptr && m_pDescriptorHeap != nullptr);
         auto descriptorSize = m_pAllocator->GetDescriptorSize();
@@ -42,7 +42,7 @@ namespace EduEngine
         m_pDescriptorHeap{ std::move(allocation.m_pDescriptorHeap) },
         m_NumHandles{ std::move(allocation.m_NumHandles) },
         m_AllocationManagerId{ std::move(allocation.m_AllocationManagerId) },
-        m_QueueId { std::move(allocation.m_QueueId) },
+        m_QueueMask { std::move(allocation.m_QueueMask) },
         m_DescriptorSize{ std::move(allocation.m_DescriptorSize) }
     {
         allocation.Reset();
@@ -56,7 +56,7 @@ namespace EduEngine
         m_pAllocator = std::move(allocation.m_pAllocator);
         m_AllocationManagerId = std::move(allocation.m_AllocationManagerId);
         m_pDescriptorHeap = std::move(allocation.m_pDescriptorHeap);
-        m_QueueId = std::move(allocation.m_QueueId);
+        m_QueueMask = std::move(allocation.m_QueueMask);
         m_DescriptorSize = std::move(allocation.m_DescriptorSize);
 
         allocation.Reset();

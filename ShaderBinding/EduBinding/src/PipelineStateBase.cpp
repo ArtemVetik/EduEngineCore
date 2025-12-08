@@ -2,9 +2,9 @@
 
 namespace EduEngine::EduBinding
 {
-	PipelineStateBase::PipelineStateBase(QueueID queueId, bool isCompute) :
+	PipelineStateBase::PipelineStateBase(QueueMask queueMask, bool isCompute) :
 		m_Device(nullptr),
-		m_QueueId(queueId),
+		m_QueueMask(queueMask),
 		m_IsCompute(isCompute)
 	{
 		for (uint32 i = 0; i < EDU_SHADER_TYPE_NUM; i++)
@@ -19,7 +19,7 @@ namespace EduEngine::EduBinding
 		ReleaseResourceWrapper staleResource = {};
 		staleResource.AddPageable(std::move(m_PSO));
 
-		m_Device->SafeReleaseObject(m_QueueId, std::move(staleResource));
+		m_Device->SafeReleaseObject(m_QueueMask, std::move(staleResource));
 		m_Device = nullptr;
 	}
 

@@ -17,7 +17,7 @@ namespace EduEngine
 		ReleaseResourceWrapper staleResource = {};
 		staleResource.AddPageable(std::move(m_Signature));
 
-		m_Device->SafeReleaseObject(QueueID::Direct, std::move(staleResource));
+		m_Device->SafeReleaseObject(QueueMask::Direct, std::move(staleResource));
 	}
 
 	void CommandSignatureD3D12::SetByteStride(int stride)

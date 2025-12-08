@@ -39,16 +39,16 @@ namespace EduEngine
 		m_GlobalDynamicHeap.Destroy();
 	}
 
-	DescriptorHeapAllocation RenderDeviceD3D12::AllocateCPUDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
+	DescriptorHeapAllocation RenderDeviceD3D12::AllocateCPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
 	{
 		assert(type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES);
-		return m_CPUDescriptorHeaps[type].Allocate(queueId, count);
+		return m_CPUDescriptorHeaps[type].Allocate(queueMask, count);
 	}
 
-	DescriptorHeapAllocation RenderDeviceD3D12::AllocateGPUDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
+	DescriptorHeapAllocation RenderDeviceD3D12::AllocateGPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
 	{
 		assert(type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-		return m_GPUDescriptorHeaps[type].Allocate(queueId, count);
+		return m_GPUDescriptorHeaps[type].Allocate(queueMask, count);
 	}
 
 	CommandQueueD3D12& RenderDeviceD3D12::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)
@@ -60,16 +60,16 @@ namespace EduEngine
 			return m_CommandQueues[1];
 	}
 
-	void RenderDeviceD3D12::SafeReleaseObject(QueueID queueId, ReleaseResourceWrapper&& wrapper)
+	void RenderDeviceD3D12::SafeReleaseObject(QueueMask queueMask, ReleaseResourceWrapper&& wrapper)
 	{
-		assert(queueId >= QueueID::Direct && queueId <= QueueID::Both);
-
-		if (queueId == QueueID::Direct)
+		VERIFY_EXPR(queueMask > 0 && queueMask <= MaxQueueMask, "");
+		
+		if (queueMask == QueueMask::Direct)
 			m_CommandQueues[0].SafeReleaseObject(std::move(wrapper));
-		else if (queueId == QueueID::Compute)
+		else if (queueMask == QueueMask::Compute)
 			m_CommandQueues[1].SafeReleaseObject(std::move(wrapper));
-		else if (queueId == QueueID::Both)
-			this->SafeReleaseObject(std::move(wrapper));
+		//else if (queueMask == QueueMask::Both)
+		//	this->SafeReleaseObject(std::move(wrapper));
 	}
 
 	void RenderDeviceD3D12::FinishFrame(bool forceRelease /* = false */)

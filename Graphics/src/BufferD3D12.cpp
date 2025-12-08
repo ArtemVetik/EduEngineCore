@@ -6,8 +6,8 @@ namespace EduEngine
 	BufferD3D12::BufferD3D12(RenderDeviceD3D12*			pDevice,
 							 DeviceContext*				context,
 							 const D3D12_RESOURCE_DESC& desc,
-							 QueueID					queueId) :
-		ResourceViewD3D12(pDevice, queueId),
+							 QueueMask					queueMask) :
+		ResourceViewD3D12(pDevice, queueMask),
 		m_Context(context)
 	{
 		// Create the actual default buffer resource.
@@ -34,8 +34,8 @@ namespace EduEngine
 							 DeviceContext*				context,
 							 const D3D12_RESOURCE_DESC& desc,
 							 const void*				initData,
-							 QueueID					queueId) :
-		ResourceViewD3D12(pDevice, queueId),
+							 QueueMask					queueMask) :
+		ResourceViewD3D12(pDevice, queueMask),
 		m_Context(context)
 	{
 		// Create the actual default buffer resource.
@@ -69,7 +69,7 @@ namespace EduEngine
 
 		memcpy(reinterpret_cast<char*>(uploadBuff.GetCpuAddress()), data, uploadBufferSize);
 
-		auto beforeState = m_QueueId != QueueID::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
+		auto beforeState = m_QueueMask != QueueMask::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
 
 		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			beforeState, D3D12_RESOURCE_STATE_COPY_DEST));
@@ -84,8 +84,8 @@ namespace EduEngine
 
 	ReadBackBufferD3D12::ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,
 											 UINT64				numElements,
-											 QueueID			queueId) :
-		ResourceD3D12(pDevice, queueId)
+											 QueueMask			queueMask) :
+		ResourceD3D12(pDevice, queueMask)
 	{
 		D3D12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(numElements * sizeof(UINT64));
 
@@ -104,8 +104,8 @@ namespace EduEngine
 
 	UploadBufferD3D12::UploadBufferD3D12(RenderDeviceD3D12*			pDevice,
 										 const D3D12_RESOURCE_DESC& desc,
-										 QueueID					queueId) :
-		ResourceD3D12(pDevice, queueId)
+										 QueueMask					queueMask) :
+		ResourceD3D12(pDevice, queueMask)
 	{
 		HRESULT hr = m_Device->GetD3D12Device()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),

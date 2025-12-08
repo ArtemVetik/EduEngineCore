@@ -23,25 +23,25 @@ namespace EduEngine
     {
     }
 
-    DescriptorHeapAllocation GPUDescriptorHeap::Allocate(QueueID queueId, uint32 count)
+    DescriptorHeapAllocation GPUDescriptorHeap::Allocate(QueueMask queueMask, uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_AllocMutex);
 
-        DescriptorHeapAllocation allocation = m_HeapAllocationManager.Allocate(queueId, count);
+        DescriptorHeapAllocation allocation = m_HeapAllocationManager.Allocate(queueMask, count);
         return allocation;
     }
 
-    DescriptorHeapAllocation GPUDescriptorHeap::AllocateDynamic(QueueID queueId, uint32 count)
+    DescriptorHeapAllocation GPUDescriptorHeap::AllocateDynamic(QueueMask queueMask, uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_DynAllocMutex);
 
-        DescriptorHeapAllocation allocation = m_DynamicAllocationsManager.Allocate(queueId, count);
+        DescriptorHeapAllocation allocation = m_DynamicAllocationsManager.Allocate(queueMask, count);
         return allocation;
     }
 
     void GPUDescriptorHeap::SafeFree(DescriptorHeapAllocation&& allocation)
     {
-        QueueID queueId = allocation.GetQueueID();
+        QueueMask queueMask = allocation.GetQueueMask();
 
         StaleAllocation staleAllocation(
             std::move(allocation),
@@ -51,7 +51,7 @@ namespace EduEngine
         ReleaseResourceWrapper releaseObj;
         releaseObj.AddStaleAllocation(std::move(staleAllocation));
 
-        m_DeviceD3D12Impl.SafeReleaseObject(queueId, std::move(releaseObj));
+        m_DeviceD3D12Impl.SafeReleaseObject(queueMask, std::move(releaseObj));
     }
 
     void GPUDescriptorHeap::FreeAllocation(DescriptorHeapAllocation&& allocation)

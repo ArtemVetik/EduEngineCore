@@ -53,7 +53,7 @@ namespace EduEngine
 			clearVal.Format = m_Formats[i];
 			gBuffDescSRV.Format = m_Formats[i];
 
-			m_GBuffers[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueID::Direct);
+			m_GBuffers[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueMask::Direct);
 			m_GBuffers[i]->CreateRTV(nullptr);
 			m_GBuffers[i]->CreateSRV(&gBuffDescSRV, false);
 
@@ -74,7 +74,7 @@ namespace EduEngine
 
 		for (int i = 0; i < m_accumCount; i++)
 		{
-			m_AccumBuffer[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueID::Direct);
+			m_AccumBuffer[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueMask::Direct);
 			m_AccumBuffer[i]->CreateSRV(&gBuffDescSRV, false);
 			m_AccumBuffer[i]->CreateRTV(nullptr);
 			

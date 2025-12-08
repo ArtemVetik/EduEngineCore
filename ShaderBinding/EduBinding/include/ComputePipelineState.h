@@ -7,7 +7,7 @@ namespace EduEngine::EduBinding
 	class EDUBINDING_API ComputePipelineState : public PipelineStateBase
 	{
 	public:
-		ComputePipelineState(QueueID queueId);
+		ComputePipelineState(QueueMask queueMask);
 
 		void SetShader(const std::shared_ptr<ShaderD3D12>& shader);
 

@@ -14,43 +14,43 @@ namespace EduEngine
 
     DynamicSuballocationsManager::~DynamicSuballocationsManager()
     {
-        for (size_t i = 0; i < 3; i++)
-            assert(m_Suballocations[i].empty());
+        for (size_t i = 0; i < MaxQueueMask; i++)
+            VERIFY_EXPR(m_Suballocations[i].empty(), "");
     }
 
     void DynamicSuballocationsManager::DiscardAllocations()
     {
-        for (size_t i = 0; i < 3; i++)
+        for (size_t i = 0; i < MaxQueueMask; i++)
             m_Suballocations[i].clear();
     }
 
-    DescriptorHeapAllocation DynamicSuballocationsManager::Allocate(QueueID queueId, uint32 count)
+    DescriptorHeapAllocation DynamicSuballocationsManager::Allocate(QueueMask queueMask, uint32 count)
     {
-        assert(queueId >= QueueID::Direct && queueId <= QueueID::Both);
+        VERIFY_EXPR(queueMask > 0 && queueMask <= MaxQueueMask, "");
 
         // Check if there are no chunks or the last chunk does not have enough space
-        if (m_Suballocations[queueId].empty() || m_CurrentSuballocationOffset[queueId] + count > m_Suballocations[queueId].back().GetNumHandles())
+        if (m_Suballocations[queueMask].empty() || m_CurrentSuballocationOffset[queueMask] + count > m_Suballocations[queueMask].back().GetNumHandles())
         {
             // Request new chunk from the GPU descriptor heap
             auto suballocationSize = std::max(m_DynamicChunkSize, count);
-            auto newDynamicSubAllocation = m_ParentGPUHeap.AllocateDynamic(queueId, suballocationSize);
-            m_Suballocations[queueId].emplace_back(std::move(newDynamicSubAllocation));
-            m_CurrentSuballocationOffset[queueId] = 0;
+            auto newDynamicSubAllocation = m_ParentGPUHeap.AllocateDynamic(queueMask, suballocationSize);
+            m_Suballocations[queueMask].emplace_back(std::move(newDynamicSubAllocation));
+            m_CurrentSuballocationOffset[queueMask] = 0;
         }
 
         // Perform suballocation from the last chunk
-        auto& currentSuballocation = m_Suballocations[queueId].back();
+        auto& currentSuballocation = m_Suballocations[queueMask].back();
 
         auto managerId = currentSuballocation.GetAllocationManagerId();
 
         DescriptorHeapAllocation allocation(*this,
             currentSuballocation.GetDescriptorHeap(),
-            currentSuballocation.GetCpuHandle(m_CurrentSuballocationOffset[queueId]),
-            currentSuballocation.GetGpuHandle(m_CurrentSuballocationOffset[queueId]),
+            currentSuballocation.GetCpuHandle(m_CurrentSuballocationOffset[queueMask]),
+            currentSuballocation.GetGpuHandle(m_CurrentSuballocationOffset[queueMask]),
             count,
             static_cast<uint16>(managerId),
-            queueId);
-        m_CurrentSuballocationOffset[queueId] += count;
+            queueMask);
+        m_CurrentSuballocationOffset[queueMask] += count;
 
         return allocation;
     }

@@ -7,7 +7,7 @@ namespace EduEngine::DiligentBinding
 	class DILIGENTBINDING_API ComputePipelineStateD3D12 : public PipelineStateD3D12Base
 	{
 	public:
-		ComputePipelineStateD3D12(QueueID queueId);
+		ComputePipelineStateD3D12(QueueMask queueMask);
 
 		void SetShader(const std::shared_ptr<ShaderD3D12>& shader);
 

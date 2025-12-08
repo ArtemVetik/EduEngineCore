@@ -14,10 +14,10 @@ namespace EduEngine
 		TextureD3D12(RenderDeviceD3D12*		    pDevice,
 					 const D3D12_RESOURCE_DESC& resourceDesc,
 					 const D3D12_CLEAR_VALUE*	clearValue,
-					 QueueID					queueId);
+					 QueueMask					queueMask);
 
-		TextureD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource> resource, QueueID queueId);
-		TextureD3D12(RenderDeviceD3D12* pDevice, DeviceContext* context, std::wstring ddsTexPath, QueueID queueId);
+		TextureD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource> resource, QueueMask queueMask);
+		TextureD3D12(RenderDeviceD3D12* pDevice, DeviceContext* context, std::wstring ddsTexPath, QueueMask queueMask);
 
 		void LoadData(DeviceContext* context, void* dataPtr);
 		void LoadData(DeviceContext* context, TextureD3D12* srcTexture, UINT srcSubresource = 0, UINT dstSubresource = 0);

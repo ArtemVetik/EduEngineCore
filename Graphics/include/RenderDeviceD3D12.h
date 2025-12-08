@@ -8,7 +8,7 @@
 #include <CPUDescriptorHeap.h>
 #include <GPUDescriptorHeap.h>
 #include <ReleaseResourceWrapper.h>
-#include <QueueID.h>
+#include <QueueMask.h>
 
 namespace EduEngine
 {
@@ -23,13 +23,13 @@ namespace EduEngine
 		RenderDeviceD3D12& operator = (const RenderDeviceD3D12&) = delete;
 		RenderDeviceD3D12& operator = (RenderDeviceD3D12&&) = delete;
 
-		DescriptorHeapAllocation AllocateCPUDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
-		DescriptorHeapAllocation AllocateGPUDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
+		DescriptorHeapAllocation AllocateCPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
+		DescriptorHeapAllocation AllocateGPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 		const QueryHeap& GetQueryHeap() const { return m_QueryHeap; }
 
-		virtual void SafeReleaseObject(QueueID queueId, ReleaseResourceWrapper&& wrapper) override;
+		virtual void SafeReleaseObject(QueueMask queueMask, ReleaseResourceWrapper&& wrapper) override;
 		void FinishFrame(bool forceRelease = false);
 		
 		void FlushQueues();

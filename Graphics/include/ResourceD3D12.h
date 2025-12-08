@@ -2,23 +2,23 @@
 #include "framework.h"
 #include "RenderDeviceD3D12.h"
 
-#include <QueueID.h>
+#include <QueueMask.h>
 
 namespace EduEngine
 {
 	class GRAPHICS_API ResourceD3D12
 	{
 	public:
-		ResourceD3D12(RenderDeviceD3D12* pDevice, QueueID queueId) :
+		ResourceD3D12(RenderDeviceD3D12* pDevice, QueueMask queueMask) :
 			m_Device(pDevice),
-			m_QueueId(queueId),
+			m_QueueMask(queueMask),
 			m_UsageState(D3D12_RESOURCE_STATE_COMMON)
 		{}
 
-		ResourceD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource>& resource, QueueID queueId) :
+		ResourceD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource>& resource, QueueMask queueMask) :
 			m_Device(pDevice),
 			m_d3d12Resource(std::move(resource)),
-			m_QueueId(queueId),
+			m_QueueMask(queueMask),
 			m_UsageState(D3D12_RESOURCE_STATE_COMMON)
 		{}
 
@@ -27,7 +27,7 @@ namespace EduEngine
 			ReleaseResourceWrapper releaseResource;
 			releaseResource.AddResource(std::move(m_d3d12Resource));
 
-			m_Device->SafeReleaseObject(m_QueueId, std::move(releaseResource));
+			m_Device->SafeReleaseObject(m_QueueMask, std::move(releaseResource));
 		}
 
 		D3D12_RESOURCE_STATES GetState() const { return m_UsageState; }
@@ -43,6 +43,6 @@ namespace EduEngine
 		D3D12_RESOURCE_STATES m_UsageState;
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_d3d12Resource;
 		RenderDeviceD3D12* m_Device;
-		QueueID m_QueueId;
+		QueueMask m_QueueMask;
 	};
 }

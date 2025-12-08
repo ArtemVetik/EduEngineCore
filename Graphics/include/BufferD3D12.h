@@ -17,13 +17,13 @@ namespace EduEngine
 		BufferD3D12(RenderDeviceD3D12*		   pDevice,
 					DeviceContext*			   context,
 					const D3D12_RESOURCE_DESC& desc,
-					QueueID					   queueId);
+					QueueMask				   queueMask);
 
 		BufferD3D12(RenderDeviceD3D12*		   pDevice,
 					DeviceContext*			   context,
 					const D3D12_RESOURCE_DESC& desc,
 					const void*				   initData,
-					QueueID					   queueId);
+					QueueMask				   queueMask);
 
 		void LoadData(DeviceContext* context, const void* data, UINT* byteSize = nullptr);
 
@@ -40,7 +40,7 @@ namespace EduEngine
 						  UINT				   byteStride,
 						  UINT				   bufferLength,
 						  D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) :
-			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueID::Direct)
+			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueMask::Direct)
 		{
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
 			m_View.StrideInBytes = byteStride;
@@ -65,7 +65,7 @@ namespace EduEngine
 						 UINT				  bufferLength,
 						 DXGI_FORMAT		  format,
 						 D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) :
-			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueID::Direct),
+			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueMask::Direct),
 			m_Length(bufferLength)
 		{
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
@@ -88,7 +88,7 @@ namespace EduEngine
 	public:
 		ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,
 							UINT64			   numElements,
-							QueueID			   queueId);
+							QueueMask		   queueMask);
 
 		template <typename T>
 		void ReadData(int elementIndex, T& data)
@@ -109,7 +109,7 @@ namespace EduEngine
 	public:
 		UploadBufferD3D12(RenderDeviceD3D12*		 pDevice,
 						  const D3D12_RESOURCE_DESC& desc,
-						  QueueID					 queueId);
+						  QueueMask					 queueMask);
 
 		void LoadData(void* data);
 	};

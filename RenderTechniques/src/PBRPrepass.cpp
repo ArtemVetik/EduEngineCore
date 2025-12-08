@@ -52,7 +52,7 @@ namespace EduEngine
 		srvDesc.Texture2D.MipLevels = 1;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-		auto HDREnvMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueID::Direct);
+		auto HDREnvMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueMask::Direct);
 		HDREnvMap->SetName(L"PBR_HDR_Env_Map");
 		HDREnvMap->LoadData(context, data);
 		HDREnvMap->CreateSRV(&srvDesc);
@@ -137,8 +137,8 @@ namespace EduEngine
 
 		std::shared_ptr<ShaderBinder> psoGenBrdfLutBinder = psoGenBrdfLut.CreateShaderBinder();
 
-		auto m_PassBuffVS = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
-		auto m_PassBuffPS = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
+		auto m_PassBuffVS = std::make_shared<DynamicUploadBuffer>(device, QueueMask::Direct);
+		auto m_PassBuffPS = std::make_shared<DynamicUploadBuffer>(device, QueueMask::Direct);
 
 		psoHDR2CubeBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
 		psoHDR2CubeBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvMap2D", HDREnvMap);
@@ -364,7 +364,7 @@ namespace EduEngine
 			rtvDesc.Format = texDesc.Format;
 			rtvDesc.Texture2DArray.ArraySize = 1;
 
-			m_HDRCubeEnvMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueID::Direct);
+			m_HDRCubeEnvMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueMask::Direct);
 			m_HDRCubeEnvMap->SetName(L"PBR_HDR_Env_CubeMap");
 			m_HDRCubeEnvMap->CreateRTV_Array(rtvDesc);
 			m_HDRCubeEnvMap->CreateSRV(&srvDesc);
@@ -399,7 +399,7 @@ namespace EduEngine
 			rtvDesc.Format = texDesc.Format;
 			rtvDesc.Texture2DArray.ArraySize = 1;
 
-			m_IrradianceMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueID::Direct);
+			m_IrradianceMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueMask::Direct);
 			m_IrradianceMap->SetName(L"PBR_Irradiance_Map");
 			m_IrradianceMap->CreateRTV_Array(rtvDesc);
 			m_IrradianceMap->CreateSRV(&srvDesc);
@@ -434,7 +434,7 @@ namespace EduEngine
 			rtvDesc.Format = texDesc.Format;
 			rtvDesc.Texture2DArray.ArraySize = 1;
 
-			m_PrefilteredMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueID::Direct);
+			m_PrefilteredMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueMask::Direct);
 			m_PrefilteredMap->SetName(L"PBR_Prefiltered_Map");
 			m_PrefilteredMap->CreateRTV_Array(rtvDesc);
 			m_PrefilteredMap->CreateSRV(&srvDesc);
@@ -470,7 +470,7 @@ namespace EduEngine
 			rtvDesc.Texture2D.MipSlice = 0;
 			rtvDesc.Texture2D.PlaneSlice = 0;
 
-			m_BrdfLut = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueID::Direct);
+			m_BrdfLut = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueMask::Direct);
 			m_BrdfLut->SetName(L"PBR_BRDF_Lut");
 			m_BrdfLut->CreateRTV(&rtvDesc);
 			m_BrdfLut->CreateSRV(&srvDesc);
@@ -510,7 +510,7 @@ namespace EduEngine
 		m_PsoSkybox.Build(device);
 		m_PsoSkybox.SetName(L"PSO_Skybox");
 
-		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device, QueueID::Direct);
+		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device, QueueMask::Direct);
 
 		m_PsoSkyboxBinder = m_PsoSkybox.CreateShaderBinder();
 		m_PsoSkyboxBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_SkyboxPassBuff);

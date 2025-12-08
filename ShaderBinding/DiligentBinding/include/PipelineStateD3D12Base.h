@@ -1,6 +1,6 @@
 #pragma once
 #include "framework.h"
-#include "QueueID.h"
+#include "QueueMask.h"
 #include "DeviceContext.h"
 #include "RootSignatureD3D12.h"
 #include "ShaderD3D12.h"
@@ -10,7 +10,7 @@ namespace EduEngine::DiligentBinding
 	class DILIGENTBINDING_API PipelineStateD3D12Base
 	{
 	public:
-		PipelineStateD3D12Base(QueueID queueId, bool isCompute);
+		PipelineStateD3D12Base(QueueMask queueMask, bool isCompute);
 		virtual ~PipelineStateD3D12Base();
 
 		void Build(RenderDeviceD3D12* pDevice);
@@ -39,7 +39,7 @@ namespace EduEngine::DiligentBinding
 		ShaderResourceCacheD3D12 m_ShaderResourceCache;
 		RootSignatureD3D12 m_RootSignature;
 		
-		QueueID m_QueueId;
+		QueueMask m_QueueMask;
 		RenderDeviceD3D12* m_Device;
 		bool m_IsCompute;
 	};

@@ -27,7 +27,7 @@ namespace EduEngine
         assert(m_AvailableHeaps.size() == m_HeapPool.size()); // Not all descriptor heap pools are released
     }
 
-    DescriptorHeapAllocation CPUDescriptorHeap::Allocate(QueueID queueId, uint32 count)
+    DescriptorHeapAllocation CPUDescriptorHeap::Allocate(QueueMask queueMask, uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_HeapPoolMutex);
 
@@ -37,7 +37,7 @@ namespace EduEngine
         {
             auto heapIndex = *availableHeapIt;
             // Try to allocate descriptors using the current descriptor heap manager
-            allocation = m_HeapPool[heapIndex].Allocate(queueId, count);
+            allocation = m_HeapPool[heapIndex].Allocate(queueMask, count);
             // Remove the manager from the pool if it has no more available descriptors
             if (m_HeapPool[heapIndex].GetNumAvailableDescriptors() == 0)
                 availableHeapIt = m_AvailableHeaps.erase(availableHeapIt);
@@ -62,7 +62,7 @@ namespace EduEngine
             auto NewHeapIt = m_AvailableHeaps.insert(m_HeapPool.size() - 1);
 
             // Use the new manager to allocate descriptor handles
-            allocation = m_HeapPool[*NewHeapIt.first].Allocate(queueId, count);
+            allocation = m_HeapPool[*NewHeapIt.first].Allocate(queueMask, count);
         }
 
         m_CurrentSize += (allocation.GetCpuHandle().ptr != 0) ? count : 0;
@@ -72,7 +72,7 @@ namespace EduEngine
 
     void CPUDescriptorHeap::SafeFree(DescriptorHeapAllocation&& allocation)
     {
-        QueueID queueId = allocation.GetQueueID();
+        QueueMask queueMask = allocation.GetQueueMask();
 
         StaleAllocation staleAllocation(
             std::move(allocation),
@@ -82,7 +82,7 @@ namespace EduEngine
         ReleaseResourceWrapper releaseObj;
         releaseObj.AddStaleAllocation(std::move(staleAllocation));
         
-        m_DeviceD3D12Impl.SafeReleaseObject(queueId, std::move(releaseObj));
+        m_DeviceD3D12Impl.SafeReleaseObject(queueMask, std::move(releaseObj));
     }
 
     void CPUDescriptorHeap::FreeAllocation(DescriptorHeapAllocation&& allocation)

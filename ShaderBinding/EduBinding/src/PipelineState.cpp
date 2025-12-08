@@ -4,8 +4,8 @@
 
 namespace EduEngine::EduBinding
 {
-	PipelineState::PipelineState(QueueID queueId) :
-		PipelineStateBase(queueId, false)
+	PipelineState::PipelineState(QueueMask queueMask) :
+		PipelineStateBase(queueMask, false)
 	{
 		ZeroMemory(&m_Desc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 

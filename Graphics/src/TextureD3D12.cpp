@@ -7,8 +7,8 @@ namespace EduEngine
 	TextureD3D12::TextureD3D12(RenderDeviceD3D12*		  pDevice,
 							   const D3D12_RESOURCE_DESC& resourceDesc,
 							   const D3D12_CLEAR_VALUE*   clearValue,
-							   QueueID					  queueId) :
-		ResourceViewD3D12(pDevice, queueId)
+							   QueueMask				  queueMask) :
+		ResourceViewD3D12(pDevice, queueMask)
 	{
 		pDevice->GetD3D12Device()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -20,13 +20,13 @@ namespace EduEngine
 		);
 	}
 
-	TextureD3D12::TextureD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource> resource, QueueID queueId) :
-		ResourceViewD3D12(pDevice, resource, queueId)
+	TextureD3D12::TextureD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource> resource, QueueMask queueMask) :
+		ResourceViewD3D12(pDevice, resource, queueMask)
 	{
 	}
 
-	TextureD3D12::TextureD3D12(RenderDeviceD3D12* pDevice, DeviceContext* context, std::wstring ddsTexPath, QueueID queueId) :
-		ResourceViewD3D12(pDevice, queueId)
+	TextureD3D12::TextureD3D12(RenderDeviceD3D12* pDevice, DeviceContext* context, std::wstring ddsTexPath, QueueMask queueMask) :
+		ResourceViewD3D12(pDevice, queueMask)
 	{
 		Microsoft::WRL::ComPtr<ID3D12Resource> ddsUploadHeap = nullptr;
 
@@ -45,7 +45,7 @@ namespace EduEngine
 			ReleaseResourceWrapper releaseResource;
 			releaseResource.AddResource(std::move(ddsUploadHeap));
 
-			m_Device->SafeReleaseObject(m_QueueId, std::move(releaseResource));
+			m_Device->SafeReleaseObject(m_QueueMask, std::move(releaseResource));
 		}
 
 		SetState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

@@ -82,7 +82,7 @@ namespace EduEngine
 
 		DynamicHeapPage Allocate(uint64 sizeInBytes);
 
-		void ReleasePages(std::vector<DynamicHeapPage>& usedPages, QueueID queueId);
+		void ReleasePages(std::vector<DynamicHeapPage>& usedPages, QueueMask queueMask);
 		void Destroy();
 
 	private:
@@ -102,7 +102,7 @@ namespace EduEngine
 
 		DynamicHeapAllocation Allocate(uint64 sizeInBytes, uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 		
-		void ReleasePages(QueueID queueId);
+		void ReleasePages(QueueMask queueMask);
 
 	private:
 		std::vector<DynamicHeapPage> m_UsedPages;

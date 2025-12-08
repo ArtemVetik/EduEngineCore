@@ -1,7 +1,7 @@
 #pragma once
 #include "framework.h"
 #include "CommandContext.h"
-#include "QueueID.h"
+#include "QueueMask.h"
 
 #include <DynamicSuballocationsManager.h>
 #include <DynamicHeap.h>
@@ -15,7 +15,7 @@ namespace EduEngine
 		~DeviceContext();
 
 		DynamicHeapAllocation AllocateDynamicSpace(uint64 sizeInBytes, uint64 alignment);
-		DescriptorHeapAllocation AllocateDynamicDescriptor(QueueID queueId, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
+		DescriptorHeapAllocation AllocateDynamicDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 
 		void FinishFrame();
 

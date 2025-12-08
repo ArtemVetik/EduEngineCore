@@ -12,12 +12,12 @@ namespace EduEngine
 		DescriptorHeapAllocation m_UavDescriptorAllocation[RenderDeviceD3D12::MaxDeviceContexts];
 
 		RenderDeviceD3D12* m_Device;
-		QueueID m_QueueId;
+		QueueMask m_QueueMask;
 
 	public:
-		DynamicUploadBuffer(RenderDeviceD3D12* pDevice, QueueID queueId) :
+		DynamicUploadBuffer(RenderDeviceD3D12* pDevice, QueueMask queueMask) :
 			m_Device(pDevice),
-			m_QueueId(queueId)
+			m_QueueMask(queueMask)
 		{
 		}
 

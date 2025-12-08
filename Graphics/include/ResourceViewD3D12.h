@@ -26,12 +26,12 @@ namespace EduEngine
 	class GRAPHICS_API ResourceViewD3D12 : public ResourceD3D12
 	{
 	public:
-		ResourceViewD3D12(RenderDeviceD3D12* pDevice, QueueID queueId) :
-			ResourceD3D12(pDevice, queueId)
+		ResourceViewD3D12(RenderDeviceD3D12* pDevice, QueueMask queueMask) :
+			ResourceD3D12(pDevice, queueMask)
 		{ }
 
-		ResourceViewD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource>& resource, QueueID queueId) :
-			ResourceD3D12(pDevice, resource, queueId)
+		ResourceViewD3D12(RenderDeviceD3D12* pDevice, Microsoft::WRL::ComPtr<ID3D12Resource>& resource, QueueMask queueMask) :
+			ResourceD3D12(pDevice, resource, queueMask)
 		{ }
 
 		void CreateCBV();
