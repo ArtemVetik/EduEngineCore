@@ -19,10 +19,10 @@ namespace EduEngine::DiligentBinding
 		if (!m_Device)
 			return;
 
-		ReleaseResourceWrapper staleResource = {};
-		staleResource.AddPageable(std::move(m_PSO));
+		ReleaseResourceWrapper staleResource(m_QueueMask);
+		staleResource.Set(std::move(m_PSO));
 
-		m_Device->SafeReleaseObject(m_QueueMask, std::move(staleResource));
+		m_Device->SafeReleaseObject(std::move(staleResource));
 	}
 
 	void PipelineStateD3D12Base::Build(RenderDeviceD3D12* pDevice)

@@ -60,41 +60,26 @@ namespace EduEngine
 			return m_CommandQueues[1];
 	}
 
-	void RenderDeviceD3D12::SafeReleaseObject(QueueMask queueMask, ReleaseResourceWrapper&& wrapper)
+	void RenderDeviceD3D12::SafeReleaseObject(ReleaseResourceWrapper&& wrapper)
 	{
+		ReleaseResourceWrapper copyWrapper = std::move(wrapper);
+
+		QueueMask queueMask = copyWrapper.GetQueueMask();
+
 		VERIFY_EXPR(queueMask > 0 && queueMask <= MaxQueueMask, "");
 		
-		if (queueMask == QueueMask::Direct)
-			m_CommandQueues[0].SafeReleaseObject(std::move(wrapper));
-		else if (queueMask == QueueMask::Compute)
-			m_CommandQueues[1].SafeReleaseObject(std::move(wrapper));
-		//else if (queueMask == QueueMask::Both)
-		//	this->SafeReleaseObject(std::move(wrapper));
+		if (queueMask & QueueMask::Direct)
+			m_CommandQueues[0].SafeReleaseObject(copyWrapper);
+		if (queueMask & QueueMask::Compute)
+			m_CommandQueues[1].SafeReleaseObject(copyWrapper);
+
+		copyWrapper.ReleaseOwnership();
 	}
 
 	void RenderDeviceD3D12::FinishFrame(bool forceRelease /* = false */)
 	{
 		for (int i = 0; i < 2; i++)
 			m_CommandQueues[i].ProcessReleaseQueue(forceRelease);
-
-		std::lock_guard<std::mutex> LockGuard(m_ReleasedObjectsMutex);
-
-		auto numDirectCompletedCmdLists = m_CommandQueues[0].GetCompletedFenceNum();
-		auto numComputeCompletedCmdLists = m_CommandQueues[1].GetCompletedFenceNum();
-		auto numDirectNextCmdLists = m_CommandQueues[0].GetNextCmdListNum();
-		auto numComputeNextCmdLists = m_CommandQueues[1].GetNextCmdListNum();
-
-		FenceValues completedFences = { numDirectCompletedCmdLists, numComputeCompletedCmdLists };
-
-		while (!m_ReleaseObjectsQueue.empty())
-		{
-			auto& firstObj = m_ReleaseObjectsQueue.front();
-			// GPU must have been idled when ForceRelease == true 
-			if (firstObj.first < completedFences || forceRelease)
-				m_ReleaseObjectsQueue.pop_front();
-			else
-				break;
-		}
 	}
 
 	void RenderDeviceD3D12::FlushQueues()
@@ -110,14 +95,6 @@ namespace EduEngine
 		return type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ?
 			m_GPUDescriptorHeaps[0].GetD3D12Heap() :
 			m_GPUDescriptorHeaps[1].GetD3D12Heap();
-	}
-
-	void RenderDeviceD3D12::SafeReleaseObject(ReleaseResourceWrapper&& wrapper)
-	{
-		uint64_t directNum = m_CommandQueues[0].GetNextCmdListNum();
-		uint64_t computeNum = m_CommandQueues[1].GetNextCmdListNum();
-
-		m_ReleaseObjectsQueue.emplace_back(FenceValues{ directNum, computeNum }, std::move(wrapper));
 	}
 
 	GPUDescriptorHeap& RenderDeviceD3D12::GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type)

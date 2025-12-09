@@ -29,7 +29,7 @@ namespace EduEngine
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 		const QueryHeap& GetQueryHeap() const { return m_QueryHeap; }
 
-		virtual void SafeReleaseObject(QueueMask queueMask, ReleaseResourceWrapper&& wrapper) override;
+		virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper) override;
 		void FinishFrame(bool forceRelease = false);
 		
 		void FlushQueues();
@@ -42,7 +42,6 @@ namespace EduEngine
 		static constexpr uint32 MaxDeviceContexts = 32;
 
 	private:
-		void SafeReleaseObject(ReleaseResourceWrapper&& wrapper);
 		GPUDescriptorHeap& GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type);
 		DynamicHeapManager& GetDynamicHeapManager() { return m_GlobalDynamicHeap; }
 		uint32 GetAvailableContextId();
@@ -58,7 +57,6 @@ namespace EduEngine
 
 		std::mutex m_ReleasedObjectsMutex;
 		DynamicHeapManager m_GlobalDynamicHeap; // must be before m_ReleaseObjectsQueue
-		std::deque<ReleaseObject> m_ReleaseObjectsQueue;
 
 		CommandQueueD3D12 m_CommandQueues[2]; // must be after descriptor heaps (release in destructor)
 		QueryHeap m_QueryHeap;

@@ -3,6 +3,7 @@
 #include "DescriptorHeapAllocation.h"
 #include "DynamicHeap.h"
 
+#include <Asserts.h>
 #include <variant>
 
 namespace EduEngine
@@ -91,51 +92,159 @@ namespace EduEngine
 		}
 	};
 
-	class GRAPHICS_HEAPS_API ReleaseResourceWrapper
+	struct GRAPHICS_HEAPS_API ResourceHolder
 	{
-	public:
-		ReleaseResourceWrapper() = default;
-		ReleaseResourceWrapper(const ReleaseResourceWrapper&) = delete;
-		ReleaseResourceWrapper& operator =(ReleaseResourceWrapper&) = delete;
-		ReleaseResourceWrapper& operator =(ReleaseResourceWrapper&& rhs) = delete;
-
-		ReleaseResourceWrapper(ReleaseResourceWrapper&& rhs) noexcept :
-			m_Variant(std::move(rhs.m_Variant))
-		{
-		}
-
-		void AddResource(Microsoft::WRL::ComPtr<ID3D12Resource>&& resource)
-		{
-			m_Variant = std::move(resource);
-		}
-
-		void AddRootSignature(Microsoft::WRL::ComPtr<ID3D12RootSignature>&& signature)
-		{
-			m_Variant = std::move(signature);
-		}
-
-		void AddPageable(Microsoft::WRL::ComPtr<ID3D12Pageable>&& pageable)
-		{
-			m_Variant = std::move(pageable);
-		}
-
-		void AddStaleAllocation(StaleAllocation&& allocation)
-		{
-			m_Variant = std::move(allocation);
-		}
-
-		void AddStaleDynamicPage(StaleDynamicPage&& dynamicPage)
-		{
-			m_Variant = std::move(dynamicPage);
-		}
-
-	private:
 		std::variant<
 			Microsoft::WRL::ComPtr<ID3D12Resource>,
 			Microsoft::WRL::ComPtr<ID3D12RootSignature>,
 			Microsoft::WRL::ComPtr<ID3D12Pageable>,
 			StaleAllocation,
 			StaleDynamicPage
-		> m_Variant;
+		> Variant;
+
+		virtual ~ResourceHolder() = default;
+
+		virtual void AddRef() = 0;
+		virtual uint32 Release() = 0;
+	};
+
+	struct GRAPHICS_HEAPS_API SingleResourceHolder : public ResourceHolder
+	{
+		~SingleResourceHolder() = default;
+
+		void AddRef() override {}
+
+		uint32 Release() override
+		{
+			return 1;
+		}
+	};
+
+	struct GRAPHICS_HEAPS_API SharedResourceHolder : public ResourceHolder
+	{
+		std::atomic<uint32> RefCount{ 1 };
+
+		SharedResourceHolder() = default;
+		~SharedResourceHolder() = default;
+
+		void AddRef() override
+		{
+			RefCount.fetch_add(1, std::memory_order_relaxed);
+		}
+
+		uint32 Release() override
+		{
+			return RefCount.fetch_sub(1, std::memory_order_acq_rel);
+		}
+	};
+
+	class GRAPHICS_HEAPS_API ReleaseResourceWrapper
+	{
+	public:
+		ReleaseResourceWrapper(QueueMask queueMask) :
+			m_Ptr(nullptr),
+			m_QueueMask(queueMask)
+		{
+		}
+
+		ReleaseResourceWrapper(const ReleaseResourceWrapper& rhs) noexcept :
+			m_Ptr(rhs.m_Ptr),
+			m_QueueMask(rhs.m_QueueMask)
+		{
+			AddRef();
+		}
+
+		ReleaseResourceWrapper& operator=(const ReleaseResourceWrapper& rhs) noexcept
+		{
+			if (this == &rhs)
+				return *this;
+
+			Release();
+
+			m_Ptr = rhs.m_Ptr;
+			m_QueueMask = rhs.m_QueueMask;
+			AddRef();
+
+			return *this;
+		}
+
+		ReleaseResourceWrapper(ReleaseResourceWrapper&& rhs) noexcept :
+			m_Ptr(rhs.m_Ptr),
+			m_QueueMask(rhs.m_QueueMask)
+		{
+			rhs.m_Ptr = nullptr;
+		}
+
+		ReleaseResourceWrapper& operator=(ReleaseResourceWrapper&& rhs) noexcept
+		{
+			if (this == &rhs)
+				return *this;
+
+			Release();
+
+			m_Ptr = rhs.m_Ptr;
+			m_QueueMask = rhs.m_QueueMask;
+
+			rhs.m_Ptr = nullptr;
+
+			return *this;
+		}
+
+		~ReleaseResourceWrapper()
+		{
+			Release();
+		}
+
+		template<typename T>
+		void Set(T&& obj)
+		{
+			Release();
+
+			VERIFY_EXPR(m_QueueMask > 0, "");
+
+			bool isPowerOfTwo = (m_QueueMask & (m_QueueMask - 1)) == 0;
+
+			// If it is used only in one queue
+			if (isPowerOfTwo)
+				m_Ptr = new SingleResourceHolder();
+			else
+				m_Ptr = new SharedResourceHolder();
+			
+			m_Ptr->Variant = std::move(obj);
+		}
+
+		void ReleaseOwnership()
+		{
+			if (m_Ptr)
+				m_Ptr->Release();
+
+			m_Ptr = nullptr;
+		}
+
+		QueueMask GetQueueMask() const { return m_QueueMask; }
+
+	private:
+		void AddRef()
+		{
+			if (m_Ptr)
+				m_Ptr->AddRef();
+		}
+
+		void Release()
+		{
+			if (!m_Ptr)
+				return;
+
+			if (m_Ptr->Release() == 1)
+			{
+				delete m_Ptr;
+			}
+
+			m_Ptr = nullptr;
+		}
+
+	private:
+		ResourceHolder* m_Ptr = nullptr;
+		QueueMask m_QueueMask;
 	};
 }

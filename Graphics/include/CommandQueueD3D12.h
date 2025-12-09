@@ -21,7 +21,7 @@ namespace EduEngine
 		
 		void Signal();
 		void Wait(CommandQueueD3D12* other, UINT64 fenceValue);
-		void SafeReleaseObject(ReleaseResourceWrapper&& staleObject);
+		void SafeReleaseObject(ReleaseResourceWrapper staleObject);
 		void ProcessReleaseQueue(bool forceRelease = false);
 
 		void Flush();

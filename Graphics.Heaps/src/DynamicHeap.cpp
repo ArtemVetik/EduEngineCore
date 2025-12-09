@@ -118,10 +118,10 @@ namespace EduEngine
 		{
 			StaleDynamicPage stalePage(std::move(page), this);
 
-			ReleaseResourceWrapper staleWrapper = {};
-			staleWrapper.AddStaleDynamicPage(std::move(stalePage));
+			ReleaseResourceWrapper staleWrapper(queueMask);
+			staleWrapper.Set(std::move(stalePage));
 
-			m_Device->SafeReleaseObject(queueMask, std::move(staleWrapper));
+			m_Device->SafeReleaseObject(std::move(staleWrapper));
 		}
 
 		usedPages.clear();

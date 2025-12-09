@@ -24,10 +24,10 @@ namespace EduEngine
 
 		virtual ~ResourceD3D12()
 		{
-			ReleaseResourceWrapper releaseResource;
-			releaseResource.AddResource(std::move(m_d3d12Resource));
+			ReleaseResourceWrapper releaseResource(m_QueueMask);
+			releaseResource.Set(std::move(m_d3d12Resource));
 
-			m_Device->SafeReleaseObject(m_QueueMask, std::move(releaseResource));
+			m_Device->SafeReleaseObject(std::move(releaseResource));
 		}
 
 		D3D12_RESOURCE_STATES GetState() const { return m_UsageState; }

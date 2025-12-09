@@ -62,7 +62,7 @@ namespace EduEngine
 		m_CommandQueue->Wait(other->m_Fence.Get(), fenceValue);
 	}
 
-	void CommandQueueD3D12::SafeReleaseObject(ReleaseResourceWrapper&& staleObject)
+	void CommandQueueD3D12::SafeReleaseObject(ReleaseResourceWrapper staleObject)
 	{
 		m_ReleaseObjectsQueue.emplace_back(m_NextCmdList.load(), std::move(staleObject));
 	}
