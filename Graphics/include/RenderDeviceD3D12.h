@@ -58,7 +58,7 @@ namespace EduEngine
 		std::mutex m_ReleasedObjectsMutex;
 		DynamicHeapManager m_GlobalDynamicHeap; // must be before m_ReleaseObjectsQueue
 
-		CommandQueueD3D12 m_CommandQueues[2]; // must be after descriptor heaps (release in destructor)
+		CommandQueueD3D12 m_CommandQueues[3]; // must be after descriptor heaps (release in destructor)
 		QueryHeap m_QueryHeap;
 
 		std::vector<uint32> m_AvailableContextIds;

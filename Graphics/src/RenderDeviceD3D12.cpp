@@ -22,7 +22,8 @@ namespace EduEngine
 		m_CommandQueues
 		{
 			{ this, D3D12_COMMAND_LIST_TYPE_DIRECT  },
-			{ this, D3D12_COMMAND_LIST_TYPE_COMPUTE }
+			{ this, D3D12_COMMAND_LIST_TYPE_COMPUTE },
+			{ this, D3D12_COMMAND_LIST_TYPE_COPY },
 		},
 		m_GlobalDynamicHeap{ this, 1, 1 << 20 },
 		m_QueryHeap{ this, 16, D3D12_QUERY_HEAP_TYPE_TIMESTAMP }
@@ -53,11 +54,14 @@ namespace EduEngine
 
 	CommandQueueD3D12& RenderDeviceD3D12::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)
 	{
-		assert(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		VERIFY_EXPR(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE || type == D3D12_COMMAND_LIST_TYPE_COPY, "");
+
 		if (type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 			return m_CommandQueues[0];
 		if (type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 			return m_CommandQueues[1];
+		if (type == D3D12_COMMAND_LIST_TYPE_COPY)
+			return m_CommandQueues[2];
 	}
 
 	void RenderDeviceD3D12::SafeReleaseObject(ReleaseResourceWrapper&& wrapper)
@@ -72,19 +76,21 @@ namespace EduEngine
 			m_CommandQueues[0].SafeReleaseObject(copyWrapper);
 		if (queueMask & QueueId::Compute)
 			m_CommandQueues[1].SafeReleaseObject(copyWrapper);
+		if (queueMask & QueueId::Copy)
+			m_CommandQueues[2].SafeReleaseObject(copyWrapper);
 
 		copyWrapper.ReleaseOwnership();
 	}
 
 	void RenderDeviceD3D12::FinishFrame(bool forceRelease /* = false */)
 	{
-		for (int i = 0; i < 2; i++)
+		for (int i = 0; i < 3; i++)
 			m_CommandQueues[i].ProcessReleaseQueue(forceRelease);
 	}
 
 	void RenderDeviceD3D12::FlushQueues()
 	{
-		for (int i = 0; i < 2; i++)
+		for (int i = 0; i < 3; i++)
 			m_CommandQueues[i].Flush();
 	}
 
