@@ -349,6 +349,8 @@ namespace EduEngine
 
 		ImGui::End();
 
+		RenderEngine::PopulateDebugImguiCommand();
+
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
 	}

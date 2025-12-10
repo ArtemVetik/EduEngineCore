@@ -49,6 +49,8 @@ namespace EduEngine
 		virtual void OnUpdate(const Timer& timer) {};
 		virtual void OnRender(const Timer& timer) {};
 
+		void PopulateDebugImguiCommand();
+
 		RenderDeviceD3D12* GetDevice() const { return m_Device.get(); }
 		Camera* GetCamera() const { return m_Camera.get(); }
 		DeviceContext* GetMainContext() const { return m_MainContext.get(); }

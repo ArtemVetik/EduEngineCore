@@ -230,4 +230,21 @@ namespace EduEngine
 
 		return m_DeferredContexts[idx].get();
 	}
+
+	void RenderEngine::PopulateDebugImguiCommand()
+	{
+		auto& directQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto& computeQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+
+		ImGui::Begin("Release Queue Debug");
+
+#ifdef _DEBUG
+		ImGui::Text(directQueue.GetDebugReleaseQueueStr().c_str());
+		ImGui::Text(computeQueue.GetDebugReleaseQueueStr().c_str());
+#else
+		ImGui::Text("Works only in Debug mode!");
+#endif
+
+		ImGui::End();
+	}
 }

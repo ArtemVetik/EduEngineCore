@@ -42,5 +42,10 @@ namespace EduEngine
 		typedef std::pair<uint64_t, ReleaseResourceWrapper> ReleaseObject;
 
 		std::deque<ReleaseObject> m_ReleaseObjectsQueue;
+
+#ifdef _DEBUG
+	public:
+		std::string GetDebugReleaseQueueStr();
+#endif
 	};
 }

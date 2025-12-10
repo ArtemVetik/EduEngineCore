@@ -64,7 +64,7 @@ namespace EduEngine
 	{
 		ReleaseResourceWrapper copyWrapper = std::move(wrapper);
 
-		QueueMask queueMask = copyWrapper.GetQueueMask();
+		uint32 queueMask = copyWrapper.GetQueueMask();
 
 		VERIFY_EXPR(queueMask > 0 && queueMask <= MaxQueueMask, "");
 		

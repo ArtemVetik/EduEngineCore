@@ -141,10 +141,11 @@ namespace EduEngine
 	class GRAPHICS_HEAPS_API ReleaseResourceWrapper
 	{
 	public:
-		ReleaseResourceWrapper(QueueMask queueMask) :
+		ReleaseResourceWrapper(uint32 queueMask) :
 			m_Ptr(nullptr),
 			m_QueueMask(queueMask)
 		{
+			VERIFY_EXPR(m_QueueMask > 0 && m_QueueMask <= MaxQueueMask, "Invalid queue mask: ", m_QueueMask);
 		}
 
 		ReleaseResourceWrapper(const ReleaseResourceWrapper& rhs) noexcept :
@@ -221,7 +222,7 @@ namespace EduEngine
 			m_Ptr = nullptr;
 		}
 
-		QueueMask GetQueueMask() const { return m_QueueMask; }
+		uint32 GetQueueMask() const { return m_QueueMask; }
 
 	private:
 		void AddRef()
@@ -245,6 +246,57 @@ namespace EduEngine
 
 	private:
 		ResourceHolder* m_Ptr = nullptr;
-		QueueMask m_QueueMask;
+		uint32 m_QueueMask;
+
+#ifdef _DEBUG
+	public:
+		std::string GetReleaseResourceDebugStr()
+		{
+			if (!m_Ptr)
+				return "NULL";
+
+			static constexpr const char* VariantTypeNames[] = {
+				"Resource",
+				"RootSignature",
+				"Pageable",
+				"StaleAllocation",
+				"StaleDynamicPage"
+			};
+
+			auto getVariantTypeName = [&](auto& holder) -> const char*
+				{
+					size_t idx = holder.Variant.index();
+					if (idx < std::size(VariantTypeNames))
+						return VariantTypeNames[idx];
+					return "UnknownVariant";
+				};
+
+			std::string result;
+
+			if (auto singlePtr = dynamic_cast<SingleResourceHolder*>(m_Ptr))
+			{
+				result += "Single | ";
+				result += "Idx: ";
+				result += std::to_string(singlePtr->Variant.index());
+				result += " | Type: ";
+				result += getVariantTypeName(*singlePtr);
+			}
+			else if (auto sharedPtr = dynamic_cast<SharedResourceHolder*>(m_Ptr))
+			{
+				result += "Shared | RefCount: ";
+				result += std::to_string(sharedPtr->RefCount.load());
+				result += " | Idx: ";
+				result += std::to_string(sharedPtr->Variant.index());
+				result += " | Type: ";
+				result += getVariantTypeName(*sharedPtr);
+			}
+			else
+			{
+				return "UNKNOWN TYPE";
+			}
+
+			return result;
+		}
+#endif
 	};
 }

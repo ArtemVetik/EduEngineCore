@@ -3,7 +3,7 @@
 
 namespace EduEngine
 {
-	enum GRAPHICS_HEAPS_API QueueMask
+	enum GRAPHICS_HEAPS_API QueueMask : uint32
 	{
 		Direct = 1 << 0,
 		Compute = 1 << 1,

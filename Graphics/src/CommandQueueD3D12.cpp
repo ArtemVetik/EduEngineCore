@@ -7,6 +7,9 @@ namespace EduEngine
 	CommandQueueD3D12::CommandQueueD3D12(RenderDeviceD3D12* pDevice, D3D12_COMMAND_LIST_TYPE type) :
 		m_NextCmdList(0)
 	{
+		VERIFY_EXPR(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE || type == D3D12_COMMAND_LIST_TYPE_COPY,
+			"Unsupported command queue type");
+
 		D3D12_COMMAND_QUEUE_DESC desc = {};
 		desc.Type = type;
 		desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
@@ -110,4 +113,38 @@ namespace EduEngine
 			CloseHandle(eventHandle);
 		}
 	}
+
+#ifdef _DEBUG
+	std::string CommandQueueD3D12::GetDebugReleaseQueueStr()
+	{
+		std::string result;
+
+		result += "CommandQueueType: ";
+
+		switch (m_CommandQueue->GetDesc().Type)
+		{
+		case D3D12_COMMAND_LIST_TYPE_DIRECT:
+			result += "Direct\n";
+			break;
+		case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+			result += "Compute\n";
+			break;
+		case D3D12_COMMAND_LIST_TYPE_COPY:
+			result += "Copy\n";
+			break;
+		default:
+			result += "Unknown\n";
+		}
+
+		for (auto& obj : m_ReleaseObjectsQueue)
+		{
+			result += std::to_string(obj.first);
+			result += " -- ";
+			result += obj.second.GetReleaseResourceDebugStr();
+			result += "\n";
+		}
+
+		return result;
+	}
+#endif
 }
