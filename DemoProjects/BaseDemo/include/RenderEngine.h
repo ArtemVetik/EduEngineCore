@@ -20,6 +20,7 @@ namespace EduEngine
 	struct EngineInitInfo
 	{
 		uint32 NumDeferredContexts = 0;
+		uint8 QueuesCount = 1;
 	};
 
 	class RenderEngine : public IRenderEngine

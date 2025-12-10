@@ -71,11 +71,11 @@ namespace EduEngine
 
 		pAdapter->Release();
 		pFactory->Release();
-		m_Device = std::make_unique<RenderDeviceD3D12>(device);
 
 		m_InitInfo = {};
 		ChangeInitInfo(m_InitInfo);
 
+		m_Device = std::make_unique<RenderDeviceD3D12>(device, m_InitInfo.QueuesCount);
 		m_SwapChain = std::make_unique<SwapChain>(m_Device.get(),
 			mainWindow.GetClientWidth(), mainWindow.GetClientHeight(), mainWindow.GetMainWindow());
 
@@ -237,8 +237,8 @@ namespace EduEngine
 
 #ifdef _DEBUG
 		ImGui::Text(m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT).GetDebugReleaseQueueStr().c_str());
-		ImGui::Text(m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE).GetDebugReleaseQueueStr().c_str());
-		ImGui::Text(m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY).GetDebugReleaseQueueStr().c_str());
+		//ImGui::Text(m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE).GetDebugReleaseQueueStr().c_str());
+		//ImGui::Text(m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY).GetDebugReleaseQueueStr().c_str());
 #else
 		ImGui::Text("Works only in Debug mode!");
 #endif

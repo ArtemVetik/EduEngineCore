@@ -15,7 +15,7 @@ namespace EduEngine
 	class GRAPHICS_API RenderDeviceD3D12 : public IRenderDeviceD3D12
 	{
 	public:
-		RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device);
+		RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device, uint8 commandQueuesCount);
 		~RenderDeviceD3D12();
 
 		RenderDeviceD3D12(const RenderDeviceD3D12&) = delete;
@@ -27,7 +27,7 @@ namespace EduEngine
 		DescriptorHeapAllocation AllocateGPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
-		const QueryHeap& GetQueryHeap() const { return m_QueryHeap; }
+		const QueryHeap& GetQueryHeap() const { return *m_QueryHeap; }
 
 		virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper) override;
 		void FinishFrame(bool forceRelease = false);
@@ -58,8 +58,9 @@ namespace EduEngine
 		std::mutex m_ReleasedObjectsMutex;
 		DynamicHeapManager m_GlobalDynamicHeap; // must be before m_ReleaseObjectsQueue
 
-		CommandQueueD3D12 m_CommandQueues[3]; // must be after descriptor heaps (release in destructor)
-		QueryHeap m_QueryHeap;
+		uint8 m_QueueCount;
+		CommandQueueD3D12* m_CommandQueues; // must be released before descriptor heaps
+		QueryHeap* m_QueryHeap;
 
 		std::vector<uint32> m_AvailableContextIds;
 	};
