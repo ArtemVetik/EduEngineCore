@@ -68,9 +68,9 @@ namespace EduEngine
 
 		VERIFY_EXPR(queueMask > 0 && queueMask <= MaxQueueMask, "");
 		
-		if (queueMask & QueueMask::Direct)
+		if (queueMask & QueueId::Direct)
 			m_CommandQueues[0].SafeReleaseObject(copyWrapper);
-		if (queueMask & QueueMask::Compute)
+		if (queueMask & QueueId::Compute)
 			m_CommandQueues[1].SafeReleaseObject(copyWrapper);
 
 		copyWrapper.ReleaseOwnership();

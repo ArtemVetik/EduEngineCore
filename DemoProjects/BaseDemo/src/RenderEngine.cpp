@@ -158,7 +158,7 @@ namespace EduEngine
 
 	void RenderEngine::AllocImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
 	{
-		m_ImGuiTex = m_Device->AllocateGPUDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+		m_ImGuiTex = m_Device->AllocateGPUDescriptor(QueueId::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 		*out_cpu_handle = m_ImGuiTex.GetCpuHandle();
 		*out_gpu_handle = m_ImGuiTex.GetGpuHandle();
 	}

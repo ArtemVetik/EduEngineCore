@@ -20,7 +20,7 @@ namespace EduEngine
 					   wchar_t* name)
 	{
 		m_Device = device;
-		m_Texture = std::make_shared<TextureD3D12>(m_Device, context, std::wstring(filePath), QueueMask::Direct);
+		m_Texture = std::make_shared<TextureD3D12>(m_Device, context, std::wstring(filePath), QueueId::Direct);
 
 		auto texDesc = m_Texture->GetD3D12Resource()->GetDesc();
 		bool cubeMap = texDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && texDesc.DepthOrArraySize == 6;
@@ -63,7 +63,7 @@ namespace EduEngine
 	{
 		if (m_GpuAllocation.IsNull())
 		{
-			m_GpuAllocation = m_Device->AllocateGPUDescriptor(QueueMask::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+			m_GpuAllocation = m_Device->AllocateGPUDescriptor(QueueId::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 			m_Device->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuAllocation.GetCpuHandle(), m_Texture->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 

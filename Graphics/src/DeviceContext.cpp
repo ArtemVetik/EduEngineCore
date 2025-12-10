@@ -38,7 +38,7 @@ namespace EduEngine
 
 	void DeviceContext::FinishFrame()
 	{
-		QueueMask queueMask = m_CmdCtx->GetType() == D3D12_COMMAND_LIST_TYPE_DIRECT ? QueueMask::Direct : QueueMask::Compute;
+		QueueMask queueMask = m_CmdCtx->GetType() == D3D12_COMMAND_LIST_TYPE_DIRECT ? QueueId::Direct : QueueId::Compute;
 
 		for (size_t i = 0; i < 2; i++)
 			m_DynamicSuballocationMgr[i].DiscardAllocations();

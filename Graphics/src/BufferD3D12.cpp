@@ -69,7 +69,7 @@ namespace EduEngine
 
 		memcpy(reinterpret_cast<char*>(uploadBuff.GetCpuAddress()), data, uploadBufferSize);
 
-		auto beforeState = m_QueueMask != QueueMask::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
+		auto beforeState = m_QueueMask != QueueId::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
 
 		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
 			beforeState, D3D12_RESOURCE_STATE_COPY_DEST));

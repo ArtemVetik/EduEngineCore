@@ -3,14 +3,16 @@
 
 namespace EduEngine
 {
-	enum GRAPHICS_HEAPS_API QueueMask : uint32
+	typedef uint8 QueueMask;
+
+	enum GRAPHICS_HEAPS_API QueueId : QueueMask
 	{
 		Direct = 1 << 0,
 		Compute = 1 << 1,
 		Copy = 1 << 2,
 	};
 
-	static constexpr uint8 MaxQueueMask = QueueMask::Direct | QueueMask::Compute | QueueMask::Copy;
+	static constexpr QueueMask MaxQueueMask = QueueId::Direct | QueueId::Compute | QueueId::Copy;
 
 	struct GRAPHICS_HEAPS_API FenceValues
 	{

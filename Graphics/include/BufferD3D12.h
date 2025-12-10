@@ -40,7 +40,7 @@ namespace EduEngine
 						  UINT				   byteStride,
 						  UINT				   bufferLength,
 						  D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) :
-			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueMask::Direct)
+			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueId::Direct)
 		{
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();
 			m_View.StrideInBytes = byteStride;
@@ -65,7 +65,7 @@ namespace EduEngine
 						 UINT				  bufferLength,
 						 DXGI_FORMAT		  format,
 						 D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) :
-			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueMask::Direct),
+			BufferD3D12(pDevice, context, CD3DX12_RESOURCE_DESC::Buffer(byteStride * bufferLength, flags), initData, QueueId::Direct),
 			m_Length(bufferLength)
 		{
 			m_View.BufferLocation = m_d3d12Resource->GetGPUVirtualAddress();

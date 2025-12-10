@@ -14,7 +14,7 @@ namespace EduEngine
 		if (!m_Device)
 			return;
 
-		ReleaseResourceWrapper staleResource(QueueMask::Direct);
+		ReleaseResourceWrapper staleResource(QueueId::Direct);
 		staleResource.Set(std::move(m_Signature));
 
 		m_Device->SafeReleaseObject(std::move(staleResource));

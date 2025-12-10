@@ -19,7 +19,7 @@ namespace EduEngine
 
 	QueryHeap::~QueryHeap()
 	{
-		ReleaseResourceWrapper staleHeap(QueueMask::Direct);
+		ReleaseResourceWrapper staleHeap(QueueId::Direct);
 		staleHeap.Set(std::move(m_QueryHeap));
 
 		m_Device->SafeReleaseObject(std::move(staleHeap));
