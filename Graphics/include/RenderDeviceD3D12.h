@@ -53,8 +53,6 @@ namespace EduEngine
 		CPUDescriptorHeap m_CPUDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 		GPUDescriptorHeap m_GPUDescriptorHeaps[2];
 
-		typedef std::pair<FenceValues, ReleaseResourceWrapper> ReleaseObject;
-
 		std::mutex m_ReleasedObjectsMutex;
 		DynamicHeapManager m_GlobalDynamicHeap; // must be before m_ReleaseObjectsQueue
 

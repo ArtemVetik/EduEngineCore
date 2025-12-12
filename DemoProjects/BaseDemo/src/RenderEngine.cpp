@@ -83,14 +83,14 @@ namespace EduEngine
 
 		m_MainContext = std::make_unique<DeviceContext>(*m_Device.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		if (m_InitInfo.NumDeferredContexts > RenderDeviceD3D12::MaxDeviceContexts)
+		if (m_InitInfo.ExtraContextsNum > RenderDeviceD3D12::MaxDeviceContexts)
 		{
-			ASSERT_FAILED("Maximum number of deferred contexts has been exceeded. (", m_InitInfo.NumDeferredContexts, ">", RenderDeviceD3D12::MaxDeviceContexts, ")");
+			ASSERT_FAILED("Maximum number of contexts has been exceeded. (", m_InitInfo.ExtraContextsNum, ">", RenderDeviceD3D12::MaxDeviceContexts, ")");
 			return false;
 		}
 
-		for (uint16 i = 0; i < m_InitInfo.NumDeferredContexts; i++)
-			m_DeferredContexts.emplace_back(std::make_unique<DeviceContext>(*m_Device.get(), D3D12_COMMAND_LIST_TYPE_DIRECT));
+		for (uint16 i = 0; i < m_InitInfo.ExtraContextsNum; i++)
+			m_ExtraContexts.emplace_back(std::make_unique<DeviceContext>(*m_Device.get(), m_InitInfo.ExtraContextsData[i]));
 
 		Resize(mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
 
@@ -223,12 +223,12 @@ namespace EduEngine
 		m_Camera->SetProjectionMatrix(w, h);
 	}
 
-	DeviceContext* RenderEngine::GetDeferredContext(uint16 idx) const
+	DeviceContext* RenderEngine::GetExtraContext(uint16 idx) const
 	{
-		VERIFY_EXPR(idx < m_InitInfo.NumDeferredContexts, "The maximum possible number of deferred contexts is ", m_InitInfo.NumDeferredContexts,
+		VERIFY_EXPR(idx < m_InitInfo.ExtraContextsNum, "The maximum possible number of deferred contexts is ", m_InitInfo.ExtraContextsNum,
 			". It is impossible to take the context with the index: ", idx);
 
-		return m_DeferredContexts[idx].get();
+		return m_ExtraContexts[idx].get();
 	}
 
 	void RenderEngine::PopulateDebugImguiCommand()
