@@ -21,7 +21,7 @@ namespace EduEngine
 	{
 		uint32 ExtraContextsNum = 0;
 		D3D12_COMMAND_LIST_TYPE* ExtraContextsData;
-		uint8 QueuesCount = 1;
+		QueueMask CommandQueues = QueueId::Direct;
 	};
 
 	class RenderEngine : public IRenderEngine

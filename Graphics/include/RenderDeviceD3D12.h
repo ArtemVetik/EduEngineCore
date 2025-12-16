@@ -15,7 +15,7 @@ namespace EduEngine
 	class GRAPHICS_API RenderDeviceD3D12 : public IRenderDeviceD3D12
 	{
 	public:
-		RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device, uint8 commandQueuesCount);
+		RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device, QueueMask commandQueues);
 		~RenderDeviceD3D12();
 
 		RenderDeviceD3D12(const RenderDeviceD3D12&) = delete;
@@ -42,6 +42,8 @@ namespace EduEngine
 		static constexpr uint32 MaxDeviceContexts = 32;
 
 	private:
+		CommandQueueD3D12& GetCommandQueue(QueueId queueId);
+
 		GPUDescriptorHeap& GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type);
 		DynamicHeapManager& GetDynamicHeapManager() { return m_GlobalDynamicHeap; }
 		uint32 GetAvailableContextId();
@@ -57,6 +59,7 @@ namespace EduEngine
 		DynamicHeapManager m_GlobalDynamicHeap; // must be before m_ReleaseObjectsQueue
 
 		uint8 m_QueueCount;
+		QueueMask m_ActiveQueues;
 		CommandQueueD3D12* m_CommandQueues; // must be released before descriptor heaps
 		QueryHeap* m_QueryHeap;
 

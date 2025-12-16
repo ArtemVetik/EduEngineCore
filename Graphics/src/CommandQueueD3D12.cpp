@@ -7,8 +7,7 @@ namespace EduEngine
 	CommandQueueD3D12::CommandQueueD3D12(RenderDeviceD3D12* pDevice, D3D12_COMMAND_LIST_TYPE type) :
 		m_NextCmdList(0)
 	{
-		VERIFY_EXPR(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE || type == D3D12_COMMAND_LIST_TYPE_COPY,
-			"Unsupported command queue type");
+		VERIFY_EXPR(CmdListTypeToQueueId(type), "Unsupported command queue type");
 
 		D3D12_COMMAND_QUEUE_DESC desc = {};
 		desc.Type = type;

@@ -75,7 +75,7 @@ namespace EduEngine
 		m_InitInfo = {};
 		ChangeInitInfo(m_InitInfo);
 
-		m_Device = std::make_unique<RenderDeviceD3D12>(device, m_InitInfo.QueuesCount);
+		m_Device = std::make_unique<RenderDeviceD3D12>(device, m_InitInfo.CommandQueues);
 		m_SwapChain = std::make_unique<SwapChain>(m_Device.get(),
 			mainWindow.GetClientWidth(), mainWindow.GetClientHeight(), mainWindow.GetMainWindow());
 
