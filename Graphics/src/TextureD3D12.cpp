@@ -42,10 +42,10 @@ namespace EduEngine
 
 		if (ddsUploadHeap)
 		{
-			ReleaseResourceWrapper releaseResource(m_QueueMask);
+			ReleaseResourceWrapper releaseResource;
 			releaseResource.Set(std::move(ddsUploadHeap));
 
-			m_Device->SafeReleaseObject(std::move(releaseResource));
+			m_Device->SafeReleaseObject(std::move(releaseResource), m_QueueMask);
 		}
 
 		SetState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

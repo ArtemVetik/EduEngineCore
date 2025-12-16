@@ -14,10 +14,10 @@ namespace EduEngine
 		if (!m_Device)
 			return;
 
-		ReleaseResourceWrapper staleResource(QueueId::Direct);
+		ReleaseResourceWrapper staleResource;
 		staleResource.Set(std::move(m_Signature));
 
-		m_Device->SafeReleaseObject(std::move(staleResource));
+		m_Device->SafeReleaseObject(std::move(staleResource), QueueId::Direct);
 	}
 
 	void CommandSignatureD3D12::SetByteStride(int stride)

@@ -10,6 +10,6 @@ namespace EduEngine
     {
     public:
         virtual ID3D12Device* GetD3D12Device() const = 0;
-        virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper) = 0;
+        virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper, QueueMask queueMask) = 0;
     };
 }

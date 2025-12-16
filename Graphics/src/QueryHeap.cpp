@@ -19,10 +19,10 @@ namespace EduEngine
 
 	QueryHeap::~QueryHeap()
 	{
-		ReleaseResourceWrapper staleHeap(QueueId::Direct);
+		ReleaseResourceWrapper staleHeap;
 		staleHeap.Set(std::move(m_QueryHeap));
 
-		m_Device->SafeReleaseObject(std::move(staleHeap));
+		m_Device->SafeReleaseObject(std::move(staleHeap), QueueId::Direct);
 	}
 
 	void QueryHeap::BeginQuery(CommandContext& commandContext, D3D12_QUERY_TYPE type, UINT index) const

@@ -88,21 +88,26 @@ namespace EduEngine
 		return m_CommandQueues[index];
 	}
 
-	void RenderDeviceD3D12::SafeReleaseObject(ReleaseResourceWrapper&& wrapper)
+	void RenderDeviceD3D12::SafeReleaseObject(ReleaseResourceWrapper&& wrapper, QueueMask queueMask)
 	{
-		ReleaseResourceWrapper copyWrapper = std::move(wrapper);
+		QueueMask allQueues = 1;
+		for (uint8 i = 1; i < m_QueueCount; i++)
+			allQueues |= 1 << i;
 
-		uint32 queueMask = copyWrapper.GetQueueMask();
-
+		queueMask &= allQueues;
 		VERIFY_EXPR(queueMask > 0 && queueMask <= MaxQueueMask, "");
+
+		uint16 numReferences = __popcnt16(queueMask);
+
+		ReleaseResource releaseRes(std::move(wrapper), numReferences);
 
 		for (uint8 i = 0; i < m_QueueCount; i++)
 		{
 			if (queueMask & (1 << i))
-				m_CommandQueues[i].SafeReleaseObject(copyWrapper);
+				m_CommandQueues[i].SafeReleaseObject(releaseRes);
 		}
 
-		copyWrapper.ReleaseOwnership();
+		releaseRes.ReleaseOwnership();
 	}
 
 	void RenderDeviceD3D12::FinishFrame(bool forceRelease /* = false */)

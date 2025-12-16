@@ -21,7 +21,7 @@ namespace EduEngine
 		
 		void Signal();
 		void Wait(CommandQueueD3D12* other, UINT64 fenceValue);
-		void SafeReleaseObject(ReleaseResourceWrapper staleObject);
+		void SafeReleaseObject(ReleaseResource staleObject);
 		void ProcessReleaseQueue(bool forceRelease = false);
 
 		void Flush();
@@ -39,7 +39,7 @@ namespace EduEngine
 
 		std::atomic<uint64_t> m_NextCmdList;
 
-		typedef std::pair<uint64_t, ReleaseResourceWrapper> ReleaseObject;
+		typedef std::pair<uint64_t, ReleaseResource> ReleaseObject;
 
 		std::deque<ReleaseObject> m_ReleaseObjectsQueue;
 

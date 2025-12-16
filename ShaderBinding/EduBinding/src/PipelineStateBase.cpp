@@ -16,10 +16,10 @@ namespace EduEngine::EduBinding
 		if (!m_Device)
 			return;
 
-		ReleaseResourceWrapper staleResource(m_QueueMask);
+		ReleaseResourceWrapper staleResource;
 		staleResource.Set(std::move(m_PSO));
 
-		m_Device->SafeReleaseObject(std::move(staleResource));
+		m_Device->SafeReleaseObject(std::move(staleResource), m_QueueMask);
 		m_Device = nullptr;
 	}
 

@@ -79,10 +79,10 @@ namespace EduEngine
             *this
         );
 
-        ReleaseResourceWrapper releaseObj(queueMask);
+        ReleaseResourceWrapper releaseObj;
         releaseObj.Set(std::move(staleAllocation));
         
-        m_DeviceD3D12Impl.SafeReleaseObject(std::move(releaseObj));
+        m_DeviceD3D12Impl.SafeReleaseObject(std::move(releaseObj), queueMask);
     }
 
     void CPUDescriptorHeap::FreeAllocation(DescriptorHeapAllocation&& allocation)

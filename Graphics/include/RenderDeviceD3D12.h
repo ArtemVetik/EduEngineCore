@@ -29,7 +29,7 @@ namespace EduEngine
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 		const QueryHeap& GetQueryHeap() const { return *m_QueryHeap; }
 
-		virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper) override;
+		virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper, QueueMask queueMask) override;
 		void FinishFrame(bool forceRelease = false);
 		
 		void FlushQueues();

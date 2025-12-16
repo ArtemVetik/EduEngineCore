@@ -92,169 +92,48 @@ namespace EduEngine
 		}
 	};
 
-	struct GRAPHICS_HEAPS_API ResourceHolder
-	{
-		std::variant<
-			Microsoft::WRL::ComPtr<ID3D12Resource>,
-			Microsoft::WRL::ComPtr<ID3D12RootSignature>,
-			Microsoft::WRL::ComPtr<ID3D12Pageable>,
-			StaleAllocation,
-			StaleDynamicPage
-		> Variant;
-
-		virtual ~ResourceHolder() = default;
-
-		virtual void AddRef() = 0;
-		virtual uint32 Release() = 0;
-	};
-
-	struct GRAPHICS_HEAPS_API SingleResourceHolder : public ResourceHolder
-	{
-		~SingleResourceHolder() = default;
-
-		void AddRef() override {}
-
-		uint32 Release() override
-		{
-			return 1;
-		}
-	};
-
-	struct GRAPHICS_HEAPS_API SharedResourceHolder : public ResourceHolder
-	{
-		std::atomic<uint32> RefCount{ 1 };
-
-		SharedResourceHolder() = default;
-		~SharedResourceHolder() = default;
-
-		void AddRef() override
-		{
-			RefCount.fetch_add(1, std::memory_order_relaxed);
-		}
-
-		uint32 Release() override
-		{
-			return RefCount.fetch_sub(1, std::memory_order_acq_rel);
-		}
-	};
-
 	class GRAPHICS_HEAPS_API ReleaseResourceWrapper
 	{
 	public:
-		ReleaseResourceWrapper(uint32 queueMask) :
-			m_Ptr(nullptr),
-			m_QueueMask(queueMask)
-		{
-			VERIFY_EXPR(m_QueueMask > 0 && m_QueueMask <= MaxQueueMask, "Invalid queue mask: ", m_QueueMask);
-		}
+		ReleaseResourceWrapper() = default;
 
-		ReleaseResourceWrapper(const ReleaseResourceWrapper& rhs) noexcept :
-			m_Ptr(rhs.m_Ptr),
-			m_QueueMask(rhs.m_QueueMask)
-		{
-			AddRef();
-		}
-
-		ReleaseResourceWrapper& operator=(const ReleaseResourceWrapper& rhs) noexcept
-		{
-			if (this == &rhs)
-				return *this;
-
-			Release();
-
-			m_Ptr = rhs.m_Ptr;
-			m_QueueMask = rhs.m_QueueMask;
-			AddRef();
-
-			return *this;
-		}
+		ReleaseResourceWrapper(const ReleaseResourceWrapper&) = delete;
+		ReleaseResourceWrapper& operator=(const ReleaseResourceWrapper&) = delete;
 
 		ReleaseResourceWrapper(ReleaseResourceWrapper&& rhs) noexcept :
-			m_Ptr(rhs.m_Ptr),
-			m_QueueMask(rhs.m_QueueMask)
-		{
-			rhs.m_Ptr = nullptr;
-		}
+			m_Variant(std::move(rhs.m_Variant))
+		{ }
 
 		ReleaseResourceWrapper& operator=(ReleaseResourceWrapper&& rhs) noexcept
 		{
 			if (this == &rhs)
 				return *this;
 
-			Release();
-
-			m_Ptr = rhs.m_Ptr;
-			m_QueueMask = rhs.m_QueueMask;
-
-			rhs.m_Ptr = nullptr;
-
+			m_Variant = std::move(rhs.m_Variant);
 			return *this;
-		}
-
-		~ReleaseResourceWrapper()
-		{
-			Release();
 		}
 
 		template<typename T>
 		void Set(T&& obj)
 		{
-			Release();
-
-			VERIFY_EXPR(m_QueueMask > 0, "");
-
-			bool isPowerOfTwo = (m_QueueMask & (m_QueueMask - 1)) == 0;
-
-			// If it is used only in one queue
-			if (isPowerOfTwo)
-				m_Ptr = new SingleResourceHolder();
-			else
-				m_Ptr = new SharedResourceHolder();
-			
-			m_Ptr->Variant = std::move(obj);
-		}
-
-		void ReleaseOwnership()
-		{
-			if (m_Ptr)
-				m_Ptr->Release();
-
-			m_Ptr = nullptr;
-		}
-
-		uint32 GetQueueMask() const { return m_QueueMask; }
-
-	private:
-		void AddRef()
-		{
-			if (m_Ptr)
-				m_Ptr->AddRef();
-		}
-
-		void Release()
-		{
-			if (!m_Ptr)
-				return;
-
-			if (m_Ptr->Release() == 1)
-			{
-				delete m_Ptr;
-			}
-
-			m_Ptr = nullptr;
+			m_Variant = std::move(obj);
 		}
 
 	private:
-		ResourceHolder* m_Ptr = nullptr;
-		uint32 m_QueueMask;
+		std::variant<
+			Microsoft::WRL::ComPtr<ID3D12Resource>,
+			Microsoft::WRL::ComPtr<ID3D12RootSignature>,
+			Microsoft::WRL::ComPtr<ID3D12Pageable>,
+			StaleAllocation,
+			StaleDynamicPage
+		> m_Variant;
 
 #ifdef _DEBUG
 	public:
-		std::string GetReleaseResourceDebugStr()
-		{
-			if (!m_Ptr)
-				return "NULL";
+		uint32 GetVariantIndex() { return m_Variant.index(); }
 
+		std::string GetVariantDebugStr()
+		{
 			static constexpr const char* VariantTypeNames[] = {
 				"Resource",
 				"RootSignature",
@@ -263,32 +142,137 @@ namespace EduEngine
 				"StaleDynamicPage"
 			};
 
-			auto getVariantTypeName = [&](auto& holder) -> const char*
-				{
-					size_t idx = holder.Variant.index();
-					if (idx < std::size(VariantTypeNames))
-						return VariantTypeNames[idx];
-					return "UnknownVariant";
-				};
+			size_t idx = m_Variant.index();
+			
+			if (idx < std::size(VariantTypeNames))
+				return VariantTypeNames[idx];
+
+			return "UnknownVariant";
+		}
+#endif
+	};
+
+	class GRAPHICS_HEAPS_API SingleReleaseResource
+	{
+	public:
+		SingleReleaseResource(ReleaseResourceWrapper&& wrapper) :
+			m_Res(std::move(wrapper))
+		{}
+
+		virtual ~SingleReleaseResource() = default;
+
+		virtual uint32 Release()
+		{
+			return 1;
+		}
+
+	private:
+		ReleaseResourceWrapper m_Res;
+
+#ifdef _DEBUG
+	public:
+		uint32 GetVariantIndex() { return m_Res.GetVariantIndex(); }
+		std::string GetVariantDebugStr() { return m_Res.GetVariantDebugStr(); }
+#endif
+	};
+
+	class GRAPHICS_HEAPS_API SharedReleaseResource : public SingleReleaseResource
+	{
+	public:
+		SharedReleaseResource(ReleaseResourceWrapper&& wrapper, uint32 numReferences) :
+			SingleReleaseResource(std::move(wrapper)),
+			m_RefCount(numReferences)
+		{ }
+
+		~SharedReleaseResource() = default;
+
+		uint32 Release() override
+		{
+			return m_RefCount.fetch_sub(1, std::memory_order_acq_rel);
+		}
+
+	private:
+		std::atomic<uint32> m_RefCount{ 1 };
+
+#ifdef _DEBUG
+	public:
+		uint32 GetRefCount() { return m_RefCount.load(); }
+#endif
+	};
+
+	class GRAPHICS_HEAPS_API ReleaseResource
+	{
+	public:
+		ReleaseResource(ReleaseResourceWrapper&& wrapper, uint32 numReferences)
+		{
+			if (numReferences == 1)
+			{
+				m_Res = new SingleReleaseResource(std::move(wrapper));
+			}
+			else
+			{
+				m_Res = new SharedReleaseResource(std::move(wrapper), numReferences);
+			}
+		}
+
+		ReleaseResource(const ReleaseResource& rhs) :
+			m_Res(rhs.m_Res)
+		{ }
+
+		ReleaseResource(ReleaseResource&& lhs) noexcept :
+			m_Res(lhs.m_Res)
+		{
+			lhs.m_Res = nullptr;
+		}
+
+		ReleaseResource& operator = (const ReleaseResource&) = delete;
+		ReleaseResource& operator = (ReleaseResource&&) = delete;
+
+		~ReleaseResource()
+		{
+			if (!m_Res)
+				return;
+
+			if (m_Res->Release() == 1)
+			{
+				delete m_Res;
+				m_Res = nullptr;
+			}
+		}
+
+		void ReleaseOwnership()
+		{
+			m_Res = nullptr;
+		}
+
+	private:
+		SingleReleaseResource* m_Res;
+
+#ifdef _DEBUG
+	public:
+		std::string GetReleaseResourceDebugStr()
+		{
+			if (!m_Res)
+				return "NULL";
 
 			std::string result;
 
-			if (auto singlePtr = dynamic_cast<SingleResourceHolder*>(m_Ptr))
+			if (auto singlePtr = dynamic_cast<SingleReleaseResource*>(m_Res))
 			{
 				result += "Single | ";
 				result += "Idx: ";
-				result += std::to_string(singlePtr->Variant.index());
+				result += std::to_string(singlePtr->GetVariantIndex());
 				result += " | Type: ";
-				result += getVariantTypeName(*singlePtr);
+				result += singlePtr->GetVariantDebugStr();
 			}
-			else if (auto sharedPtr = dynamic_cast<SharedResourceHolder*>(m_Ptr))
+			else if (auto sharedPtr = dynamic_cast<SharedReleaseResource*>(m_Res))
 			{
 				result += "Shared | RefCount: ";
-				result += std::to_string(sharedPtr->RefCount.load());
+				result += std::to_string(sharedPtr->GetRefCount());
 				result += " | Idx: ";
-				result += std::to_string(sharedPtr->Variant.index());
+				result += std::to_string(sharedPtr->GetVariantIndex());
 				result += " | Type: ";
-				result += getVariantTypeName(*sharedPtr);
+				result += sharedPtr->GetVariantDebugStr();
 			}
 			else
 			{
