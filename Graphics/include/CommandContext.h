@@ -9,7 +9,7 @@ namespace EduEngine
 	class GRAPHICS_API CommandContext
 	{
 	public:
-		CommandContext(RenderDeviceD3D12& pDevice, D3D12_COMMAND_LIST_TYPE type);
+		CommandContext(RenderDeviceD3D12& pDevice, CommandListManager& cmdListMgr);
 		
 		CommandContext(const CommandContext&) = delete;
 		CommandContext(CommandContext&&) = delete;
@@ -37,7 +37,7 @@ namespace EduEngine
 	private:
 		static const int MaxPendingBarriers = 16;
 
-		CommandListManager m_CommandListManager;
+		CommandListManager& m_CommandListManager;
 
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> m_pCommandList;
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator>    m_pCurrentAllocator;

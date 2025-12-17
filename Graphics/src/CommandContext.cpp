@@ -4,8 +4,8 @@
 
 namespace EduEngine
 {
-	CommandContext::CommandContext(RenderDeviceD3D12& pDevice, D3D12_COMMAND_LIST_TYPE type) :
-        m_CommandListManager(pDevice, type)
+	CommandContext::CommandContext(RenderDeviceD3D12& pDevice, CommandListManager& cmdListMgr) :
+        m_CommandListManager(cmdListMgr)
 	{
         m_CommandListManager.CreateNewCommandList(m_pCommandList.GetAddressOf(), m_pCurrentAllocator.GetAddressOf());
 	}

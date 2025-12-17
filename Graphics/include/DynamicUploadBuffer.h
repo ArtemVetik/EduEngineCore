@@ -2,14 +2,16 @@
 #include "framework.h"
 #include "RenderDeviceD3D12.h"
 
+#include <unordered_map>
+
 namespace EduEngine
 {
 	class GRAPHICS_API DynamicUploadBuffer
 	{
 	private:
-		DynamicHeapAllocation m_DynHeapAllocation[RenderDeviceD3D12::MaxDeviceContexts];
-		DescriptorHeapAllocation m_SrvDescriptorAllocation[RenderDeviceD3D12::MaxDeviceContexts];
-		DescriptorHeapAllocation m_UavDescriptorAllocation[RenderDeviceD3D12::MaxDeviceContexts];
+		std::unordered_map<uint32, DynamicHeapAllocation> m_DynHeapAllocation;
+		std::unordered_map<uint32, DescriptorHeapAllocation> m_SrvDescriptorAllocation;
+		std::unordered_map<uint32, DescriptorHeapAllocation> m_UavDescriptorAllocation;
 
 		RenderDeviceD3D12* m_Device;
 		QueueMask m_QueueMask;
@@ -27,7 +29,7 @@ namespace EduEngine
 		void DynamicUploadBuffer::CreateSRV(DeviceContext* context, size_t elemCount, size_t byteStride);
 		void DynamicUploadBuffer::CreateUAV(DeviceContext* context, size_t elemCount, size_t byteStride);
 
-		DynamicHeapAllocation GetHeapAllocation(DeviceContext* context) const { return m_DynHeapAllocation[context->GetContextId()]; }
+		DynamicHeapAllocation GetHeapAllocation(DeviceContext* context) const { return m_DynHeapAllocation.at(context->GetContextId()); }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVDescriptorCPUHandle(DeviceContext* context) { return m_SrvDescriptorAllocation[context->GetContextId()].GetCpuHandle(); }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetUAVDescriptorCPUHandle(DeviceContext* context) { return m_UavDescriptorAllocation[context->GetContextId()].GetCpuHandle(); }
 	};

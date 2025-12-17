@@ -1,6 +1,7 @@
 #pragma once
 #include "framework.h"
 #include "CommandQueueD3D12.h"
+#include "CommandContextPool.h"
 #include "DeviceContext.h"
 #include "QueryHeap.h"
 
@@ -27,6 +28,7 @@ namespace EduEngine
 		DescriptorHeapAllocation AllocateGPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
+		CommandContextPool& GetCommandContextPool() { return m_CmdContextPool; }
 		const QueryHeap& GetQueryHeap() const { return *m_QueryHeap; }
 
 		virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper, QueueMask queueMask) override;
@@ -39,16 +41,16 @@ namespace EduEngine
 		
 		ID3D12Device* GetD3D12Device() const override { return mDevice.Get(); }
 
-		static constexpr uint32 MaxDeviceContexts = 32;
-
 	private:
 		CommandQueueD3D12& GetCommandQueue(QueueId queueId);
 
 		GPUDescriptorHeap& GetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type);
 		DynamicHeapManager& GetDynamicHeapManager() { return m_GlobalDynamicHeap; }
-		uint32 GetAvailableContextId();
+		uint32 AllocateContextId();
+		void FreeContextId(uint32 id);
 		
-		friend DeviceContext::DeviceContext(RenderDeviceD3D12& device, D3D12_COMMAND_LIST_TYPE type);
+		friend DeviceContext::DeviceContext(RenderDeviceD3D12& device, const DeviceContextDesc& desc);
+		friend DeviceContext::~DeviceContext();
 		
 	private:
 		Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
@@ -63,6 +65,9 @@ namespace EduEngine
 		CommandQueueD3D12* m_CommandQueues; // must be released before descriptor heaps
 		QueryHeap* m_QueryHeap;
 
+		CommandContextPool m_CmdContextPool;
+
+		uint32 m_NextAviableContextId;
 		std::vector<uint32> m_AvailableContextIds;
 	};
 }

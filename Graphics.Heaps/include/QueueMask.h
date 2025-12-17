@@ -17,6 +17,14 @@ namespace EduEngine
 	static constexpr uint8 SupportedQueuesNum = 3;
 	static constexpr QueueMask MaxQueueMask = QueueId::Direct | QueueId::Compute | QueueId::Copy;
 
+	__forceinline uint8 GetQueueIdIndex(QueueId queueId)
+	{
+		VERIFY_EXPR(queueId > 0 && queueId <= MaxQueueMask, "");
+		DWORD idx;
+		_BitScanForward(&idx, queueId);
+		return idx;
+	}
+
 	__forceinline D3D12_COMMAND_LIST_TYPE QueueIdToCmdListType(QueueId queueId)
 	{
 		switch (queueId)
@@ -37,6 +45,20 @@ namespace EduEngine
 		case D3D12_COMMAND_LIST_TYPE_COPY: return QueueId::Copy;
 		default: ASSERT_FAILED("CommandListType \"", cmdListType, "\" is not supported!");
 		}
+	}
+
+	__forceinline bool CmdListIsSupported(D3D12_COMMAND_LIST_TYPE cmdListType)
+	{
+		return cmdListType == D3D12_COMMAND_LIST_TYPE_DIRECT ||
+			cmdListType == D3D12_COMMAND_LIST_TYPE_COMPUTE || 
+			cmdListType == D3D12_COMMAND_LIST_TYPE_COPY;
+	}
+
+	__forceinline bool QueueIdIsSupported(QueueId queueId)
+	{
+		return queueId == QueueId::Direct ||
+			queueId == QueueId::Compute ||
+			queueId == QueueId::Copy;
 	}
 
 	struct GRAPHICS_HEAPS_API FenceValues

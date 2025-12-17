@@ -21,16 +21,13 @@ namespace EduEngine
 		},
 		m_GlobalDynamicHeap{ this, 1, 1 << 20 },
 		m_ActiveQueues(commandQueues),
-		m_QueueCount(__popcnt(commandQueues))
+		m_QueueCount(__popcnt(commandQueues)),
+		m_CmdContextPool(*this)
 	{
 		VERIFY_EXPR(m_ActiveQueues > 0 && m_ActiveQueues <= MaxQueueMask, "Invalid \"m_ActiveQueues\" value: ", m_ActiveQueues);
 		VERIFY_EXPR(m_QueueCount > 0 && m_QueueCount <= SupportedQueuesNum, "Invalid \"m_QueueCount\" value: ", m_QueueCount);
 
-		m_AvailableContextIds.resize(MaxDeviceContexts);
-
-		for (uint32 i = 0; i < MaxDeviceContexts; i++)
-			m_AvailableContextIds[MaxDeviceContexts - 1 - i] = i;
-
+		m_NextAviableContextId = 0;
 		m_QueryHeap = new QueryHeap(this, 16, D3D12_QUERY_HEAP_TYPE_TIMESTAMP);
 
 		uint8 qIndex = 0;
@@ -133,17 +130,25 @@ namespace EduEngine
 			m_GPUDescriptorHeaps[1];
 	}
 
-	uint32 RenderDeviceD3D12::GetAvailableContextId()
+	uint32 RenderDeviceD3D12::AllocateContextId()
 	{
 		if (m_AvailableContextIds.empty())
 		{
-			ASSERT_FAILED("There are no free context id's");
-			return -1;
+			m_NextAviableContextId++;
+			return m_NextAviableContextId - 1;
 		}
 
 		uint32 id = m_AvailableContextIds.back();
 		m_AvailableContextIds.pop_back();
 
 		return id;
+	}
+
+	void RenderDeviceD3D12::FreeContextId(uint32 id)
+	{
+		VERIFY_EXPR(std::find(m_AvailableContextIds.begin(), m_AvailableContextIds.end(), id) == m_AvailableContextIds.end(),
+			"Failed to free context id (", id, "): m_AvailableContextIds already has this id");
+
+		m_AvailableContextIds.push_back(id);
 	}
 }

@@ -81,20 +81,25 @@ namespace EduEngine
 
 		m_Camera = std::make_unique<Camera>(m_Device.get(), mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
 
-		m_MainContext = std::make_unique<DeviceContext>(*m_Device.get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
+		DeviceContextDesc ctxDesc = {};
+		ctxDesc.IsDeferred = false;
+		ctxDesc.Queue = QueueId::Direct;
 
-		if (m_InitInfo.ExtraContextsNum > RenderDeviceD3D12::MaxDeviceContexts)
+		m_MainContext = std::make_unique<DeviceContext>(*m_Device.get(), ctxDesc);
+
+		for (uint16 i = 0; i < m_InitInfo.ImmediateContextsNum; i++)
 		{
-			ASSERT_FAILED("Maximum number of contexts has been exceeded. (", m_InitInfo.ExtraContextsNum, ">", RenderDeviceD3D12::MaxDeviceContexts, ")");
-			return false;
+			ctxDesc.Queue = m_InitInfo.ImmediateContextsQueues[i];
+			m_ImmediateContexts.emplace_back(std::make_unique<DeviceContext>(*m_Device.get(), ctxDesc));
 		}
 
-		for (uint16 i = 0; i < m_InitInfo.ExtraContextsNum; i++)
-			m_ExtraContexts.emplace_back(std::make_unique<DeviceContext>(*m_Device.get(), m_InitInfo.ExtraContextsData[i]));
+		DeviceContextDesc deferredCtxDesc = {};
+		deferredCtxDesc.IsDeferred = true;
+
+		for (uint16 i = 0; i < m_InitInfo.DeferredContextsNum; i++)
+			m_DeferredContexts.emplace_back(std::make_unique<DeviceContext>(*m_Device.get(), deferredCtxDesc));
 
 		Resize(mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
-
-		m_MainContext->GetCommandCtx()->Reset();
 
 		InitImGui(mainWindow);
 
@@ -109,7 +114,6 @@ namespace EduEngine
 		CommandContext* contexts[]{ m_MainContext->GetCommandCtx() };
 		commandQueue.CloseAndExecuteCommandContexts(contexts, 1);
 		m_MainContext->FinishFrame();
-		m_MainContext->GetCommandCtx()->Reset();
 
 		return true;
 	}
@@ -132,7 +136,6 @@ namespace EduEngine
 		dCommandQueue.CloseAndExecuteCommandContexts(contexts, 1);
 
 		m_MainContext->FinishFrame();
-		m_MainContext->GetCommandCtx()->Reset();
 
 		m_SwapChain->Present();
 		m_Device->FinishFrame();
@@ -202,14 +205,13 @@ namespace EduEngine
 	{
 		auto& commandQueue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		m_MainContext->GetCommandCtx()->Reset();
 		m_SwapChain->Resize(m_MainContext.get(), w, h);
 
 		m_MainContext->GetCommandCtx()->FlushResourceBarriers();
 
 		CommandContext* contexts[]{ m_MainContext->GetCommandCtx() };
 		commandQueue.CloseAndExecuteCommandContexts(contexts, 1);
-		m_MainContext->GetCommandCtx()->Reset();
+		m_MainContext->FinishFrame();
 
 		m_Viewport.TopLeftX = 0;
 		m_Viewport.TopLeftY = 0;
@@ -223,12 +225,20 @@ namespace EduEngine
 		m_Camera->SetProjectionMatrix(w, h);
 	}
 
-	DeviceContext* RenderEngine::GetExtraContext(uint16 idx) const
+	DeviceContext* RenderEngine::GetImmediateContext(uint16 idx) const
 	{
-		VERIFY_EXPR(idx < m_InitInfo.ExtraContextsNum, "The maximum possible number of deferred contexts is ", m_InitInfo.ExtraContextsNum,
+		VERIFY_EXPR(idx < m_InitInfo.ImmediateContextsNum, "The maximum possible number of immediate contexts is ", m_InitInfo.ImmediateContextsNum,
 			". It is impossible to take the context with the index: ", idx);
 
-		return m_ExtraContexts[idx].get();
+		return m_ImmediateContexts[idx].get();
+	}
+
+	DeviceContext* RenderEngine::GetDeferredContext(uint16 idx) const
+	{
+		VERIFY_EXPR(idx < m_InitInfo.DeferredContextsNum, "The maximum possible number of deferred contexts is ", m_InitInfo.DeferredContextsNum,
+			". It is impossible to take the context with the index: ", idx);
+
+		return m_DeferredContexts[idx].get();
 	}
 
 	void RenderEngine::PopulateDebugImguiCommand()

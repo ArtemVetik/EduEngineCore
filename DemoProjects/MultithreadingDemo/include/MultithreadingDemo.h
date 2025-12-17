@@ -38,7 +38,6 @@ namespace EduEngine
 		HANDLE m_WorkerSemaphore;
 
 		std::vector<CommandContext*> m_Contexts;
-		D3D12_COMMAND_LIST_TYPE ContextTypes[RenderDeviceD3D12::MaxDeviceContexts];
 		bool m_ExitApp = false;
 	};
 }

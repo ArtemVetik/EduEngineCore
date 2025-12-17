@@ -15,6 +15,7 @@ add_library(Graphics STATIC
     src/stb_image_impl.cpp
     src/SwapChain.cpp
     src/TextureD3D12.cpp
+    src/CommandContextPool.cpp
 )
 
 target_include_directories(Graphics

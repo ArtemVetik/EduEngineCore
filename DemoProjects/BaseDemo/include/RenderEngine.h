@@ -19,8 +19,9 @@ namespace EduEngine
 {
 	struct EngineInitInfo
 	{
-		uint32 ExtraContextsNum = 0;
-		D3D12_COMMAND_LIST_TYPE* ExtraContextsData;
+		uint32 ImmediateContextsNum = 0;
+		uint32 DeferredContextsNum = 0;
+		QueueId* ImmediateContextsQueues;
 		QueueMask CommandQueues = QueueId::Direct;
 	};
 
@@ -56,7 +57,8 @@ namespace EduEngine
 		RenderDeviceD3D12* GetDevice() const { return m_Device.get(); }
 		Camera* GetCamera() const { return m_Camera.get(); }
 		DeviceContext* GetMainContext() const { return m_MainContext.get(); }
-		DeviceContext* GetExtraContext(uint16 idx) const;
+		DeviceContext* GetImmediateContext(uint16 idx) const;
+		DeviceContext* GetDeferredContext(uint16 idx) const;
 		SwapChain* GetSwapChain() const { return m_SwapChain.get(); }
 		D3D12_VIEWPORT GetViewport() const { return m_Viewport; }
 		D3D12_RECT GetScissorRect() const { return m_ScissorRect; }
@@ -83,7 +85,8 @@ namespace EduEngine
 		static constexpr DirectX::SimpleMath::Rectangle EmptyResize = { -1, -1, -1, -1 };
 		DirectX::SimpleMath::Rectangle m_PendingResize = EmptyResize;
 	
-		std::vector<std::unique_ptr<DeviceContext>> m_ExtraContexts;
+		std::vector<std::unique_ptr<DeviceContext>> m_ImmediateContexts;
+		std::vector<std::unique_ptr<DeviceContext>> m_DeferredContexts;
 		std::unique_ptr<DeviceContext> m_MainContext;
 
 		EngineInitInfo m_InitInfo;
