@@ -26,8 +26,8 @@ namespace EduEngine
 		m_AOTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_AO.dds", GetDevice(), GetMainContext(), nullptr, L"Tex AO");
 		m_NormalMapTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_normal.dds", GetDevice(), GetMainContext(), nullptr, L"Tex NormalMap");
 
-		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueId::Direct);
-		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueId::Direct);
+		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
+		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 
 		D3D12_RESOURCE_DESC buffDesc = {};
 		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -46,7 +46,7 @@ namespace EduEngine
 		m_MaterialBuffer->SetName(L"Buffer Material");
 
 		m_LightConstants = {};
-		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueId::Direct);
+		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
 		m_LightBuffer->CreateSRV(GetMainContext(), 1, sizeof(PBRLighting::Light));
 

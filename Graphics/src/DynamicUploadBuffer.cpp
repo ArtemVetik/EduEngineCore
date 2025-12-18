@@ -16,7 +16,7 @@ namespace EduEngine
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 		if (m_SrvDescriptorAllocation[context->GetContextId()].IsNull())
-			m_SrvDescriptorAllocation[context->GetContextId()] = m_Device->AllocateCPUDescriptor(m_QueueMask, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+			m_SrvDescriptorAllocation[context->GetContextId()] = m_Device->AllocateCPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
 		m_Device->GetD3D12Device()->CreateShaderResourceView(
 			m_DynHeapAllocation[context->GetContextId()].GetResource(),
@@ -37,7 +37,7 @@ namespace EduEngine
 		uavDesc.Buffer.StructureByteStride = byteStride;
 
 		if (m_UavDescriptorAllocation[context->GetContextId()].IsNull())
-			m_UavDescriptorAllocation[context->GetContextId()] = m_Device->AllocateCPUDescriptor(m_QueueMask, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+			m_UavDescriptorAllocation[context->GetContextId()] = m_Device->AllocateCPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
 		m_Device->GetD3D12Device()->CreateUnorderedAccessView(
 			m_DynHeapAllocation[context->GetContextId()].GetResource(),

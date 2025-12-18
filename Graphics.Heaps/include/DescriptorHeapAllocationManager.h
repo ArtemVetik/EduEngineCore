@@ -27,7 +27,7 @@ namespace EduEngine
         DescriptorHeapAllocationManager(const DescriptorHeapAllocationManager&) = delete;
         DescriptorHeapAllocationManager& operator = (const DescriptorHeapAllocationManager&) = delete;
 
-        DescriptorHeapAllocation Allocate(QueueMask queueMask, uint32 count);
+        DescriptorHeapAllocation Allocate(uint32 count);
         void FreeAllocation(DescriptorHeapAllocation&& allocation);
 
         size_t GetNumAvailableDescriptors() const { return m_FreeBlockManager.GetFreeSize(); }

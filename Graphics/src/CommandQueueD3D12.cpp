@@ -28,7 +28,9 @@ namespace EduEngine
 	void CommandQueueD3D12::CloseAndExecuteCommandContexts(CommandContext** commandContexts, uint32 numContexts)
 	{
 		std::vector<ID3D12CommandList*> cmdLists; // TODO: remove vector
-		cmdLists.reserve(numContexts);
+
+		if (numContexts)
+			cmdLists.reserve(numContexts);
 
 		for (uint32 i = 0; i < numContexts; i++)
 		{
@@ -41,15 +43,16 @@ namespace EduEngine
 
 		std::lock_guard<std::mutex> LockGuard(m_CmdQueueMutex);
 
-		m_CommandQueue->ExecuteCommandLists(numContexts, cmdLists.data());
+		if (numContexts)
+			m_CommandQueue->ExecuteCommandLists(numContexts, cmdLists.data());
 
-		m_NextCmdList.fetch_add(1);
+		uint64 FenceValue = m_NextCmdList.fetch_add(1);
 
-		m_CommandQueue->Signal(m_Fence.Get(), m_NextCmdList);
+		m_CommandQueue->Signal(m_Fence.Get(), FenceValue);
 
 		for (uint32 i = 0; i < numContexts; i++)
 		{
-			commandContexts[i]->DiscardAllocator(m_NextCmdList.load());
+			commandContexts[i]->DiscardAllocator(FenceValue);
 		}
 	}
 

@@ -97,8 +97,8 @@ namespace EduEngine
 		m_PSO.SetShader(pixelShader);
 		m_PSO.Build(GetDevice());
 
-		m_ObjBuff = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueId::Direct);
-		m_PassBuff = std::make_shared<DynamicUploadBuffer>(GetDevice(), QueueId::Direct);
+		m_ObjBuff = std::make_shared<DynamicUploadBuffer>(GetDevice());
+		m_PassBuff = std::make_shared<DynamicUploadBuffer>(GetDevice());
 
 		XMFLOAT3 pos = { 80, 80, -200 };
 		XMFLOAT3 look = { 0, 0, 1 };

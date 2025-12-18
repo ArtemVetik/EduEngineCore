@@ -14,48 +14,50 @@ namespace EduEngine
 
     DynamicSuballocationsManager::~DynamicSuballocationsManager()
     {
-        for (size_t i = 0; i < MaxQueueMask; i++)
-            VERIFY_EXPR(m_Suballocations[i].empty(), "");
+        VERIFY_EXPR(m_Suballocations.empty(), "");
     }
 
-    void DynamicSuballocationsManager::DiscardAllocations()
+    void DynamicSuballocationsManager::DiscardAllocations(QueueMask queueMask)
     {
-        for (size_t i = 0; i < MaxQueueMask; i++)
-            m_Suballocations[i].clear();
+        for (auto& allocation : m_Suballocations)
+        {
+            m_ParentGPUHeap.SafeFree(std::move(allocation), queueMask);
+        }
+        
+        m_Suballocations.clear();
+        m_CurrentSuballocationOffset = 0;
     }
 
-    DescriptorHeapAllocation DynamicSuballocationsManager::Allocate(QueueMask queueMask, uint32 count)
+    DescriptorHeapAllocation DynamicSuballocationsManager::Allocate(uint32 count)
     {
-        VERIFY_EXPR(queueMask > 0 && queueMask <= MaxQueueMask, "");
-
         // Check if there are no chunks or the last chunk does not have enough space
-        if (m_Suballocations[queueMask].empty() || m_CurrentSuballocationOffset[queueMask] + count > m_Suballocations[queueMask].back().GetNumHandles())
+        if (m_Suballocations.empty() || m_CurrentSuballocationOffset + count > m_Suballocations.back().GetNumHandles())
         {
             // Request new chunk from the GPU descriptor heap
             auto suballocationSize = std::max(m_DynamicChunkSize, count);
-            auto newDynamicSubAllocation = m_ParentGPUHeap.AllocateDynamic(queueMask, suballocationSize);
-            m_Suballocations[queueMask].emplace_back(std::move(newDynamicSubAllocation));
-            m_CurrentSuballocationOffset[queueMask] = 0;
+            auto newDynamicSubAllocation = m_ParentGPUHeap.AllocateDynamic(suballocationSize);
+            m_Suballocations.emplace_back(std::move(newDynamicSubAllocation));
+            m_CurrentSuballocationOffset = 0;
         }
 
         // Perform suballocation from the last chunk
-        auto& currentSuballocation = m_Suballocations[queueMask].back();
+        auto& currentSuballocation = m_Suballocations.back();
 
         auto managerId = currentSuballocation.GetAllocationManagerId();
 
         DescriptorHeapAllocation allocation(*this,
             currentSuballocation.GetDescriptorHeap(),
-            currentSuballocation.GetCpuHandle(m_CurrentSuballocationOffset[queueMask]),
-            currentSuballocation.GetGpuHandle(m_CurrentSuballocationOffset[queueMask]),
+            currentSuballocation.GetCpuHandle(m_CurrentSuballocationOffset),
+            currentSuballocation.GetGpuHandle(m_CurrentSuballocationOffset),
             count,
-            static_cast<uint16>(managerId),
-            queueMask);
-        m_CurrentSuballocationOffset[queueMask] += count;
+            static_cast<uint16>(managerId)
+        );
+        m_CurrentSuballocationOffset += count;
 
         return allocation;
     }
 
-    void DynamicSuballocationsManager::SafeFree(DescriptorHeapAllocation&& allocation)
+    void DynamicSuballocationsManager::SafeFree(DescriptorHeapAllocation&& allocation, QueueMask queueMask)
     {
         // Do nothing. Dynamic allocations are not disposed individually, but as whole chunks
         // at the end of the frame by ReleaseAllocations()

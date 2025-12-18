@@ -24,8 +24,8 @@ namespace EduEngine
 		RenderDeviceD3D12& operator = (const RenderDeviceD3D12&) = delete;
 		RenderDeviceD3D12& operator = (RenderDeviceD3D12&&) = delete;
 
-		DescriptorHeapAllocation AllocateCPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
-		DescriptorHeapAllocation AllocateGPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
+		DescriptorHeapAllocation AllocateCPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
+		DescriptorHeapAllocation AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 		CommandContextPool& GetCommandContextPool() { return m_CmdContextPool; }
@@ -36,7 +36,7 @@ namespace EduEngine
 		
 		void FlushQueues();
 
-
+		bool HasCommandQueue(QueueId queueId) const { return m_ActiveQueues & queueId; }
 		ID3D12DescriptorHeap* GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 		
 		ID3D12Device* GetD3D12Device() const override { return mDevice.Get(); }

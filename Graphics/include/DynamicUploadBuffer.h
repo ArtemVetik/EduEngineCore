@@ -14,12 +14,10 @@ namespace EduEngine
 		std::unordered_map<uint32, DescriptorHeapAllocation> m_UavDescriptorAllocation;
 
 		RenderDeviceD3D12* m_Device;
-		QueueMask m_QueueMask;
 
 	public:
-		DynamicUploadBuffer(RenderDeviceD3D12* pDevice, QueueMask queueMask) :
-			m_Device(pDevice),
-			m_QueueMask(queueMask)
+		DynamicUploadBuffer(RenderDeviceD3D12* pDevice) :
+			m_Device(pDevice)
 		{
 		}
 

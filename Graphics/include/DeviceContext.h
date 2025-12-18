@@ -21,7 +21,7 @@ namespace EduEngine
 		~DeviceContext();
 
 		DynamicHeapAllocation AllocateDynamicSpace(uint64 sizeInBytes, uint64 alignment);
-		DescriptorHeapAllocation AllocateDynamicDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
+		DescriptorHeapAllocation AllocateDynamicDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count);
 
 		void BeginDeferredFrame(QueueId queueId);
 		void FinishFrame();

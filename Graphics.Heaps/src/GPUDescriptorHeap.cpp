@@ -23,26 +23,24 @@ namespace EduEngine
     {
     }
 
-    DescriptorHeapAllocation GPUDescriptorHeap::Allocate(QueueMask queueMask, uint32 count)
+    DescriptorHeapAllocation GPUDescriptorHeap::Allocate(uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_AllocMutex);
 
-        DescriptorHeapAllocation allocation = m_HeapAllocationManager.Allocate(queueMask, count);
+        DescriptorHeapAllocation allocation = m_HeapAllocationManager.Allocate(count);
         return allocation;
     }
 
-    DescriptorHeapAllocation GPUDescriptorHeap::AllocateDynamic(QueueMask queueMask, uint32 count)
+    DescriptorHeapAllocation GPUDescriptorHeap::AllocateDynamic(uint32 count)
     {
         std::lock_guard<std::mutex> LockGuard(m_DynAllocMutex);
 
-        DescriptorHeapAllocation allocation = m_DynamicAllocationsManager.Allocate(queueMask, count);
+        DescriptorHeapAllocation allocation = m_DynamicAllocationsManager.Allocate(count);
         return allocation;
     }
 
-    void GPUDescriptorHeap::SafeFree(DescriptorHeapAllocation&& allocation)
+    void GPUDescriptorHeap::SafeFree(DescriptorHeapAllocation&& allocation, QueueMask queueMask)
     {
-        QueueMask queueMask = allocation.GetQueueMask();
-
         StaleAllocation staleAllocation(
             std::move(allocation),
             *this

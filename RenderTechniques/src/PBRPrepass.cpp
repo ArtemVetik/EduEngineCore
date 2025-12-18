@@ -137,8 +137,8 @@ namespace EduEngine
 
 		std::shared_ptr<ShaderBinder> psoGenBrdfLutBinder = psoGenBrdfLut.CreateShaderBinder();
 
-		auto m_PassBuffVS = std::make_shared<DynamicUploadBuffer>(device, QueueId::Direct);
-		auto m_PassBuffPS = std::make_shared<DynamicUploadBuffer>(device, QueueId::Direct);
+		auto m_PassBuffVS = std::make_shared<DynamicUploadBuffer>(device);
+		auto m_PassBuffPS = std::make_shared<DynamicUploadBuffer>(device);
 
 		psoHDR2CubeBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
 		psoHDR2CubeBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvMap2D", HDREnvMap);
@@ -510,7 +510,7 @@ namespace EduEngine
 		m_PsoSkybox.Build(device);
 		m_PsoSkybox.SetName(L"PSO_Skybox");
 
-		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device, QueueId::Direct);
+		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device);
 
 		m_PsoSkyboxBinder = m_PsoSkybox.CreateShaderBinder();
 		m_PsoSkyboxBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_SkyboxPassBuff);

@@ -63,7 +63,7 @@ namespace EduEngine
 	{
 		if (m_GpuAllocation.IsNull())
 		{
-			m_GpuAllocation = m_Device->AllocateGPUDescriptor(QueueId::Direct, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+			m_GpuAllocation = m_Device->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 			m_Device->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuAllocation.GetCpuHandle(), m_Texture->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 

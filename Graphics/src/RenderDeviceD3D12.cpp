@@ -55,16 +55,16 @@ namespace EduEngine
 		free(m_CommandQueues);
 	}
 
-	DescriptorHeapAllocation RenderDeviceD3D12::AllocateCPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
+	DescriptorHeapAllocation RenderDeviceD3D12::AllocateCPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
 	{
 		assert(type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES);
-		return m_CPUDescriptorHeaps[type].Allocate(queueMask, count);
+		return m_CPUDescriptorHeaps[type].Allocate(count);
 	}
 
-	DescriptorHeapAllocation RenderDeviceD3D12::AllocateGPUDescriptor(QueueMask queueMask, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
+	DescriptorHeapAllocation RenderDeviceD3D12::AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t count)
 	{
 		assert(type >= D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-		return m_GPUDescriptorHeaps[type].Allocate(queueMask, count);
+		return m_GPUDescriptorHeaps[type].Allocate(count);
 	}
 	
 	CommandQueueD3D12& RenderDeviceD3D12::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)
@@ -94,6 +94,11 @@ namespace EduEngine
 
 	void RenderDeviceD3D12::FinishFrame(bool forceRelease /* = false */)
 	{
+		// Release stale resources from all queues
+		// TODO: release only if needed
+		for (int i = 0; i < m_QueueCount; i++)
+			m_CommandQueues[i].CloseAndExecuteCommandContexts(nullptr, 0);
+
 		for (int i = 0; i < m_QueueCount; i++)
 			m_CommandQueues[i].ProcessReleaseQueue(forceRelease);
 	}
@@ -115,7 +120,7 @@ namespace EduEngine
 
 	CommandQueueD3D12& RenderDeviceD3D12::GetCommandQueue(QueueId queueId)
 	{
-		VERIFY_EXPR(m_ActiveQueues & queueId, "Requested command queue type was not created");
+		VERIFY_EXPR(HasCommandQueue(queueId), "Requested command queue type was not created");
 
 		uint8 queueIndex = __popcnt(m_ActiveQueues & ((queueId << 1) - 1)) - 1;
 		return m_CommandQueues[queueIndex];
