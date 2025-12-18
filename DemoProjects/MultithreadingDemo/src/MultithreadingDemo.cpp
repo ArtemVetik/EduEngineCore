@@ -133,9 +133,10 @@ namespace EduEngine
 
 		m_Threads.resize(m_ActiveThreads);
 		for (uint32 i = 0; i < m_ActiveThreads; i++)
-		{
 			m_Threads[i] = std::thread(ThreadWorker, this, i);
-		}
+
+		for (size_t i = 0; i < m_ActiveThreads; i++)
+			WaitForSingleObject(m_MainSemaphore, INFINITE);
 	}
 
 	void MultithreadingDemo::OnUpdate(const Timer& timer)
@@ -210,7 +211,9 @@ namespace EduEngine
 		m_Contexts[0] = GetMainContext()->GetCommandCtx();
 
 		for (uint32 i = 0; i < m_ActiveThreads; i++)
+		{
 			m_Contexts[i + 1] = GetDeferredContext(i)->GetCommandCtx();
+		}
 
 		auto& dCommandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		dCommandQueue.CloseAndExecuteCommandContexts(m_Contexts.data(), m_ActiveThreads + 1);
@@ -248,10 +251,11 @@ namespace EduEngine
 			m_ExitApp = true;
 
 			ReleaseSemaphore(m_WorkerSemaphore, prevActiveThreads, nullptr);
-			ReleaseSemaphore(m_MainSemaphore, prevActiveThreads, nullptr);
 
-			for (uint32 i = 0; i < m_Threads.size(); i++)
-				m_Threads[i].join();
+			for (auto& t : m_Threads)
+				t.join();
+
+			m_Threads.clear();
 
 			CloseHandle(m_MainSemaphore);
 			CloseHandle(m_WorkerSemaphore);
@@ -263,9 +267,10 @@ namespace EduEngine
 
 			m_Threads.resize(m_ActiveThreads);
 			for (uint32 i = 0; i < m_ActiveThreads; i++)
-			{
 				m_Threads[i] = std::thread(ThreadWorker, this, i);
-			}
+
+			for (size_t i = 0; i < m_ActiveThreads; i++)
+				WaitForSingleObject(m_MainSemaphore, INFINITE);
 		}
 
 		ImGui::Text("CPU Time: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -280,6 +285,8 @@ namespace EduEngine
 
 	void MultithreadingDemo::ThreadWorker(MultithreadingDemo* pThis, uint64 contextId)
 	{
+		ReleaseSemaphore(pThis->m_MainSemaphore, 1, nullptr);
+
 		while (true)
 		{
 			WaitForSingleObject(pThis->m_WorkerSemaphore, INFINITE);
