@@ -3,9 +3,10 @@
 
 namespace EduEngine
 {
-	CommandSignatureD3D12::CommandSignatureD3D12() :
+	CommandSignatureD3D12::CommandSignatureD3D12(QueueMask queueMask) :
 		m_Desc{},
-		m_Device(nullptr)
+		m_Device(nullptr),
+		m_QueueMask(queueMask)
 	{
 	}
 
@@ -17,7 +18,7 @@ namespace EduEngine
 		ReleaseResourceWrapper staleResource;
 		staleResource.Set(std::move(m_Signature));
 
-		m_Device->SafeReleaseObject(std::move(staleResource), QueueId::Direct);
+		m_Device->SafeReleaseObject(std::move(staleResource), m_QueueMask);
 	}
 
 	void CommandSignatureD3D12::SetByteStride(int stride)

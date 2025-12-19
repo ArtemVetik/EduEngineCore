@@ -69,17 +69,10 @@ namespace EduEngine
 
 		memcpy(reinterpret_cast<char*>(uploadBuff.GetCpuAddress()), data, uploadBufferSize);
 
-		auto beforeState = m_QueueMask != QueueId::Direct ? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_GENERIC_READ;
-
-		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
-			beforeState, D3D12_RESOURCE_STATE_COPY_DEST));
-		m_Context->GetCommandCtx()->FlushResourceBarriers();
-
+		D3D12_RESOURCE_STATES beforeState = GetState();
+		m_Context->GetCommandCtx()->TransitionResource(this, D3D12_RESOURCE_STATE_COPY_DEST, true);
 		m_Context->GetCommandCtx()->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.GetResource(), uploadBuff.GetOffset(), uploadBufferSize);
-
-		m_Context->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(m_d3d12Resource.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST, beforeState));
-		m_Context->GetCommandCtx()->FlushResourceBarriers();
+		m_Context->GetCommandCtx()->TransitionResource(this, beforeState, true);
 	}
 
 	ReadBackBufferD3D12::ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,

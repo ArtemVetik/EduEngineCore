@@ -7,7 +7,7 @@ namespace EduEngine
 	class GRAPHICS_API CommandSignatureD3D12
 	{
 	public:
-		CommandSignatureD3D12();
+		CommandSignatureD3D12(QueueMask queueMask = QueueId::Direct);
 		~CommandSignatureD3D12();
 
 		void SetByteStride(int stride);
@@ -24,5 +24,6 @@ namespace EduEngine
 		Microsoft::WRL::ComPtr<ID3D12CommandSignature> m_Signature;
 
 		RenderDeviceD3D12* m_Device;
+		QueueMask m_QueueMask;
 	};
 }

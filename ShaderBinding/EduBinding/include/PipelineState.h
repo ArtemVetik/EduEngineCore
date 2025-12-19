@@ -7,7 +7,7 @@ namespace EduEngine::EduBinding
 	class EDUBINDING_API PipelineState : public PipelineStateBase
 	{
 	public:
-		PipelineState(QueueMask queueMask = QueueId::Direct);
+		PipelineState();
 
 		void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology);
 		void SetBlendState(D3D12_BLEND_DESC blendState);
