@@ -11,7 +11,8 @@ namespace EduEngine::EduBinding
 
 		void SetShader(const std::shared_ptr<ShaderD3D12>& shader);
 
-		void BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso) override;
+	protected:
+		void BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso) override final;
 
 	private:
 		D3D12_COMPUTE_PIPELINE_STATE_DESC m_Desc;
