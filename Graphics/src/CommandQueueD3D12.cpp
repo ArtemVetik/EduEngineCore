@@ -58,8 +58,8 @@ namespace EduEngine
 
 	void CommandQueueD3D12::Signal()
 	{
-		m_NextCmdList.fetch_add(1);
-		m_CommandQueue->Signal(m_Fence.Get(), m_NextCmdList);
+		uint64 FenceValue = m_NextCmdList.fetch_add(1);
+		m_CommandQueue->Signal(m_Fence.Get(), FenceValue);
 	}
 
 	void CommandQueueD3D12::Wait(CommandQueueD3D12* other, UINT64 fenceValue)

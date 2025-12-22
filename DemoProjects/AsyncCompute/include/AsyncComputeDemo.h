@@ -35,24 +35,35 @@ namespace EduEngine
 	class AsyncComputeDemo : public RenderEngine
 	{
 	protected:
+		void ChangeInitInfo(EngineInitInfo& info) override;
 		void OnStartUp() override;
 		void OnUpdate(const Timer& timer) override;
 		void OnRender(const Timer& timer) override;
 
 	private:
-		static constexpr uint32 MaxParticles = 1000000;
+		void BuildBuffers(bool onlySecond);
+		void BuildBinders();
+
+	private:
+		static constexpr uint32 NumThreads = 256;
 
 		std::unique_ptr<ComputePipelineState> m_EmitPSO;
 		std::unique_ptr<ComputePipelineState> m_UpdatePSO;
 		std::unique_ptr<PipelineState> m_DrawPSO;
 
-		std::shared_ptr<BufferD3D12> m_ParticlesBuffer;
+		std::shared_ptr<BufferD3D12> m_ParticlesBuffer[2];
 
-		std::shared_ptr<ShaderBinder> m_EmitBinder;
-		std::shared_ptr<ShaderBinder> m_UpdateBinder;
-		std::shared_ptr<ShaderBinder> m_DrawBinder;
+		std::shared_ptr<ShaderBinder> m_EmitBinder[2];
+		std::shared_ptr<ShaderBinder> m_UpdateBinder[2];
+		std::shared_ptr<ShaderBinder> m_DrawBinder[2];
 
 		std::shared_ptr<DynamicUploadBuffer> m_ComputePassBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_DrawPassBuffer;
+
+		QueueId m_ComputeImmediateContextId;
+		uint32 m_MaxParticles;
+		uint8 m_PingPongCounter;
+		bool m_EnableAsyncCompute;
+		bool m_BuffersDirty;
 	};
 }

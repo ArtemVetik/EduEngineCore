@@ -17,9 +17,8 @@ cbuffer cbPass : register(b0)
     uint gEmitterSeed;
 }
 
-RWStructuredBuffer<Particle> gParticles : register(u0);
-RWStructuredBuffer<float3> gGlobalBestPos : register(u1);
-RWStructuredBuffer<float3> gGlobalBestFitness : register(u2);
+RWStructuredBuffer<Particle> gParticlesIn : register(u0);
+RWStructuredBuffer<Particle> gParticlesOut : register(u1);
 
 uint Seed(uint base, uint salt)
 {
@@ -53,7 +52,7 @@ void CS_Emit(uint id : SV_DispatchThreadID)
     if (id > gMaxParticlesNum)
         return;
     
-    gParticles[id] = SpawnParticle(id);
+    gParticlesIn[id] = SpawnParticle(id);
 }
 
 [numthreads(256, 1, 1)]
@@ -62,7 +61,7 @@ void CS_Update(uint id : SV_DispatchThreadID)
     if (id >= gMaxParticlesNum)
         return;
     
-    Particle p = gParticles[id];
+    Particle p = gParticlesIn[id];
     
     if (p.Age >= p.Lifetime)
     {
@@ -76,5 +75,5 @@ void CS_Update(uint id : SV_DispatchThreadID)
     p.Velocity = curlVelocity * 2;
     
     p.Age += gDeltaTime;
-    gParticles[id] = p;
+    gParticlesOut[id] = p;
 }
