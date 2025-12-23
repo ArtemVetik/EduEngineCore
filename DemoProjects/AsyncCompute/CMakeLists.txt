@@ -5,6 +5,7 @@ add_executable(AsyncCompute WIN32 src/main.cpp)
 target_sources(AsyncCompute PRIVATE
     src/AsyncComputeDemo.cpp
     src/AsyncComputeDemoFactory.cpp
+    src/GpuStats.cpp
 )
 
 target_include_directories(AsyncCompute

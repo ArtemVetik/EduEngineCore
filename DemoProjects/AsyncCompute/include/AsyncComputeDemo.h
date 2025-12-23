@@ -1,5 +1,7 @@
 #pragma once
 
+#include "GpuStats.h"
+
 #include <RenderEngine.h>
 #include <ComputePipelineState.h>
 #include <PipelineState.h>
@@ -59,6 +61,8 @@ namespace EduEngine
 
 		std::shared_ptr<DynamicUploadBuffer> m_ComputePassBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_DrawPassBuffer;
+
+		std::unique_ptr<GpuStats> m_GpuStats;
 
 		QueueId m_ComputeImmediateContextId;
 		uint32 m_MaxParticles;

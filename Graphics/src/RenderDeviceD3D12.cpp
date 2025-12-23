@@ -28,7 +28,7 @@ namespace EduEngine
 		VERIFY_EXPR(m_QueueCount > 0 && m_QueueCount <= SupportedQueuesNum, "Invalid \"m_QueueCount\" value: ", m_QueueCount);
 
 		m_NextAviableContextId = 0;
-		m_QueryHeap = new QueryHeap(this, 16, D3D12_QUERY_HEAP_TYPE_TIMESTAMP);
+		m_QueryHeap = new QueryHeap(this, 64, D3D12_QUERY_HEAP_TYPE_TIMESTAMP);
 
 		uint8 qIndex = 0;
 		m_CommandQueues = (CommandQueueD3D12*)malloc(sizeof(CommandQueueD3D12) * m_QueueCount);

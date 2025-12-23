@@ -102,6 +102,16 @@ namespace EduEngine
 			m_d3d12Resource->Unmap(0, nullptr);
 		}
 
+		template <typename T>
+		void ReadData(T* data, uint32 size, uint32 offset = 0u)
+		{
+			m_d3d12Resource->Map(0, nullptr, reinterpret_cast<void**>(&m_MappedData));
+
+			memcpy(data, m_MappedData + offset, size);
+
+			m_d3d12Resource->Unmap(0, nullptr);
+		}
+
 	private:
 		BYTE* m_MappedData = nullptr;
 	};

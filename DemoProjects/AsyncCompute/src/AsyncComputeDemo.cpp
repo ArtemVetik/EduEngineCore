@@ -15,6 +15,8 @@ namespace EduEngine
 
 	void AsyncComputeDemo::OnStartUp()
 	{
+		GetDevice()->GetD3D12Device()->SetStablePowerState(TRUE);
+
 		m_MaxParticles = 1000000;
 		m_PingPongCounter = 0;
 		m_EnableAsyncCompute = true;
@@ -78,6 +80,8 @@ namespace EduEngine
 		BuildBuffers(false);
 		BuildBinders();
 
+		m_GpuStats = std::make_unique<GpuStats>(GetDevice());
+
 		GetCamera()->Setup({ 0, 0, -10 }, { 0, 0, 1 }, { 1, 0, 0 }, { 0, 1, 0 });
 	}
 
@@ -127,6 +131,8 @@ namespace EduEngine
 
 		GetCamera()->Setup(posF, lookF, rightF, upF);
 		GetCamera()->Update(timer);
+
+		m_GpuStats->Update(timer.GetDeltaTime());
 	}
 
 	void AsyncComputeDemo::OnRender(const Timer& timer)
@@ -157,6 +163,7 @@ namespace EduEngine
 			m_BuffersDirty = false;
 		}
 
+		m_GpuStats->MarkStartComputeWork(computeContext);
 		m_UpdatePSO->CommitAll(computeContext, m_UpdateBinder[m_PingPongCounter].get());
 		computeContext->GetCommandCtx()->GetCmdList()->Dispatch(m_MaxParticles / NumThreads + 1, 1, 1);
 
@@ -164,6 +171,8 @@ namespace EduEngine
 			computeContext->GetCommandCtx()->InsertUAVBarrier(m_ParticlesBuffer[1 - m_PingPongCounter].get(), true);
 		else
 			computeContext->GetCommandCtx()->InsertUAVBarrier(m_ParticlesBuffer[m_PingPongCounter].get(), true);
+
+		m_GpuStats->MarkEndComputeWork(computeContext);
 
 		DrawPassCB drawPassCb = {};
 		XMStoreFloat4x4(&drawPassCb.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
@@ -179,6 +188,8 @@ namespace EduEngine
 			computeContext->FinishFrame();
 		}
 
+		m_GpuStats->MarkStartDrawWork(GetMainContext());
+		
 		GetMainContext()->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(GetSwapChain()->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
@@ -194,6 +205,8 @@ namespace EduEngine
 		m_DrawPSO->CommitAll(GetMainContext(), m_DrawBinder[m_PingPongCounter].get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(m_MaxParticles, 1, 0, 0);
+
+		m_GpuStats->MarkEndDrawWork(GetMainContext());
 
 		if (m_EnableAsyncCompute)
 			m_PingPongCounter = 1 - m_PingPongCounter;
@@ -217,12 +230,15 @@ namespace EduEngine
 
 		if (ImGui::DragInt("Particles Num", (int*)&m_MaxParticles, 1, 10000000))
 		{
+			m_MaxParticles = std::clamp(m_MaxParticles, 1u, 10000000u);
+
 			BuildBuffers(false);
 			BuildBinders();
 		}
 
 		ImGui::End();
 
+		m_GpuStats->DrawImGui(m_EnableAsyncCompute);
 		RenderEngine::PopulateDebugImguiCommand();
 
 		ImGui::Render();
