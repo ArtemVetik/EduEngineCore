@@ -23,6 +23,7 @@ namespace EduEngine
 		uint32 DeferredContextsNum = 0;
 		QueueId* ImmediateContextsQueues;
 		QueueMask CommandQueues = QueueId::Direct;
+		QueryHeapSettings QueryHeapSettings = {};
 	};
 
 	class RenderEngine : public IRenderEngine

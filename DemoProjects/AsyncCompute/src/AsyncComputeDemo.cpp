@@ -11,6 +11,9 @@ namespace EduEngine
 		info.CommandQueues = QueueId::Direct | QueueId::Compute;
 		info.ImmediateContextsNum = 1;
 		info.ImmediateContextsQueues = &m_ComputeImmediateContextId;
+		
+		info.QueryHeapSettings.NumQueries = 32;
+		info.QueryHeapSettings.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 	}
 
 	void AsyncComputeDemo::OnStartUp()

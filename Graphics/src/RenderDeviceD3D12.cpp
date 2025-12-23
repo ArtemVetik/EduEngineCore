@@ -5,7 +5,7 @@
 
 namespace EduEngine
 {
-	RenderDeviceD3D12::RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device, QueueMask commandQueues) :
+	RenderDeviceD3D12::RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device, QueueMask commandQueues, const QueryHeapSettings& queryDesc) :
 		mDevice(device),
 		m_CPUDescriptorHeaps
 		{
@@ -28,7 +28,11 @@ namespace EduEngine
 		VERIFY_EXPR(m_QueueCount > 0 && m_QueueCount <= SupportedQueuesNum, "Invalid \"m_QueueCount\" value: ", m_QueueCount);
 
 		m_NextAviableContextId = 0;
-		m_QueryHeap = new QueryHeap(this, 64, D3D12_QUERY_HEAP_TYPE_TIMESTAMP);
+
+		if (queryDesc.NumQueries > 0)
+			m_QueryHeap = new QueryHeap(this, queryDesc.NumQueries, queryDesc.Type);
+		else
+			m_QueryHeap = nullptr;
 
 		uint8 qIndex = 0;
 		m_CommandQueues = (CommandQueueD3D12*)malloc(sizeof(CommandQueueD3D12) * m_QueueCount);
@@ -46,8 +50,12 @@ namespace EduEngine
 	{
 		FinishFrame(true);
 		m_GlobalDynamicHeap.Destroy();
-
-		delete m_QueryHeap;
+		
+		if (m_QueryHeap)
+		{
+			delete m_QueryHeap;
+			m_QueryHeap = nullptr;
+		}
 
 		for (uint8 i = 0; i < m_QueueCount; i++)
 			m_CommandQueues[i].~CommandQueueD3D12();
@@ -70,6 +78,12 @@ namespace EduEngine
 	CommandQueueD3D12& RenderDeviceD3D12::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type)
 	{
 		return GetCommandQueue(CmdListTypeToQueueId(type));
+	}
+
+	const QueryHeap& RenderDeviceD3D12::GetQueryHeap() const
+	{
+		VERIFY_EXPR(m_QueryHeap != nullptr, "QueryHeap was not created!");
+		return *m_QueryHeap;
 	}
 
 	void RenderDeviceD3D12::SafeReleaseObject(ReleaseResourceWrapper&& wrapper, QueueMask queueMask)

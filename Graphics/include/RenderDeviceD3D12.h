@@ -13,10 +13,16 @@
 
 namespace EduEngine
 {
+	struct GRAPHICS_API QueryHeapSettings
+	{
+		uint64 NumQueries = 0;
+		D3D12_QUERY_HEAP_TYPE Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+	};
+
 	class GRAPHICS_API RenderDeviceD3D12 : public IRenderDeviceD3D12
 	{
 	public:
-		RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device, QueueMask commandQueues);
+		RenderDeviceD3D12(Microsoft::WRL::ComPtr<ID3D12Device> device, QueueMask commandQueues, const QueryHeapSettings& queryDesc);
 		~RenderDeviceD3D12();
 
 		RenderDeviceD3D12(const RenderDeviceD3D12&) = delete;
@@ -29,7 +35,7 @@ namespace EduEngine
 
 		CommandQueueD3D12& GetCommandQueue(D3D12_COMMAND_LIST_TYPE type);
 		CommandContextPool& GetCommandContextPool() { return m_CmdContextPool; }
-		const QueryHeap& GetQueryHeap() const { return *m_QueryHeap; }
+		const QueryHeap& GetQueryHeap() const;
 
 		virtual void SafeReleaseObject(ReleaseResourceWrapper&& wrapper, QueueMask queueMask) override;
 		void FinishFrame(bool forceRelease = false);
