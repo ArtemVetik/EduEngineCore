@@ -6,6 +6,7 @@ namespace CoalesceAllocator {
     typedef unsigned int uint32;
 
     static constexpr uint32 PAGE_SIZE = 10 * 1024 * 1024;
+    static constexpr uint32 NumBins = 32;
     static constexpr uint32 DEADBEEF = 0xdeadbeef;
     static constexpr uint32 FEEDFACE = 0xfeedface;
 
@@ -70,11 +71,12 @@ namespace CoalesceAllocator {
 
         struct Page {
             Page* next;
-            BlockStart* fh;
+            BlockStart* fh[NumBins];
         };
 
-        static BlockStart* findFreeBlock(const Page* page, uint32 size);
-        static Page* createPage();
+        static uint32 binIndex(uint32 size);
+        static BlockStart* findFreeBlock(const Page* page, uint32 size, uint32& outBinIdx);
+        static Page* createPage(uint32& outBinIdx);
         static bool insidePage(Page* page, void* p) ;
         static void setupBlock(BlockStart *block, uint32 size, BlockStart* next, BlockStart* prev, bool free);
         static void validateBlock(BlockStart* block, bool free);

@@ -1,5 +1,7 @@
 #include "../include/CoalesceAllocator.h"
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
 #include <iostream>
@@ -8,6 +10,9 @@
 #else
 #define ASSERT(x)
 #endif
+
+#include <cmath>
+#include <algorithm>
 
 namespace CoalesceAllocator {
     CoalesceAllocator::CoalesceAllocator() {
@@ -28,7 +33,8 @@ namespace CoalesceAllocator {
         if (m_headPage != nullptr)
             return;
 
-        m_headPage = createPage();
+        uint32 binIdx;
+        m_headPage = createPage(binIdx);
     }
 
     void CoalesceAllocator::destroy() {
@@ -38,8 +44,9 @@ namespace CoalesceAllocator {
             Page* next = m_headPage->next;
 
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-            ASSERT(m_headPage->fh->size == sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd));
-            ASSERT(m_headPage->fh->next == nullptr);
+            uint32 fxIdx = binIndex(sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd));
+            ASSERT(m_headPage->fh[fxIdx]->size == sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd));
+            ASSERT(m_headPage->fh[fxIdx]->next == nullptr);
 #endif
 
             if (!VirtualFree(m_headPage, 0, MEM_RELEASE)) {
@@ -70,23 +77,29 @@ namespace CoalesceAllocator {
             //<--------(fb->size)-------->
             // ↓(fb)
             //[BlockStart][size][BlockEnd]
-            BlockStart* fb = findFreeBlock(page, sizeof(BlockStart) + size + sizeof(BlockEnd));
+            uint32 binIdx;
+            BlockStart* fb = findFreeBlock(page, sizeof(BlockStart) + size + sizeof(BlockEnd), binIdx);
 
             if (fb != nullptr) {
+                ASSERT(page->fh[binIdx] == fb);
+                ASSERT(fb->prev == nullptr);
                 validateBlock(fb, true);
+
+                if (fb->next) fb->next->prev = nullptr;
+                page->fh[binIdx] = fb->next;
+
                 // <----------------------(fb->size)-------------------------->
                 //   ↓(fb)                         ↓(nfb)
                 // <[BlockStart][size][BlockEnd]> <[BlockStart][...][BlockEnd]>
                 if (fb->size >= size + 2 * sizeof(BlockStart) + 2 * sizeof(BlockEnd)) {
                     auto* nfb = (BlockStart*)((BYTE*)fb + sizeof(BlockStart) + size + sizeof(BlockEnd));
-                    setupBlock(nfb, fb->size - size - sizeof(BlockStart) - sizeof(BlockEnd), fb->next, fb->prev, true);
-                    fb->size -= nfb->size;
-                    if (page->fh == fb) page->fh = nfb;
-                }
-                else {
-                    if (fb->next) fb->next->prev = fb->prev;
-                    if (fb->prev) fb->prev->next = fb->next;
-                    else page->fh = fb->next;
+                    uint32 nfbSize = fb->size - size - sizeof(BlockStart) - sizeof(BlockEnd);
+                    fb->size -= nfbSize;
+
+                    uint32 nfdBinIdx = binIndex(nfbSize);
+                    ASSERT(page->fh[nfdBinIdx] == nullptr || page->fh[nfdBinIdx]->prev == nullptr);
+                    setupBlock(nfb, nfbSize, page->fh[nfdBinIdx], nullptr, true);
+                    page->fh[nfdBinIdx] = nfb;
                 }
 
                 setupBlock(fb, fb->size, nullptr, nullptr, false);
@@ -99,18 +112,19 @@ namespace CoalesceAllocator {
             page = page->next;
         }
 
-        page->next = createPage();
+        uint32 binIdx;
+        page->next = createPage(binIdx);
         page = page->next;
 
-        uint32 blockSize = page->fh->size;
-        if (page->fh->size >= size + 2 * sizeof(BlockStart) + 2 * sizeof(BlockEnd)) {
-            auto* nfb = (BlockStart*)((BYTE*)page->fh + sizeof(BlockStart) + size + sizeof(BlockEnd));
-            setupBlock(nfb, page->fh->size - sizeof(BlockStart) - size - sizeof(BlockEnd), nullptr, nullptr, true);
+        uint32 blockSize = page->fh[binIdx]->size;
+        if (blockSize >= size + 2 * sizeof(BlockStart) + 2 * sizeof(BlockEnd)) {
+            auto* nfb = (BlockStart*)((BYTE*)page->fh[binIdx] + sizeof(BlockStart) + size + sizeof(BlockEnd));
+            setupBlock(nfb, page->fh[binIdx]->size - sizeof(BlockStart) - size - sizeof(BlockEnd), nullptr, nullptr, true);
             blockSize -= nfb->size;
-            page->fh = nfb;
+            page->fh[binIdx] = nfb;
         }
         else {
-            page->fh = nullptr;
+            page->fh[binIdx] = nullptr;
         }
 
         setupBlock(((BlockStart*)((BYTE*)page + sizeof(Page))), blockSize, nullptr, nullptr, false);
@@ -136,8 +150,10 @@ namespace CoalesceAllocator {
         if (page == nullptr)
             return;
 
+        auto* pageStart = (BYTE*)page + sizeof(Page);
+
         auto* cb = (BlockStart*)((BYTE*)p - sizeof(BlockStart));
-        size_t lbs = ((BlockEnd*)((BYTE*)cb - sizeof(BlockEnd)))->size;
+        size_t lbs = (BYTE*)cb == pageStart ? 0 : ((BlockEnd*)((BYTE*)cb - sizeof(BlockEnd)))->size;
         auto* lb = (BlockStart*)((BYTE*)cb - lbs);
         auto* rb = (BlockStart*)((BYTE*)cb + cb->size);
 
@@ -150,6 +166,14 @@ namespace CoalesceAllocator {
         if (rb) validateBlock(rb, true);
 
         if (lb != nullptr) {
+            if (lb->next) lb->next->prev = lb->prev;
+            if (lb->prev) lb->prev->next = lb->next;
+            else
+            {
+                ASSERT(page->fh[binIndex(lb->size)] == lb);
+                page->fh[binIndex(lb->size)] = lb->next;
+            }
+
             lb->size += cb->size;
             cb = lb;
         }
@@ -159,18 +183,24 @@ namespace CoalesceAllocator {
 
             if (rb->next) rb->next->prev = rb->prev;
             if (rb->prev) rb->prev->next = rb->next;
-            else page->fh = rb->next;
+            else
+            {
+                ASSERT(page->fh[binIndex(rb->size)] == rb);
+                page->fh[binIndex(rb->size)] = rb->next;
+            }
         }
 
-        // if no joins or only right join, update fh
-        if ((lb == nullptr && rb == nullptr) || (lb == nullptr)) {
-            if (page->fh)
-                page->fh->prev = cb;
+        uint32 cbBinIdx = binIndex(cb->size);
 
-            cb->next = page->fh;
-            cb->prev = nullptr;
-            page->fh = cb;
+        if (page->fh[cbBinIdx])
+        {
+            ASSERT(page->fh[cbBinIdx]->prev == nullptr);
+            page->fh[cbBinIdx]->prev = cb;
         }
+
+        cb->next = page->fh[cbBinIdx];
+        cb->prev = nullptr;
+        page->fh[cbBinIdx] = cb;
 
         setupBlock(cb, cb->size, cb->next, cb->prev, true);
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
@@ -178,7 +208,7 @@ namespace CoalesceAllocator {
 #endif
     }
 
-    CoalesceAllocator::Page *CoalesceAllocator::createPage() {
+    CoalesceAllocator::Page *CoalesceAllocator::createPage(uint32& outBinIdx) {
         Page* page = (Page*)VirtualAlloc(nullptr, sizeof(Page) + sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd),
                                          MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
@@ -190,22 +220,28 @@ namespace CoalesceAllocator {
         }
 
         page->next = nullptr;
-        page->fh = (BlockStart*)((BYTE*)page + sizeof(Page));
-        setupBlock(page->fh, sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd), nullptr, nullptr, true);
+        memset(page->fh, 0, sizeof(BlockStart*) * NumBins);
+
+        outBinIdx = binIndex(sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd));
+        page->fh[outBinIdx] = (BlockStart*)((BYTE*)page + sizeof(Page));
+        setupBlock(page->fh[outBinIdx], sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd), nullptr, nullptr, true);
 
         return page;
     }
 
-    CoalesceAllocator::BlockStart *CoalesceAllocator::findFreeBlock(const CoalesceAllocator::Page *page, uint32 size) {
-        BlockStart* block = page->fh;
+    uint32 CoalesceAllocator::binIndex(uint32 size)
+    {
+        ASSERT(size > 0);
+        return std::min(31u - __lzcnt(size), NumBins - 1); // TODO: make portable
+    }
 
-        while (block != nullptr) {
-            if (block->size >= size)
-                return block;
-
-            block = block->next;
+    CoalesceAllocator::BlockStart *CoalesceAllocator::findFreeBlock(const CoalesceAllocator::Page *page, uint32 size, uint32& outBinIdx) {
+        for (outBinIdx = binIndex(size); outBinIdx < NumBins; ++outBinIdx) {
+            if (page->fh[outBinIdx])
+                return page->fh[outBinIdx];
         }
 
+        outBinIdx = -1;
         return nullptr;
     }
 
@@ -245,7 +281,7 @@ namespace CoalesceAllocator {
 
     bool CoalesceAllocator::insidePage(Page* page, void *p) {
         return ((BYTE *)p >= (BYTE*)page + sizeof(Page) + sizeof(BlockStart) &&
-                (BYTE*) p <= (BYTE*)page + sizeof(Page) + PAGE_SIZE + sizeof(BlockStart));
+                (BYTE*) p <= (BYTE*)page + sizeof(Page) + PAGE_SIZE + sizeof(BlockStart) - 1);
     }
 
     void CoalesceAllocator::validateBlock(BlockStart* block, bool free) {
