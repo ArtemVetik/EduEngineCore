@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
+enable_testing()
+
+add_subdirectory(Allocators)
 add_subdirectory(Common)
 add_subdirectory(ImGui)
 add_subdirectory(Graphics.Heaps)
