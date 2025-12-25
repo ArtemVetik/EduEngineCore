@@ -17,3 +17,4 @@ add_test(
 )
 
 add_subdirectory(google-tests)
+add_subdirectory(benchmarks)
