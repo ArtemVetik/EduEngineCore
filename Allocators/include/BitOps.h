@@ -9,8 +9,10 @@ namespace BitOps {
 
     __forceinline uint32_t msb_index(uint32_t v)
     {
+        if (!v) return v;
+
 #if defined(_MSC_VER)
-        unsigned long idx;
+        DWORD idx;
         _BitScanReverse(&idx, v);
         return (uint32_t)idx;
 #elif defined(__GNUC__) || defined(__clang__)

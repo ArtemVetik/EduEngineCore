@@ -20,7 +20,7 @@
     } while (0)
 
 #else
-	#define VALIDATE_BLOCK(block, free) do {} while(0)
+#define VALIDATE_BLOCK(block, free) do {} while(0)
 #endif
 
 #include <cmath>
@@ -135,18 +135,20 @@ namespace CoalesceAllocator {
 		m_StatReport.pagesCount++;
 #endif
 
-		uint32 blockSize = page->fh[binIdx]->size;
-		if (blockSize >= size + 2 * sizeof(BlockStart) + 2 * sizeof(BlockEnd)) {
-			auto* nfb = (BlockStart*)((BYTE*)page->fh[binIdx] + sizeof(BlockStart) + size + sizeof(BlockEnd));
-			setupBlock(nfb, page->fh[binIdx]->size - sizeof(BlockStart) - size - sizeof(BlockEnd), nullptr, nullptr, true);
-			blockSize -= nfb->size;
-			page->fh[binIdx] = nfb;
+		uint32 pageSize = page->fh[binIdx]->size;
+		if (pageSize >= size + 2 * sizeof(BlockStart) + 2 * sizeof(BlockEnd)) {
+			uint32 nfbSize = pageSize - sizeof(BlockStart) - size - sizeof(BlockEnd);
+			pageSize -= nfbSize;
+			auto* nfb = (BlockStart*)((BYTE*)page + sizeof(Page) + pageSize);
+			setupBlock(nfb, nfbSize, nullptr, nullptr, true);
+			page->fh[binIdx] = nullptr;
+			page->fh[binIndex(nfb->size)] = nfb;
 		}
 		else {
 			page->fh[binIdx] = nullptr;
 		}
 
-		setupBlock(((BlockStart*)((BYTE*)page + sizeof(Page))), blockSize, nullptr, nullptr, false);
+		setupBlock(((BlockStart*)((BYTE*)page + sizeof(Page))), pageSize, nullptr, nullptr, false);
 		return (BYTE*)page + sizeof(Page) + sizeof(BlockStart);
 	}
 

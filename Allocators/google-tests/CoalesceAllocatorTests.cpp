@@ -143,4 +143,18 @@ namespace CoalesceAllocator {
 
         allocator.destroy();
     }
+
+    TEST(CoalesceAllocator, NewPageSplitFree)
+    {
+        CoalesceAllocator allocator = CoalesceAllocator();
+        allocator.init();
+
+        void* p0 = allocator.alloc(PAGE_SIZE);
+        void* p1 = allocator.alloc(PAGE_SIZE - CoalesceAllocator::getBlockStartSize() - CoalesceAllocator::getBlockEndSize());
+
+        allocator.free(p0);
+        allocator.free(p1);
+
+        allocator.destroy();
+    }
 }
