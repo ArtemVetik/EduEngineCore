@@ -1,23 +1,14 @@
-#include "../include/FixedSizeAllocator.h"
-
-#include <windows.h>
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-#include <iostream>
-#include <cassert>
-#define ASSERT(x) assert(x)
-#else
-#define ASSERT(x)
-#endif
+#include "FixedSizeAllocator.h"
+#include "Common.h"
 
 namespace FixedSizeAllocator {
-    FixedSizeAllocator::FixedSizeAllocator() {
-        m_blockSize = -1;
-        m_headPage = nullptr;
+    FixedSizeAllocator::FixedSizeAllocator() :
+        m_blockSize(-1),
+        m_headPage(nullptr)
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-        m_allocCallCount = 0;
-        m_freeCallCount = 0;
+        , m_StatReport{}
 #endif
-    }
+    { }
 
     FixedSizeAllocator::~FixedSizeAllocator() {
         if (m_headPage != nullptr)
@@ -63,7 +54,7 @@ namespace FixedSizeAllocator {
             return nullptr;
 
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-        m_allocCallCount++;
+        m_StatReport.allocCallCount++;
 #endif
 
         Page* page = m_headPage;
@@ -99,7 +90,7 @@ namespace FixedSizeAllocator {
     void FixedSizeAllocator::free(void *p) {
         ASSERT(m_headPage != nullptr);
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-        m_freeCallCount++;
+        m_StatReport.freeCallCount++;
 #endif
 
         Page* page = m_headPage;
@@ -180,8 +171,8 @@ namespace FixedSizeAllocator {
         }
 
         return StatReport {
-            m_allocCallCount,
-            m_freeCallCount,
+            m_StatReport.allocCallCount,
+            m_StatReport.freeCallCount,
             freeCount,
             pageCount,
         };

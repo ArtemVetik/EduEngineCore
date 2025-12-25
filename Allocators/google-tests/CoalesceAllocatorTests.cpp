@@ -132,4 +132,15 @@ namespace CoalesceAllocator {
 
         allocator.destroy();
     }
+
+    TEST(CoalesceAllocator, FreeZeroSizeBlock)
+    {
+        CoalesceAllocator allocator = CoalesceAllocator();
+        allocator.init();
+
+        void* p = allocator.alloc(PAGE_SIZE - CoalesceAllocator::getBlockStartSize() - CoalesceAllocator::getBlockEndSize());
+        allocator.free(p);
+
+        allocator.destroy();
+    }
 }

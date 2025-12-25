@@ -1,23 +1,23 @@
 #ifndef COMPOSITE_MEMORY_ALLOCATOR_FIXEDSIZEALLOCATOR_H
 #define COMPOSITE_MEMORY_ALLOCATOR_FIXEDSIZEALLOCATOR_H
 
+#include "Types.h"
 
 namespace FixedSizeAllocator {
-    typedef unsigned int uint32;
 
-    static constexpr uint32 PAGE_SIZE = 4096;
+    static constexpr uint32 PAGE_SIZE = 4096u;
 
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
     struct StatReport {
-        uint32 allocCallCount;
-        uint32 freeCallCount;
-        uint32 freeBlockCount;
-        uint32 pagesCount;
+        uint64 allocCallCount = 0;
+        uint64 freeCallCount = 0;
+        uint32 freeBlockCount = 0;
+        uint32 pagesCount = 0;
     };
 
     struct AllocBlocksReport {
         void *blocks[PAGE_SIZE];
-        uint32 count;
+        uint32 count = 0;
     };
 #endif
 
@@ -57,8 +57,7 @@ namespace FixedSizeAllocator {
         Page *m_headPage;
         uint32 m_blockSize;
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-        uint32 m_allocCallCount;
-        uint32 m_freeCallCount;
+        StatReport m_StatReport;
 #endif
     };
 }

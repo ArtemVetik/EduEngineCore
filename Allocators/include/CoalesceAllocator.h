@@ -1,27 +1,26 @@
 #ifndef COMPOSITE_MEMORY_ALLOCATOR_COALESCEALLOCATOR_H
 #define COMPOSITE_MEMORY_ALLOCATOR_COALESCEALLOCATOR_H
 
+#include "Types.h"
 
 namespace CoalesceAllocator {
-    typedef unsigned int uint32;
-
-    static constexpr uint32 PAGE_SIZE = 10 * 1024 * 1024;
-    static constexpr uint32 NumBins = 32;
+    static constexpr uint32 NUM_BINS = 24;
+    static constexpr uint32 PAGE_SIZE = 1u << NUM_BINS; // 16 * 1024 * 1024
     static constexpr uint32 DEADBEEF = 0xdeadbeef;
     static constexpr uint32 FEEDFACE = 0xfeedface;
 
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
     struct StatReport {
-        uint32 allocCallCount;
-        uint32 freeCallCount;
-        uint32 totalAllocSize;
-        uint32 pagesCount;
+        uint64 allocCallCount = 0;
+        uint64 freeCallCount = 0;
+        uint64 totalAllocSize = 0;
+        uint32 pagesCount = 0;
     };
 
     struct BlockReport {
-        void* address = {};
-        uint32 size = {};
-        bool allocated = {};
+        void* address = nullptr;
+        uint32 size = 0;
+        bool allocated = false;
     };
 #endif
 
@@ -41,8 +40,10 @@ namespace CoalesceAllocator {
         void free(void* p);
         bool containsAddress(void* p) const;
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-        [[nodiscard]] StatReport getStat() const;
+        [[nodiscard]] StatReport getStat() const { return m_StatReport; }
         [[nodiscard]] BlockReport getNextBlock(uint32 pageNum, void* from) const;
+        [[nodiscard]] static uint32 getBlockStartSize() { return sizeof(BlockStart); }
+        [[nodiscard]] static uint32 getBlockEndSize() { return sizeof(BlockEnd); }
 #endif
     private:
         // BlockStart->size = sizeof(BlockStart) + size + sizeof(BlockEnd)
@@ -71,7 +72,7 @@ namespace CoalesceAllocator {
 
         struct Page {
             Page* next;
-            BlockStart* fh[NumBins];
+            BlockStart* fh[NUM_BINS];
         };
 
         static uint32 binIndex(uint32 size);
@@ -79,13 +80,10 @@ namespace CoalesceAllocator {
         static Page* createPage(uint32& outBinIdx);
         static bool insidePage(Page* page, void* p) ;
         static void setupBlock(BlockStart *block, uint32 size, BlockStart* next, BlockStart* prev, bool free);
-        static void validateBlock(BlockStart* block, bool free);
 
         Page* m_headPage;
 #if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
-        uint32 m_allocCallCount;
-        uint32 m_freeCallCount;
-        uint32 m_totalAllocSize;
+        StatReport m_StatReport;
 #endif
     };
 }
