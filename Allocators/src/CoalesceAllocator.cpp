@@ -96,12 +96,12 @@ namespace CoalesceAllocator {
 			BlockStart* fb = findFreeBlock(page, sizeof(BlockStart) + size + sizeof(BlockEnd), binIdx);
 
 			if (fb != nullptr) {
-				ASSERT(page->fh[binIdx] == fb);
-				ASSERT(fb->prev == nullptr);
+				ASSERT(fb->size >= sizeof(BlockStart) + size + sizeof(BlockEnd));
 				VALIDATE_BLOCK(fb, true);
 
-				if (fb->next) fb->next->prev = nullptr;
-				page->fh[binIdx] = fb->next;
+				if (fb->next) fb->next->prev = fb->prev;
+				if (fb->prev) fb->prev->next= fb->next;
+				else page->fh[binIdx] = fb->next;
 
 				// <----------------------(fb->size)-------------------------->
 				//   ↓(fb)                         ↓(nfb)
@@ -262,8 +262,11 @@ namespace CoalesceAllocator {
 
 	CoalesceAllocator::BlockStart* CoalesceAllocator::findFreeBlock(const CoalesceAllocator::Page* page, uint32 size, uint32& outBinIdx) {
 		for (outBinIdx = binIndex(size); outBinIdx < NUM_BINS; ++outBinIdx) {
-			if (page->fh[outBinIdx])
-				return page->fh[outBinIdx];
+			if (BlockStart* output = page->fh[outBinIdx]) {
+				while (output && output->size < size) output = output->next;
+				if (output)
+					return output;
+			}
 		}
 
 		outBinIdx = -1;

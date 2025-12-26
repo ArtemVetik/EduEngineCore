@@ -157,4 +157,29 @@ namespace CoalesceAllocator {
 
         allocator.destroy();
     }
+
+    TEST(CoalesceAllocator, FindFreeBlockInMiddleOfFH)
+    {
+        // Tests that alloc correctly finds a free block located
+        // in the middle of the free list, not only at its beginning.
+
+        CoalesceAllocator allocator = CoalesceAllocator();
+        allocator.init();
+
+        void* p12_1 = allocator.alloc((1 << 12) | (1 << 11));
+        void* p1_0 = allocator.alloc(1000);
+        void* p12_2 = allocator.alloc(1 << 12);
+        void* p1_1 = allocator.alloc(1000);
+
+        allocator.free(p12_1);
+        allocator.free(p12_2);
+
+        void* p12_3 = allocator.alloc((1 << 12) | (1 << 5));
+        allocator.free(p12_3);
+
+        allocator.free(p1_0);
+        allocator.free(p1_1);
+
+        allocator.destroy();
+    }
 }
