@@ -67,7 +67,7 @@ namespace CompositeMemoryAllocator {
         ASSERT(false);
     }
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
     void CompositeMemoryAllocator::dumpStat() const {
         printf("----------------[DUMP STAT REPORT]----------------\n");
         for (auto &fsa : m_fixedSizeAllocators) {

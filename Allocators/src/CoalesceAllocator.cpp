@@ -1,7 +1,7 @@
 #include "CoalesceAllocator.h"
 #include "Common.h"
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 
 #define VALIDATE_BLOCK(block, free)                                                         \
     do {                                                                                    \
@@ -31,7 +31,7 @@
 namespace CoalesceAllocator {
 	CoalesceAllocator::CoalesceAllocator() :
 		m_headPage(nullptr)
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 		, m_StatReport{}
 #endif
 	{ }
@@ -47,7 +47,7 @@ namespace CoalesceAllocator {
 
 		uint32 binIdx;
 		m_headPage = createPage(binIdx);
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 		m_StatReport.pagesCount++;
 #endif
 	}
@@ -58,14 +58,14 @@ namespace CoalesceAllocator {
 		while (m_headPage) {
 			Page* next = m_headPage->next;
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 			uint32 fxIdx = binIndex(sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd));
 			ASSERT(m_headPage->fh[fxIdx]->size == sizeof(BlockStart) + PAGE_SIZE + sizeof(BlockEnd));
 			ASSERT(m_headPage->fh[fxIdx]->next == nullptr);
 #endif
 
 			if (!VirtualFree(m_headPage, 0, MEM_RELEASE)) {
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 				printf("VirtualFree failed.\n");
 #endif
 				return;
@@ -83,7 +83,7 @@ namespace CoalesceAllocator {
 
 		Page* page = m_headPage;
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 		m_StatReport.allocCallCount++;
 		m_StatReport.totalAllocSize += size;
 #endif
@@ -131,7 +131,7 @@ namespace CoalesceAllocator {
 		page->next = createPage(binIdx);
 		page = page->next;
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 		m_StatReport.pagesCount++;
 #endif
 
@@ -228,7 +228,7 @@ namespace CoalesceAllocator {
 		page->fh[cbBinIdx] = cb;
 
 		setupBlock(cb, cb->size, cb->next, cb->prev, true);
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 		m_StatReport.freeCallCount++;
 #endif
 	}
@@ -238,7 +238,7 @@ namespace CoalesceAllocator {
 			MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
 		if (page == nullptr) {
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 			printf("VirtualAlloc failed.\n");
 #endif
 			return nullptr;
@@ -283,7 +283,7 @@ namespace CoalesceAllocator {
 
 		auto* end = (BlockEnd*)((BYTE*)block + size - sizeof(BlockEnd));
 		end->size = size;
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 		block->markerStart = FEEDFACE;
 		block->markerEnd = FEEDFACE;
 		end->markerStart = FEEDFACE;
@@ -312,7 +312,7 @@ namespace CoalesceAllocator {
 			(BYTE*)p <= (BYTE*)page + sizeof(Page) + PAGE_SIZE + sizeof(BlockStart));
 	}
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 	BlockReport CoalesceAllocator::getNextBlock(uint32 pageNum, void* from) const {
 		ASSERT(m_headPage != nullptr);
 

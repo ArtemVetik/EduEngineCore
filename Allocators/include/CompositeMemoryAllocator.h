@@ -32,7 +32,7 @@ namespace CompositeMemoryAllocator {
         void destroy();
         void* alloc(uint32 size);
         void free(void *p);
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
         void dumpStat() const;
         void dumpBlocks() const;
 #endif

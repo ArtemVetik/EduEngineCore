@@ -1,5 +1,5 @@
 add_subdirectory(lib)
-include_directories(${gtest_SOURCE_DIR}/include {gtest_SOURCE_DIR}/scr ${gtest_SOURCE_DIR})
+include_directories(${gtest_SOURCE_DIR}/include)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_executable(Google_Tests_run

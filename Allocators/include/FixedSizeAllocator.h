@@ -7,7 +7,7 @@ namespace FixedSizeAllocator {
 
     static constexpr uint32 PAGE_SIZE = 4096u;
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
     struct StatReport {
         uint64 allocCallCount = 0;
         uint64 freeCallCount = 0;
@@ -37,7 +37,7 @@ namespace FixedSizeAllocator {
         void free(void *p);
         [[nodiscard]] uint32 getBlockSize() const;
         bool containsAddress(void* p) const;
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
         [[nodiscard]] StatReport getStatReport() const;
         [[nodiscard]] AllocBlocksReport getAllocBlocksReport(uint32 pageNum) const;
 #endif
@@ -56,7 +56,7 @@ namespace FixedSizeAllocator {
 
         Page *m_headPage;
         uint32 m_blockSize;
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
         StatReport m_StatReport;
 #endif
     };

@@ -4,7 +4,7 @@
 #define NOMINMAX
 #include <windows.h>
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
 
 #include <iostream>
 #include <cassert>
@@ -16,6 +16,5 @@
 #else
 
 #define ASSERT(x)                   do {} while(0)
-#define VALIDATE_BLOCK(block, free) do {} while(0)
 
 #endif

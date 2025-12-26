@@ -9,7 +9,7 @@ namespace CoalesceAllocator {
     static constexpr uint32 DEADBEEF = 0xdeadbeef;
     static constexpr uint32 FEEDFACE = 0xfeedface;
 
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
     struct StatReport {
         uint64 allocCallCount = 0;
         uint64 freeCallCount = 0;
@@ -39,7 +39,7 @@ namespace CoalesceAllocator {
         void* alloc(uint32 size);
         void free(void* p);
         bool containsAddress(void* p) const;
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
         [[nodiscard]] StatReport getStat() const { return m_StatReport; }
         [[nodiscard]] BlockReport getNextBlock(uint32 pageNum, void* from) const;
         [[nodiscard]] static uint32 getBlockStartSize() { return sizeof(BlockStart); }
@@ -48,24 +48,24 @@ namespace CoalesceAllocator {
     private:
         // BlockStart->size = sizeof(BlockStart) + size + sizeof(BlockEnd)
         struct BlockStart {
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
             uint32 markerStart;
 #endif
             BlockStart* next;
             BlockStart* prev;
             uint32 size;
             char alloc;
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
             uint32 markerEnd;
 #endif
         };
 
         struct BlockEnd {
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
             uint32 markerStart;
 #endif
             uint32 size;
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
             uint32 markerEnd;
 #endif
         };
@@ -82,7 +82,7 @@ namespace CoalesceAllocator {
         static void setupBlock(BlockStart *block, uint32 size, BlockStart* next, BlockStart* prev, bool free);
 
         Page* m_headPage;
-#if defined(_DEBUG) && defined(ALLOCATORS_DEBUG)
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
         StatReport m_StatReport;
 #endif
     };
