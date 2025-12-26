@@ -1,128 +1,115 @@
 #include <crtdbg.h>
 #include <sstream>
-#include <chrono>
 #include <iostream>
-#include <vector>
 
-#include "Allocators.h"
+#include <MemoryAllocatorT.h>
+#include "BenchmarkFuncs.h"
 
-using Clock = std::chrono::steady_clock;
+template <typename T>
+struct StdAllocator {
+    using value_type = T;
 
-struct XorShift32
-{
-    uint32_t state = 0x12345678;
+    StdAllocator() = default;
+    ~StdAllocator() = default;
 
-    uint32_t next()
+    template <typename U>
+    StdAllocator(const StdAllocator<U>& other) noexcept
     {
-        uint32_t x = state;
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        state = x;
-        return x;
     }
 
-    uint32_t range(uint32_t max)
+    template <typename U>
+    StdAllocator(StdAllocator<U>&& other)
     {
-        return next() % max;
     }
+
+    template <typename U>
+    StdAllocator& operator = (const StdAllocator<U>& rhs) = delete;
+    template <typename U>
+    StdAllocator& operator = (StdAllocator<U>&& lhs) = delete;
+
+    T* allocate(std::size_t n) {
+        return static_cast<T*>(::operator new(n * sizeof(T)));
+    }
+
+    void deallocate(T* p, std::size_t) {
+        ::operator delete(p);
+    }
+
+    template <typename U>
+    struct rebind {
+        using other = StdAllocator<U>;
+    };
 };
 
-struct BenchmarkConfig
-{
-    int iterations = 5'000'000;
-    int maxLiveAllocs = 10000;
-    float allocChance = 0.6f;
-    int minSize = 524;
-    int maxSize = 8096;
-};
-
-
-double benchmark_random(IAllocator& alloc, const BenchmarkConfig& cfg)
-{
-    std::vector<void*> live;
-    live.reserve(cfg.maxLiveAllocs);
-
-    XorShift32 rng;
-
-    auto t0 = Clock::now();
-
-    for (int i = 0; i < cfg.iterations; ++i)
-    {
-        bool doAlloc =
-            live.empty() ||
-            (live.size() < cfg.maxLiveAllocs &&
-                (rng.next() / float(UINT32_MAX)) < cfg.allocChance);
-
-        if (doAlloc)
-        {
-            int size = cfg.minSize + rng.range(cfg.maxSize - cfg.minSize + 1);
-            void* p = alloc.alloc(size);
-            live.push_back(p);
-        }
-        else
-        {
-            int idx = rng.range((uint32_t)live.size());
-            alloc.free(live[idx]);
-            live[idx] = live.back();
-            live.pop_back();
-        }
-    }
-
-    for (void* p : live)
-        alloc.free(p);
-
-    auto t1 = Clock::now();
-    return std::chrono::duration<double, std::milli>(t1 - t0).count();
-}
-
-void runTest(const char* name, const BenchmarkConfig& cfg, IAllocator& stdAllocator, IAllocator& customAllocator)
+void runRawTest(const char* name, const BenchmarkConfig& cfg, StdAllocator<std::byte>& stdAllocator, MemoryAllocator::MemoryAllocatorT<std::byte>& customAllocator)
 {
     printf("======== %s ========\n", name);
-    double stdMs = benchmark_random(stdAllocator, cfg);
-    double customMs = benchmark_random(customAllocator, cfg);
+    printf("StdAllocator:    %lf ms\n", benchmark_random(stdAllocator, cfg));
+    printf("CustomAllocator: %lf ms\n", benchmark_random(customAllocator, cfg));
+    printf("============================\n\n");
+}
 
-    printf("StdAllocator:    %lf ms\n", stdMs);
-    printf("CustomAllocator: %lf ms\n", customMs);
+template<typename T>
+void runVectorTest(const char* name, const BenchmarkConfig& cfg)
+{
+    printf("======== %s ========\n", name);
+    printf("StdAllocator:    %lf ms\n", benchmark_vector<T, StdAllocator<T>>(cfg));
+    printf("CustomAllocator: %lf ms\n", benchmark_vector<T, MemoryAllocator::MemoryAllocatorT<T>>(cfg));
+    printf("============================\n\n");
+}
+
+void runUnorderedMapTest(const char* name, const BenchmarkConfig& cfg)
+{
+    printf("======== %s ========\n", name);
+    printf("StdAllocator:    %lf ms\n", benchmark_unordered_map<StdAllocator<std::pair<const uint32_t, uint32_t>>>(cfg));
+    printf("CustomAllocator: %lf ms\n", benchmark_unordered_map<MemoryAllocator::MemoryAllocatorT<std::pair<const uint32_t, uint32_t>>>(cfg));
+    printf("============================\n\n");
+}
+
+void runMapTest(const char* name, const BenchmarkConfig& cfg)
+{
+    printf("======== %s ========\n", name);
+    printf("StdAllocator:    %lf ms\n", benchmark_map<StdAllocator<std::pair<const uint32_t, uint32_t>>>(cfg));
+    printf("CustomAllocator: %lf ms\n", benchmark_map<MemoryAllocator::MemoryAllocatorT<std::pair<const uint32_t, uint32_t>>>(cfg));
     printf("============================\n\n");
 }
 
 int main()
 {
-    StdAllocator stdAllocator;
-    CustomAllocator customAllocator;
+    StdAllocator<std::byte> stdAllocator;
+    MemoryAllocator::MemoryAllocatorT<std::byte> customAllocator;
 
-    for (uint32 i = 0; i < 5'000'000; i++)
+    for (uint32 i = 0; i < 1'000'000; i++)
     {
-        size_t size = (i * 8u) % (1024 * 1024);
+        size_t size = 4 + (i * 8u) % (1024 * 1024);
 
-        void* p0 = stdAllocator.alloc(size, 0);
-        stdAllocator.free(p0);
+        std::byte* p0 = stdAllocator.allocate(size);
+        stdAllocator.deallocate(p0, size);
 
-        void* p1 = customAllocator.alloc(size, 0);
-        customAllocator.free(p1);
+        std::byte* p1 = customAllocator.allocate(size);
+        customAllocator.deallocate(p1, size);
     }
 
     {
         BenchmarkConfig cfg = {};
-        cfg.iterations = 5'000'000;
-        cfg.maxLiveAllocs = 10000;
+        cfg.iterations = 10'000'000;
+        cfg.maxLiveAllocs = 100'000;
         cfg.allocChance = 0.6f;
         cfg.minSize = 1;
         cfg.maxSize = 512;
 
-        runTest("SmallAlloc", cfg, stdAllocator, customAllocator);
+        runRawTest("SmallAlloc", cfg, stdAllocator, customAllocator);
     }
 
     {
         BenchmarkConfig cfg = {};
         cfg.iterations = 1'000'000;
-        cfg.maxLiveAllocs = 1000;
+        cfg.maxLiveAllocs = 10000;
         cfg.allocChance = 0.6f;
         cfg.minSize = 514;
         cfg.maxSize = 1024 * 1024;
 
-        runTest("MediuamAlloc", cfg, stdAllocator, customAllocator);
+        runRawTest("MediuamAlloc", cfg, stdAllocator, customAllocator);
     }
 
     {
@@ -132,8 +119,8 @@ int main()
         cfg.allocChance = 0.6f;
         cfg.minSize = 1024 * 1024;
         cfg.maxSize = 64 * 1024 * 1024;
-
-        runTest("BigAlloc", cfg, stdAllocator, customAllocator);
+        
+        runRawTest("BigAlloc", cfg, stdAllocator, customAllocator);
     }
 
     {
@@ -141,10 +128,43 @@ int main()
         cfg.iterations = 1'000'000;
         cfg.maxLiveAllocs = 1000;
         cfg.allocChance = 0.6f;
-        cfg.minSize = 4;
+        cfg.minSize = 16;
         cfg.maxSize = 32 * 1024 * 1024;
 
-        runTest("MixedAlloc", cfg, stdAllocator, customAllocator);
+        runRawTest("MixedAlloc", cfg, stdAllocator, customAllocator);
+    }
+
+    {
+        BenchmarkConfig cfg = {};
+        cfg.iterations = 10'000'000;
+        cfg.maxLiveAllocs = 10'000;
+        cfg.allocChance = 0.4f;
+
+        runVectorTest<int>("LowVector", cfg);
+        runUnorderedMapTest("LowUnorderedMap", cfg);
+        runMapTest("LowMap", cfg);
+    }
+
+    {
+        BenchmarkConfig cfg = {};
+        cfg.iterations = 1'000'000;
+        cfg.maxLiveAllocs = 1'000;
+        cfg.allocChance = 0.6f;
+        
+        runVectorTest<int>("MediumVector", cfg);
+        runUnorderedMapTest("MediumUnorderedMap", cfg);
+        runMapTest("MediumMap", cfg);
+    }
+
+    {
+        BenchmarkConfig cfg = {};
+        cfg.iterations = 1'000'000;
+        cfg.maxLiveAllocs = 1'000;
+        cfg.allocChance = 0.9f;
+
+        runVectorTest<int>("LargeVector", cfg);
+        runUnorderedMapTest("LargeUnorderedMap", cfg);
+        runMapTest("LargeMap", cfg);
     }
 
 	return 0;
