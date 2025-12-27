@@ -120,6 +120,9 @@ double benchmark_unordered_map(const BenchmarkConfig& cfg)
     Map map;
     map.reserve(cfg.maxLiveAllocs / 2);
 
+    std::vector<uint32_t> keys;
+    keys.reserve(cfg.maxLiveAllocs);
+
     XorShift32 rng;
 
     auto t0 = Clock::now();
@@ -134,13 +137,19 @@ double benchmark_unordered_map(const BenchmarkConfig& cfg)
         if (doInsert)
         {
             uint32_t k = rng.next();
-            map.emplace(k, k);
+            auto [it, inserted] = map.emplace(k, k);
+            if (inserted)
+                keys.push_back(k);
         }
         else
         {
-            auto it = map.begin();
-            std::advance(it, rng.range((uint32_t)map.size()));
-            map.erase(it);
+            uint32_t idx = rng.range((uint32_t)keys.size());
+            uint32_t k = keys[idx];
+
+            map.erase(k);
+
+            keys[idx] = keys.back();
+            keys.pop_back();
         }
     }
 
@@ -154,6 +163,9 @@ double benchmark_map(const BenchmarkConfig& cfg)
     using Map = std::map<uint32_t, uint32_t, std::less<uint32_t>, Alloc>;
 
     Map map;
+    std::vector<uint32_t> keys;
+    keys.reserve(cfg.maxLiveAllocs);
+
     XorShift32 rng;
 
     auto t0 = Clock::now();
@@ -168,13 +180,19 @@ double benchmark_map(const BenchmarkConfig& cfg)
         if (doInsert)
         {
             uint32_t k = rng.next();
-            map.emplace(k, k);
+            auto [it, inserted] = map.emplace(k, k);
+            if (inserted)
+                keys.push_back(k);
         }
         else
         {
-            auto it = map.begin();
-            std::advance(it, rng.range((uint32_t)map.size()));
-            map.erase(it);
+            uint32_t idx = rng.range((uint32_t)keys.size());
+            uint32_t k = keys[idx];
+
+            map.erase(k);
+
+            keys[idx] = keys.back();
+            keys.pop_back();
         }
     }
 

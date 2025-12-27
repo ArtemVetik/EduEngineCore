@@ -136,7 +136,7 @@ int main()
 
     {
         BenchmarkConfig cfg = {};
-        cfg.iterations = 10'000'000;
+        cfg.iterations = 20'000'000;
         cfg.maxLiveAllocs = 10'000;
         cfg.allocChance = 0.4f;
 
@@ -147,8 +147,8 @@ int main()
 
     {
         BenchmarkConfig cfg = {};
-        cfg.iterations = 1'000'000;
-        cfg.maxLiveAllocs = 1'000;
+        cfg.iterations = 20'000'000;
+        cfg.maxLiveAllocs = 50'000;
         cfg.allocChance = 0.6f;
         
         runVectorTest<int>("MediumVector", cfg);
@@ -158,8 +158,8 @@ int main()
 
     {
         BenchmarkConfig cfg = {};
-        cfg.iterations = 1'000'000;
-        cfg.maxLiveAllocs = 1'000;
+        cfg.iterations = 10'000'000;
+        cfg.maxLiveAllocs = 100'000;
         cfg.allocChance = 0.9f;
 
         runVectorTest<int>("LargeVector", cfg);
