@@ -19,6 +19,7 @@ target_include_directories(GraphicsHeaps
 )
 
 target_link_libraries(GraphicsHeaps PUBLIC
+    Allocators
     Common
 )
 

@@ -2,6 +2,7 @@
 #include "framework.h"
 #include "CommandContext.h"
 
+#include <MemoryAllocatorT.h>
 #include <QueueMask.h>
 #include <unordered_map>
 
@@ -20,7 +21,9 @@ namespace EduEngine
 		std::mutex m_PoolMutex;
 
 		CommandListManager* m_CmdListMgrs;
-		std::unordered_multimap<QueueId, std::unique_ptr<CommandContext>> m_Pool;
+
+		using PoolAlloc = MemoryAllocator::MemoryAllocatorT<std::pair<const QueueId, std::unique_ptr<CommandContext>>>;
+		std::unordered_multimap<QueueId, std::unique_ptr<CommandContext>, std::hash<QueueId>, std::equal_to<QueueId>, PoolAlloc> m_Pool;
 
 		RenderDeviceD3D12& m_Device;
 	};

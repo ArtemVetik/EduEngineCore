@@ -1,6 +1,7 @@
 #pragma once
 #include "framework.h"
 
+#include <MemoryAllocatorT.h>
 #include <map>
 
 namespace EduEngine
@@ -19,8 +20,12 @@ namespace EduEngine
 
 	private:
 		struct FreeBlockInfo;
-		typedef std::map<size_t, FreeBlockInfo> TFreeBlocksByOffsetMap;
-		typedef std::multimap<size_t, TFreeBlocksByOffsetMap::iterator> TFreeBlocksBySizeMap;
+
+		using OffsetAlloc = MemoryAllocator::MemoryAllocatorT<std::pair<const size_t, FreeBlockInfo>>;
+		typedef std::map<size_t, FreeBlockInfo, std::less<size_t>, OffsetAlloc> TFreeBlocksByOffsetMap;
+
+		using FreeAlloc = MemoryAllocator::MemoryAllocatorT<std::pair<const size_t, TFreeBlocksByOffsetMap::iterator>>;
+		typedef std::multimap<size_t, TFreeBlocksByOffsetMap::iterator, std::less<size_t>, FreeAlloc> TFreeBlocksBySizeMap;
 
 		struct FreeBlockInfo
 		{
