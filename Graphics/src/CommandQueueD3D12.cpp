@@ -2,6 +2,8 @@
 #include "CommandQueueD3D12.h"
 #include "RenderDeviceD3D12.h"
 
+#include <MemoryAllocatorT.h>
+
 namespace EduEngine
 {
 	CommandQueueD3D12::CommandQueueD3D12(RenderDeviceD3D12* pDevice, D3D12_COMMAND_LIST_TYPE type) :
@@ -27,10 +29,22 @@ namespace EduEngine
 
 	void CommandQueueD3D12::CloseAndExecuteCommandContexts(CommandContext** commandContexts, uint32 numContexts)
 	{
-		std::vector<ID3D12CommandList*> cmdLists; // TODO: remove vector
+		constexpr int NumStaticCmdList = 16;
 
-		if (numContexts)
-			cmdLists.reserve(numContexts);
+		ID3D12CommandList* cmdListsStatic[NumStaticCmdList];
+		std::vector<ID3D12CommandList*, MemoryAllocator::MemoryAllocatorT<ID3D12CommandList*>> cmdListsDynamic;
+
+		ID3D12CommandList** cmdLists = nullptr;
+
+		if (numContexts <= NumStaticCmdList)
+		{
+			cmdLists = cmdListsStatic;
+		}
+		else
+		{
+			cmdListsDynamic.resize(numContexts);
+			cmdLists = cmdListsDynamic.data();
+		}
 
 		for (uint32 i = 0; i < numContexts; i++)
 		{
@@ -38,13 +52,13 @@ namespace EduEngine
 
 			commandContexts[i]->FlushResourceBarriers();
 
-			cmdLists.emplace_back(commandContexts[i]->Close());
+			cmdLists[i] = commandContexts[i]->Close();
 		}
 
 		std::lock_guard<std::mutex> LockGuard(m_CmdQueueMutex);
 
 		if (numContexts)
-			m_CommandQueue->ExecuteCommandLists(numContexts, cmdLists.data());
+			m_CommandQueue->ExecuteCommandLists(numContexts, cmdLists);
 
 		uint64 FenceValue = m_NextCmdList.fetch_add(1);
 

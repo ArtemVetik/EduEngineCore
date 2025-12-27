@@ -174,7 +174,7 @@ namespace EduEngine::DiligentBinding
 		DescriptorHeapAllocation cbcSrvUavHeapSpace, samplerHeapSpace;
 		if (totalSrvCbvUavDescriptors)
 			cbcSrvUavHeapSpace = device->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalSrvCbvUavDescriptors);
-		// TODO: set QueueMask
+
 		if (totalSamplerDescriptors)
 			samplerHeapSpace = device->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, totalSamplerDescriptors);
 
