@@ -2,7 +2,7 @@
 #include "framework.h"
 #include "CommandContext.h"
 
-#include <MemoryAllocatorT.h>
+#include <RawMemoryAllocator.h>
 #include <QueueMask.h>
 #include <unordered_map>
 
@@ -22,7 +22,7 @@ namespace EduEngine
 
 		CommandListManager* m_CmdListMgrs;
 
-		using PoolAlloc = MemoryAllocator::MemoryAllocatorT<std::pair<const QueueId, std::unique_ptr<CommandContext>>>;
+		using PoolAlloc = MemoryAllocator::RawMemoryAllocator<std::pair<const QueueId, std::unique_ptr<CommandContext>>>;
 		std::unordered_multimap<QueueId, std::unique_ptr<CommandContext>, std::hash<QueueId>, std::equal_to<QueueId>, PoolAlloc> m_Pool;
 
 		RenderDeviceD3D12& m_Device;

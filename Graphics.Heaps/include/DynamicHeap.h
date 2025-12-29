@@ -2,7 +2,7 @@
 #include "framework.h"
 #include "IRenderDeviceD3D12.h"
 
-#include <MemoryAllocatorT.h>
+#include <RawMemoryAllocator.h>
 #include <map>
 
 namespace EduEngine
@@ -87,7 +87,7 @@ namespace EduEngine
 		void Destroy();
 
 	private:
-		using PagesAlloc = MemoryAllocator::MemoryAllocatorT<std::pair<const uint64, DynamicHeapPage>>;
+		using PagesAlloc = MemoryAllocator::RawMemoryAllocator<std::pair<const uint64, DynamicHeapPage>>;
 		std::multimap<uint64, DynamicHeapPage, std::less<uint64>, PagesAlloc> m_AvailablePages;
 		std::mutex m_AllocMutex;
 		IRenderDeviceD3D12* m_Device;

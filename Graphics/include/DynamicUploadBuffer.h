@@ -2,7 +2,7 @@
 #include "framework.h"
 #include "RenderDeviceD3D12.h"
 
-#include <MemoryAllocatorT.h>
+#include <RawMemoryAllocator.h>
 #include <unordered_map>
 
 namespace EduEngine
@@ -10,8 +10,8 @@ namespace EduEngine
 	class GRAPHICS_API DynamicUploadBuffer
 	{
 	private:
-		using DynHeapAlloc = MemoryAllocator::MemoryAllocatorT<std::pair<const uint32, DynamicHeapAllocation>>;
-		using DescriptorHeapAlloc = MemoryAllocator::MemoryAllocatorT<std::pair<const uint32, DescriptorHeapAllocation>>;
+		using DynHeapAlloc = MemoryAllocator::RawMemoryAllocator<std::pair<const uint32, DynamicHeapAllocation>>;
+		using DescriptorHeapAlloc = MemoryAllocator::RawMemoryAllocator<std::pair<const uint32, DescriptorHeapAllocation>>;
 
 		std::unordered_map<uint32, DynamicHeapAllocation, std::hash<uint32>, std::equal_to<uint32>, DynHeapAlloc> m_DynHeapAllocation;
 		std::unordered_map<uint32, DescriptorHeapAllocation, std::hash<uint32>, std::equal_to<uint32>, DescriptorHeapAlloc> m_SrvDescriptorAllocation;

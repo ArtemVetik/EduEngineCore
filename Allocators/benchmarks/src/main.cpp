@@ -2,7 +2,7 @@
 #include <sstream>
 #include <iostream>
 
-#include <MemoryAllocatorT.h>
+#include <RawMemoryAllocator.h>
 #include "BenchmarkFuncs.h"
 
 template <typename T>
@@ -41,7 +41,7 @@ struct StdAllocator {
     };
 };
 
-void runRawTest(const char* name, const BenchmarkConfig& cfg, StdAllocator<std::byte>& stdAllocator, MemoryAllocator::MemoryAllocatorT<std::byte>& customAllocator)
+void runRawTest(const char* name, const BenchmarkConfig& cfg, StdAllocator<std::byte>& stdAllocator, MemoryAllocator::RawMemoryAllocator<std::byte>& customAllocator)
 {
     printf("======== %s ========\n", name);
     printf("StdAllocator:    %lf ms\n", benchmark_random(stdAllocator, cfg));
@@ -54,7 +54,7 @@ void runVectorTest(const char* name, const BenchmarkConfig& cfg)
 {
     printf("======== %s ========\n", name);
     printf("StdAllocator:    %lf ms\n", benchmark_vector<T, StdAllocator<T>>(cfg));
-    printf("CustomAllocator: %lf ms\n", benchmark_vector<T, MemoryAllocator::MemoryAllocatorT<T>>(cfg));
+    printf("CustomAllocator: %lf ms\n", benchmark_vector<T, MemoryAllocator::RawMemoryAllocator<T>>(cfg));
     printf("============================\n\n");
 }
 
@@ -62,7 +62,7 @@ void runUnorderedMapTest(const char* name, const BenchmarkConfig& cfg)
 {
     printf("======== %s ========\n", name);
     printf("StdAllocator:    %lf ms\n", benchmark_unordered_map<StdAllocator<std::pair<const uint32_t, uint32_t>>>(cfg));
-    printf("CustomAllocator: %lf ms\n", benchmark_unordered_map<MemoryAllocator::MemoryAllocatorT<std::pair<const uint32_t, uint32_t>>>(cfg));
+    printf("CustomAllocator: %lf ms\n", benchmark_unordered_map<MemoryAllocator::RawMemoryAllocator<std::pair<const uint32_t, uint32_t>>>(cfg));
     printf("============================\n\n");
 }
 
@@ -70,14 +70,14 @@ void runMapTest(const char* name, const BenchmarkConfig& cfg)
 {
     printf("======== %s ========\n", name);
     printf("StdAllocator:    %lf ms\n", benchmark_map<StdAllocator<std::pair<const uint32_t, uint32_t>>>(cfg));
-    printf("CustomAllocator: %lf ms\n", benchmark_map<MemoryAllocator::MemoryAllocatorT<std::pair<const uint32_t, uint32_t>>>(cfg));
+    printf("CustomAllocator: %lf ms\n", benchmark_map<MemoryAllocator::RawMemoryAllocator<std::pair<const uint32_t, uint32_t>>>(cfg));
     printf("============================\n\n");
 }
 
 int main()
 {
     StdAllocator<std::byte> stdAllocator;
-    MemoryAllocator::MemoryAllocatorT<std::byte> customAllocator;
+    MemoryAllocator::RawMemoryAllocator<std::byte> customAllocator;
 
     for (uint32 i = 0; i < 1'000'000; i++)
     {

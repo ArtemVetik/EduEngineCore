@@ -2,7 +2,7 @@
 #include "CommandQueueD3D12.h"
 #include "RenderDeviceD3D12.h"
 
-#include <MemoryAllocatorT.h>
+#include <RawMemoryAllocator.h>
 
 namespace EduEngine
 {
@@ -32,7 +32,7 @@ namespace EduEngine
 		constexpr int NumStaticCmdList = 16;
 
 		ID3D12CommandList* cmdListsStatic[NumStaticCmdList];
-		std::vector<ID3D12CommandList*, MemoryAllocator::MemoryAllocatorT<ID3D12CommandList*>> cmdListsDynamic;
+		std::vector<ID3D12CommandList*, MemoryAllocator::RawMemoryAllocator<ID3D12CommandList*>> cmdListsDynamic;
 
 		ID3D12CommandList** cmdLists = nullptr;
 

@@ -20,32 +20,32 @@ namespace MemoryAllocator {
     };
 
     template <typename T>
-    struct MemoryAllocatorT {
+    struct RawMemoryAllocator {
         using value_type = T;
 
-        MemoryAllocatorT()
+        RawMemoryAllocator()
         {
 #ifndef USE_STD_ALLOCATIONS
             CompositeMemoryAllocatorSingleton::init();
 #endif
         }
 
-        ~MemoryAllocatorT() = default;
+        ~RawMemoryAllocator() = default;
 
         template <typename U>
-        MemoryAllocatorT(const MemoryAllocatorT<U>& other) noexcept
+        RawMemoryAllocator(const RawMemoryAllocator<U>& other) noexcept
         {
         }
 
         template <typename U>
-        MemoryAllocatorT(MemoryAllocatorT<U>&& other)
+        RawMemoryAllocator(RawMemoryAllocator<U>&& other)
         {
         }
 
         template <typename U>
-        MemoryAllocatorT& operator = (const MemoryAllocatorT<U>& rhs) = delete;
+        RawMemoryAllocator& operator = (const RawMemoryAllocator<U>& rhs) = delete;
         template <typename U>
-        MemoryAllocatorT& operator = (MemoryAllocatorT<U>&& lhs) = delete;
+        RawMemoryAllocator& operator = (RawMemoryAllocator<U>&& lhs) = delete;
 
         T* allocate(std::size_t n) {
 #ifdef USE_STD_ALLOCATIONS
@@ -68,18 +68,18 @@ namespace MemoryAllocator {
 
         template <typename U>
         struct rebind {
-            using other = MemoryAllocatorT<U>;
+            using other = RawMemoryAllocator<U>;
         };
     };
 
     template<typename T, typename U>
-    bool operator==(const MemoryAllocatorT<T>&, const MemoryAllocatorT<U>&) noexcept
+    bool operator==(const RawMemoryAllocator<T>&, const RawMemoryAllocator<U>&) noexcept
     {
         return true;
     }
 
     template<typename T, typename U>
-    bool operator!=(const MemoryAllocatorT<T>&, const MemoryAllocatorT<U>&) noexcept
+    bool operator!=(const RawMemoryAllocator<T>&, const RawMemoryAllocator<U>&) noexcept
     {
         return false;
     }
