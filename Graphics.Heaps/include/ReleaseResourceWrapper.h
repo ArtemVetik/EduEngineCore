@@ -4,6 +4,7 @@
 #include "DynamicHeap.h"
 
 #include <Asserts.h>
+#include <RawMemoryAllocator.h>
 #include <variant>
 
 namespace EduEngine
@@ -207,11 +208,13 @@ namespace EduEngine
 		{
 			if (numReferences == 1)
 			{
-				m_Res = new SingleReleaseResource(std::move(wrapper));
+				m_Res = static_cast<SingleReleaseResource*>(MemoryAllocator::CompositeMemoryAllocatorSingleton::allocator->alloc(sizeof(SingleReleaseResource)));
+				new (m_Res) SingleReleaseResource(std::move(wrapper));
 			}
 			else
 			{
-				m_Res = new SharedReleaseResource(std::move(wrapper), numReferences);
+				m_Res = static_cast<SharedReleaseResource*>(MemoryAllocator::CompositeMemoryAllocatorSingleton::allocator->alloc(sizeof(SharedReleaseResource)));
+				new (m_Res) SharedReleaseResource(std::move(wrapper), numReferences);
 			}
 		}
 
@@ -235,7 +238,9 @@ namespace EduEngine
 
 			if (m_Res->Release() == 1)
 			{
-				delete m_Res;
+				m_Res->~SingleReleaseResource();
+				MemoryAllocator::CompositeMemoryAllocatorSingleton::allocator->free(m_Res);
+
 				m_Res = nullptr;
 			}
 		}
