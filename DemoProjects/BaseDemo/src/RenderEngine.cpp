@@ -1,5 +1,7 @@
 #include "RenderEngine.h"
 
+#include "../../InputSystem/include/InputManager.h"
+
 #include <dxgi1_6.h>
 
 namespace EduEngine
@@ -120,6 +122,14 @@ namespace EduEngine
 
 	void RenderEngine::Update(const Timer& timer)
 	{
+#if !defined(NDEBUG) && defined(ALLOCATORS_DEBUG)
+		if (InputManager::GetInstance().IsKeyDown(DIK_L))
+		{
+			MemoryAllocator::CompositeMemoryAllocatorSingleton::allocator->dumpStat();
+			MemoryAllocator::CompositeMemoryAllocatorSingleton::allocator->dumpBlocks();
+		}
+#endif
+
 		OnUpdate(timer);
 	}
 
