@@ -9,13 +9,19 @@
 
 namespace EduEngine
 {
+	struct MeshLoadDesc
+	{
+		bool CreateVertexSRV = false;
+		bool CreateIndexSRV = false;
+	};
+
 	class Mesh
 	{
 	public:
 		Mesh(RenderDeviceD3D12* device, DeviceContext* context, const char* filePath);
 		~Mesh();
 
-		void Load();
+		void Load(const MeshLoadDesc* loadDesc = nullptr);
 		void Free();
 
 		void UpdateFilePath(const char* filePath);
@@ -28,6 +34,9 @@ namespace EduEngine
 
 		VertexBufferD3D12* GetVertexBuffer() const { return m_VertexBuffer.get(); }
 		IndexBufferD3D12* GetIndexBuffer() const { return m_IndexBuffer.get(); }
+
+		std::shared_ptr<VertexBufferD3D12> GetVertexBufferShared() const { return m_VertexBuffer; }
+		std::shared_ptr<IndexBufferD3D12> GetIndexBufferShared() const { return m_IndexBuffer; }
 
 		const aiMesh* GetAiMesh() const { return m_Scene->mMeshes[0]; }
 

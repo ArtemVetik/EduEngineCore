@@ -22,7 +22,7 @@ namespace EduEngine
 		m_IndexBuffer.reset();
 	}
 
-	void Mesh::Load()
+	void Mesh::Load(const MeshLoadDesc* loadDesc)
 	{
 		if (m_RefCount > 0)
 		{
@@ -62,6 +62,33 @@ namespace EduEngine
 			sizeof(Vertex), (UINT)meshData.Vertices.size());
 		m_IndexBuffer = std::make_shared<IndexBufferD3D12>(m_Device, m_Context, meshData.GetIndices16().data(),
 			sizeof(uint16), (UINT)meshData.GetIndices16().size(), DXGI_FORMAT_R16_UINT);
+
+		if (loadDesc)
+		{
+			if (loadDesc->CreateVertexSRV)
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+				srvDesc.Buffer.FirstElement = 0;
+				srvDesc.Buffer.NumElements = meshData.Vertices.size();
+				srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
+
+				m_VertexBuffer->CreateSRV(&srvDesc);
+			}
+
+			if (loadDesc->CreateIndexSRV)
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+				srvDesc.Buffer.FirstElement = 0;
+				srvDesc.Buffer.NumElements = meshData.GetIndices16().size();
+				srvDesc.Buffer.StructureByteStride = sizeof(uint16);
+
+				m_IndexBuffer->CreateSRV(&srvDesc);
+			}
+		}
 
 		m_RefCount = 1;
 	}
