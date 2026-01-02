@@ -11,18 +11,22 @@ enable_testing()
 
 add_subdirectory(Allocators)
 add_subdirectory(Common)
-add_subdirectory(ImGui)
 add_subdirectory(Graphics.Heaps)
 add_subdirectory(Graphics)
 add_subdirectory(InputSystem)
+
 add_subdirectory(ShaderBinding/DiligentBinding)
 add_subdirectory(ShaderBinding/EduBinding)
+
 add_subdirectory(RenderTechniques)
+
 add_subdirectory(DemoProjects/BaseDemo)
 add_subdirectory(DemoProjects/PBR)
 add_subdirectory(DemoProjects/MultithreadingDemo)
 add_subdirectory(DemoProjects/MeshShaders)
 add_subdirectory(DemoProjects/AsyncCompute)
 
-add_subdirectory(meshoptimizer)
-add_subdirectory(MeshletConverter)
+add_subdirectory(ThirdParty/ImGui)
+add_subdirectory(ThirdParty/meshoptimizer)
+
+add_subdirectory(Tools/MeshletConverter)
