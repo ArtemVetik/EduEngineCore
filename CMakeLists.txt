@@ -21,4 +21,8 @@ add_subdirectory(RenderTechniques)
 add_subdirectory(DemoProjects/BaseDemo)
 add_subdirectory(DemoProjects/PBR)
 add_subdirectory(DemoProjects/MultithreadingDemo)
+add_subdirectory(DemoProjects/MeshShaders)
 add_subdirectory(DemoProjects/AsyncCompute)
+
+add_subdirectory(meshoptimizer)
+add_subdirectory(MeshletConverter)
