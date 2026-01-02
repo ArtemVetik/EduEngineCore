@@ -6,6 +6,7 @@ add_library(EduBinding STATIC
     src/ShaderBinder.cpp
     src/ShaderD3D12.cpp
     src/ShaderResources.cpp
+    src/MeshPipelineState.cpp
 )
 
 target_include_directories(EduBinding

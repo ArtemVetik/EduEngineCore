@@ -16,6 +16,10 @@ namespace EduEngine::EduBinding
 			return EDU_SHADER_TYPE_PIXEL;
 		if (wcsncmp(L"cs", target, 2) == 0)
 			return EDU_SHADER_TYPE_COMPUTE;
+		if (wcsncmp(L"as", target, 2) == 0)
+			return EDU_SHADER_TYPE_AMPLIFICATION;
+		if (wcsncmp(L"ms", target, 2) == 0)
+			return EDU_SHADER_TYPE_MESH;
 
 		ASSERT_FAILED("Unexpected target: ", target);
 	}
