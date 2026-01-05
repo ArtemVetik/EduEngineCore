@@ -35,11 +35,17 @@ namespace EduEngine
 		}
 
 		std::vector<Meshlet> meshlets(fh.meshlets_count);
+		std::vector<CullData> cullData(fh.meshlets_count);
 		std::vector<uint32_t> meshlet_vertices(fh.vertices_count);
 		std::vector<uint32_t> meshlet_triangles_packed(fh.triangles_count);
 
-		m_MeshletCount = fh.meshlets_count;
+		m_InstanceData = {};
+		m_InstanceData.MeshletCount = fh.meshlets_count;
+
+		m_PassData = {};
+
 		istream.read(reinterpret_cast<char*>(meshlets.data()), sizeof(Meshlet) * fh.meshlets_count);
+		istream.read(reinterpret_cast<char*>(cullData.data()), sizeof(CullData) * fh.meshlets_count);
 		istream.read(reinterpret_cast<char*>(meshlet_vertices.data()), sizeof(unsigned int) * fh.vertices_count);
 		istream.read(reinterpret_cast<char*>(meshlet_triangles_packed.data()), sizeof(unsigned int) * fh.triangles_count);
 
@@ -71,6 +77,15 @@ namespace EduEngine
 		m_Meshlet->CreateSRV(&srvDesc);
 		m_Meshlet->SetName(L"m_Meshlet");
 
+		desc.Width = sizeof(CullData) * fh.meshlets_count;
+		srvDesc.Buffer.NumElements = fh.meshlets_count;
+		srvDesc.Buffer.StructureByteStride = sizeof(CullData);
+
+		m_CullData = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), desc, QueueId::Direct);
+		m_CullData->LoadData(GetMainContext(), cullData.data());
+		m_CullData->CreateSRV(&srvDesc);
+		m_CullData->SetName(L"m_CullData");
+
 		desc.Width = sizeof(uint32_t) * fh.vertices_count;
 		srvDesc.Buffer.NumElements = fh.vertices_count;
 		srvDesc.Buffer.StructureByteStride = sizeof(uint32_t);
@@ -88,23 +103,32 @@ namespace EduEngine
 		m_MeshletTris->LoadData(GetMainContext(), meshlet_triangles_packed.data());
 		m_MeshletTris->CreateSRV(&srvDesc);
 		m_MeshletTris->SetName(L"m_MeshletTris");
+		
+		desc.Width = sizeof(Instance);
+		m_InstanceBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), desc, QueueId::Direct);
+		m_InstanceBuffer->LoadData(GetMainContext(), &m_InstanceData);
 
 		D3D12_DEPTH_STENCIL_DESC dsDesc = {};
 		dsDesc.DepthEnable = true;
 		dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
 		dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 
-		ShaderResourceDesc res[]{ ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC) };
+		ShaderResourceDesc res[]
+		{
+			ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
+		};
 
 		ShaderDesc sDesc = { };
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
-		sDesc.ResourceNum = 1;
+		sDesc.ResourceNum = _countof(res);
 		sDesc.ResourceDesc = res;
 
+		auto as = std::make_shared<ShaderD3D12>(L"assets\\shaders\\DrawMeshlet.hlsl", L"AS", L"as_6_5", nullptr, sDesc);
 		auto ms = std::make_shared<ShaderD3D12>(L"assets\\shaders\\DrawMeshlet.hlsl", L"MS", L"ms_6_5", nullptr, sDesc);
 		auto ps = std::make_shared<ShaderD3D12>(L"assets\\shaders\\DrawMeshlet.hlsl", L"PS", L"ps_6_5", nullptr, sDesc);
 
 		m_Pso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+		m_Pso.SetShader(as);
 		m_Pso.SetShader(ms);
 		m_Pso.SetShader(ps);
 		m_Pso.SetDepthStencilState(dsDesc);
@@ -113,10 +137,13 @@ namespace EduEngine
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 
 		m_Binder = m_Pso.CreateShaderBinder();
-		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "Vertices", m_Model->GetVertexBufferShared());
-		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "Meshlets", m_Meshlet);
-		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "MeshletVertices", m_MeshletVertices);
-		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "MeshletIndices", m_MeshletTris);
+		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gVertices", m_Model->GetVertexBufferShared());
+		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshlets", m_Meshlet);
+		m_Binder->BindResource(EDU_SHADER_TYPE_AMPLIFICATION, "gCullData", m_CullData);
+		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshletVertices", m_MeshletVertices);
+		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshletIndices", m_MeshletTris);
+		m_Binder->BindResource(EDU_SHADER_TYPE_AMPLIFICATION, "cbInstance", m_InstanceBuffer);
+		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_AMPLIFICATION, "cbPass", m_PassBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_MESH, "cbPass", m_PassBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
 	}
@@ -171,6 +198,36 @@ namespace EduEngine
 		GetCamera()->Pitch(currentDelta.y - prevY);
 
 		GetCamera()->Update(timer);
+
+		static bool freeze = false;
+
+		XMMATRIX viewProjT = XMMatrixTranspose(GetCamera()->GetViewProjMatrix());
+
+		XMStoreFloat4x4(&m_PassData.ViewProj, viewProjT);
+		
+		if (!freeze)
+		{
+			XMStoreFloat4x4(&m_PassData.World, XMMatrixTranspose(XMMatrixScaling(500, 500, 500)));
+			m_PassData.CameraPos = GetCamera()->GetPosition();
+			m_PassData.Scale = 500;
+
+			// -w <= x <= w | -> | L: (x >= -w), (x + w >= 0) | R: (x <= w), (w - x >= 0)
+			// -w <= y <= w | -> | B: (y >= -w), (y + w >= 0) | U: (y <= w), (w - y >= 0)
+			//  0 <= z <= w | -> | N: (z >= 0)				  | F: (z <= w), (w - z >= 0)
+			//
+			// x = r[0], y = r[1], z = r[2], w = r[3]
+			XMStoreFloat4(&m_PassData.Planes[0], XMPlaneNormalize(viewProjT.r[3] + viewProjT.r[0])); // Left
+			XMStoreFloat4(&m_PassData.Planes[1], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[0])); // Right
+			XMStoreFloat4(&m_PassData.Planes[2], XMPlaneNormalize(viewProjT.r[3] + viewProjT.r[1])); // Bottom
+			XMStoreFloat4(&m_PassData.Planes[3], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[1])); // Up
+			XMStoreFloat4(&m_PassData.Planes[4], XMPlaneNormalize(viewProjT.r[2]));					 // Near
+			XMStoreFloat4(&m_PassData.Planes[5], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[2])); // Far
+		}
+
+		m_PassBuffer->LoadData(GetMainContext(), m_PassData);
+
+		if (InputManager::GetInstance().IsKeyDown(DIK_F))
+			freeze = !freeze;
 	}
 
 	void MeshShadersDemo::OnRender(const Timer& timer)
@@ -190,22 +247,9 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
-		struct Pass
-		{
-			XMFLOAT4X4 World;
-			XMFLOAT4X4 ViewProj;
-			XMFLOAT3 CameraPos;
-			UINT Padding = 0;
-		} pass;
-
-		XMStoreFloat4x4(&pass.World, XMMatrixTranspose(XMMatrixScaling(500, 500, 500)));
-		XMStoreFloat4x4(&pass.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
-		pass.CameraPos = GetCamera()->GetPosition();
-
-		m_PassBuffer->LoadData(GetMainContext(), pass);
-
 		m_Pso.CommitAll(GetMainContext(), m_Binder.get());
-
-		static_cast<ID3D12GraphicsCommandList6*>(GetMainContext()->GetCommandCtx()->GetCmdList())->DispatchMesh(m_MeshletCount, 1, 1);
+		
+		uint32_t groupCount = static_cast<uint32_t>(ceilf(m_InstanceData.MeshletCount / 32.0));
+		static_cast<ID3D12GraphicsCommandList6*>(GetMainContext()->GetCommandCtx()->GetCmdList())->DispatchMesh(groupCount, 1, 1);
 	}
 }
