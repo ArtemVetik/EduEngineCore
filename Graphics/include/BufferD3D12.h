@@ -89,7 +89,7 @@ namespace EduEngine
 	{
 	public:
 		ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,
-							UINT64			   numElements,
+							UINT64			   width,
 							QueueMask		   queueMask);
 
 		template <typename T>

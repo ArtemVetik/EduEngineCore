@@ -13,10 +13,10 @@ namespace EduEngine
 		m_RenderStats{},
 		m_AccumTime(0.0f)
 	{
-		m_ComputeReadBackBuffer = std::make_unique<ReadBackBufferD3D12>(device, 16, QueueId::Direct | QueueId::Compute);
+		m_ComputeReadBackBuffer = std::make_unique<ReadBackBufferD3D12>(device, 16 * sizeof(UINT64), QueueId::Direct | QueueId::Compute);
 		m_ComputeReadBackBuffer->SetName(L"m_ComputeReadBackBuffer");
 
-		m_DrawReadBackBuffer = std::make_unique<ReadBackBufferD3D12>(device, 16, QueueId::Direct);
+		m_DrawReadBackBuffer = std::make_unique<ReadBackBufferD3D12>(device, 16 * sizeof(UINT64), QueueId::Direct);
 		m_DrawReadBackBuffer->SetName(L"m_DrawReadBackBuffer");
 
 		device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT).GetD3D12CommandQueue()->GetTimestampFrequency(&m_DirectFrequency);

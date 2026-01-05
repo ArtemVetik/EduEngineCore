@@ -76,11 +76,11 @@ namespace EduEngine
 	}
 
 	ReadBackBufferD3D12::ReadBackBufferD3D12(RenderDeviceD3D12* pDevice,
-											 UINT64				numElements,
+											 UINT64				width,
 											 QueueMask			queueMask) :
 		ResourceD3D12(pDevice, queueMask)
 	{
-		D3D12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(numElements * sizeof(UINT64));
+		D3D12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(width);
 
 		HRESULT hr = pDevice->GetD3D12Device()->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
