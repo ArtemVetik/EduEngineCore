@@ -72,6 +72,11 @@ namespace EduEngine
 		srvDesc.Buffer.StructureByteStride = sizeof(Meshlet);
 		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		uavDesc.Buffer.FirstElement = 0;
+		uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+
 		m_Meshlet = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), desc, QueueId::Direct);
 		m_Meshlet->LoadData(GetMainContext(), meshlets.data());
 		m_Meshlet->CreateSRV(&srvDesc);
@@ -103,7 +108,21 @@ namespace EduEngine
 		m_MeshletTris->LoadData(GetMainContext(), meshlet_triangles_packed.data());
 		m_MeshletTris->CreateSRV(&srvDesc);
 		m_MeshletTris->SetName(L"m_MeshletTris");
-		
+
+		uint32_t numGroups = static_cast<uint32_t>(ceilf(fh.meshlets_count / 32.0));
+		desc.Width = sizeof(uint32_t) * numGroups;
+		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		uavDesc.Buffer.NumElements = numGroups;
+		uavDesc.Buffer.StructureByteStride = sizeof(uint32_t);
+
+		m_VisibleCountBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), desc, QueueId::Direct);
+		m_VisibleCountBuffer->LoadData(GetMainContext(), meshlet_triangles_packed.data());
+		m_VisibleCountBuffer->CreateUAV(&uavDesc);
+		m_VisibleCountBuffer->SetName(L"m_MeshletTris");
+
+		m_VisibleCountReadback = std::make_shared<ReadBackBufferD3D12>(GetDevice(), numGroups * sizeof(uint32_t), QueueId::Direct);
+
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
 		desc.Width = sizeof(Instance);
 		m_InstanceBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), desc, QueueId::Direct);
 		m_InstanceBuffer->LoadData(GetMainContext(), &m_InstanceData);
@@ -142,6 +161,7 @@ namespace EduEngine
 		m_Binder->BindResource(EDU_SHADER_TYPE_AMPLIFICATION, "gCullData", m_CullData);
 		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshletVertices", m_MeshletVertices);
 		m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshletIndices", m_MeshletTris);
+		m_Binder->BindResource(EDU_SHADER_TYPE_AMPLIFICATION, "gVisibleCount", m_VisibleCountBuffer);
 		m_Binder->BindResource(EDU_SHADER_TYPE_AMPLIFICATION, "cbInstance", m_InstanceBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_AMPLIFICATION, "cbPass", m_PassBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_MESH, "cbPass", m_PassBuffer);
@@ -199,13 +219,11 @@ namespace EduEngine
 
 		GetCamera()->Update(timer);
 
-		static bool freeze = false;
-
 		XMMATRIX viewProjT = XMMatrixTranspose(GetCamera()->GetViewProjMatrix());
 
 		XMStoreFloat4x4(&m_PassData.ViewProj, viewProjT);
-		
-		if (!freeze)
+
+		if (!m_Freeze)
 		{
 			XMStoreFloat4x4(&m_PassData.World, XMMatrixTranspose(XMMatrixScaling(500, 500, 500)));
 			m_PassData.CameraPos = GetCamera()->GetPosition();
@@ -225,9 +243,6 @@ namespace EduEngine
 		}
 
 		m_PassBuffer->LoadData(GetMainContext(), m_PassData);
-
-		if (InputManager::GetInstance().IsKeyDown(DIK_F))
-			freeze = !freeze;
 	}
 
 	void MeshShadersDemo::OnRender(const Timer& timer)
@@ -248,8 +263,48 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
 		m_Pso.CommitAll(GetMainContext(), m_Binder.get());
-		
+
 		uint32_t groupCount = static_cast<uint32_t>(ceilf(m_InstanceData.MeshletCount / 32.0));
 		static_cast<ID3D12GraphicsCommandList6*>(GetMainContext()->GetCommandCtx()->GetCmdList())->DispatchMesh(groupCount, 1, 1);
+
+		if (m_CountVisibleMeshlets)
+		{
+			auto stateBefore = m_VisibleCountBuffer->GetState();
+			GetMainContext()->GetCommandCtx()->TransitionResource(m_VisibleCountBuffer.get(), D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+			GetMainContext()->GetCommandCtx()->GetCmdList()->CopyResource(m_VisibleCountReadback->GetD3D12Resource(), m_VisibleCountBuffer->GetD3D12Resource());
+			GetMainContext()->GetCommandCtx()->TransitionResource(m_VisibleCountBuffer.get(), stateBefore, true);
+		}
+
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::SetNextWindowPos({ 10, 10 }, ImGuiCond_Always);
+		ImGui::SetNextWindowSize({ 220, 120 }, ImGuiCond_Always);
+		ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+		ImGui::Checkbox("Freeze culling", &m_Freeze);
+		ImGui::Checkbox("Count active meshlets", &m_CountVisibleMeshlets);
+		ImGui::Separator();
+		ImGui::Text("Total meshlet count: %d", m_InstanceData.MeshletCount);
+
+		if (m_CountVisibleMeshlets)
+		{
+			static std::vector<uint32_t> visibleData;
+
+			if (visibleData.size() < groupCount)
+				visibleData.resize(groupCount);
+
+			m_VisibleCountReadback->ReadData(visibleData.data(), sizeof(uint32_t) * groupCount);
+
+			uint32_t visibleCount = 0;
+			for (size_t i = 0; i < groupCount; visibleCount += visibleData[i], i++);
+
+			ImGui::Text("Visible Meshlet Count: %d", visibleCount);
+		}
+
+		ImGui::End();
+
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
 	}
 }

@@ -42,6 +42,8 @@ StructuredBuffer<CullData> gCullData : register(t2);
 StructuredBuffer<uint> gMeshletVertices : register(t3);
 StructuredBuffer<uint> gMeshletIndices : register(t4);
 
+RWStructuredBuffer<uint> gVisibleCount : register(u0);
+
 cbuffer cbPass : register(b0)
 {
     float4x4 gWorld;
@@ -131,6 +133,8 @@ void AS(
     }
     
     uint groupCount = WaveActiveSum(visible);
+    gVisibleCount[gid] = groupCount;
+    
     DispatchMesh(groupCount, 1, 1, sVisibleMeshlets);
 }
 

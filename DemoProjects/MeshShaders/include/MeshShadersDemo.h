@@ -55,6 +55,8 @@ namespace EduEngine
 		std::shared_ptr<BufferD3D12> m_MeshletVertices;
 		std::shared_ptr<BufferD3D12> m_MeshletTris;
 		std::shared_ptr<BufferD3D12> m_InstanceBuffer;
+		std::shared_ptr<BufferD3D12> m_VisibleCountBuffer;
+		std::shared_ptr<ReadBackBufferD3D12> m_VisibleCountReadback;
 
 		MeshPipelineState m_Pso;
 		std::shared_ptr<ShaderBinder> m_Binder;
@@ -62,5 +64,7 @@ namespace EduEngine
 
 		Instance m_InstanceData;
 		Pass m_PassData;
+		bool m_Freeze = false;
+		bool m_CountVisibleMeshlets = false;
 	};
 }
