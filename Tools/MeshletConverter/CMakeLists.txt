@@ -2,6 +2,8 @@ set(LIBS_ROOT "${CMAKE_SOURCE_DIR}/Libraries")
 
 add_executable(MeshletConverter src/main.cpp)
 
+target_sources(MeshletConverter PRIVATE src/model.cpp)
+
 target_include_directories(MeshletConverter
     PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/include

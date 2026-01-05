@@ -3,9 +3,9 @@
 #include <fstream>
 #include <string>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+#include "Model.h"
+
+using namespace EduEngine::Tools;
 
 static constexpr uint32_t PROLOG = 'M' | ('S' << 8) | ('H' << 16) | ('L' << 24);
 
@@ -23,6 +23,15 @@ struct FileHeader
 	uint32_t triangles_count;
 };
 
+struct CullData
+{
+	float sphere_center[3];
+	float radius;
+	float cone_apex[3];
+	signed char cone_axis_s8[3];
+	signed char cone_cutoff_s8;
+};
+
 int main(int argc, void* argv[])
 {
 	if (argc <= 1)
@@ -33,45 +42,31 @@ int main(int argc, void* argv[])
 
 	const char* modelPath = static_cast<const char*>(argv[1]);
 
-	Assimp::Importer assimpImporter;
-	auto scene = assimpImporter.ReadFile(modelPath, aiProcessPreset_TargetRealtime_Fast | aiProcess_ConvertToLeftHanded);
-
-	if (!scene)
+	Model model;
+	if (!model.Load(modelPath))
 	{
 		printf("Failed to read file: %s\n", modelPath);
-		assimpImporter.FreeScene();
 		return 0;
-	}
-
-	std::vector<uint32_t> indices(scene->mMeshes[0]->mNumFaces * 3);
-
-	for (uint32_t i = 0; i < scene->mMeshes[0]->mNumFaces; i++)
-	{
-		auto face = scene->mMeshes[0]->mFaces[i];
-		assert(face.mNumIndices == 3);
-		indices[i * 3 + 0] = (face.mIndices[0]);
-		indices[i * 3 + 1] = (face.mIndices[1]);
-		indices[i * 3 + 2] = (face.mIndices[2]);
 	}
 
 	const size_t max_vertices = 64;
 	const size_t max_triangles = 126;
-	const float cone_weight = 0.0f;
+	const float cone_weight = 0.25f;
 
-	size_t max_meshlets = meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles);
+	size_t max_meshlets = meshopt_buildMeshletsBound(model.GetNumIndices(), max_vertices, max_triangles);
 	std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-	std::vector<uint32_t> meshlet_vertices(indices.size());
-	std::vector<uint8_t> meshlet_triangles(indices.size());
+	std::vector<uint32_t> meshlet_vertices(model.GetNumIndices());
+	std::vector<uint8_t> meshlet_triangles(model.GetNumIndices());
 
 	size_t meshlet_count = meshopt_buildMeshlets(
 		meshlets.data(),
 		meshlet_vertices.data(),
 		meshlet_triangles.data(),
-		indices.data(),
-		indices.size(),
-		&scene->mMeshes[0]->mVertices[0].x,
-		scene->mMeshes[0]->mNumVertices,
-		sizeof(aiVector3D),
+		model.GetIndices(),
+		model.GetNumIndices(),
+		model.GetVertices(),
+		model.GetNumVertices(),
+		model.GetVertexStride(),
 		max_vertices,
 		max_triangles,
 		cone_weight
@@ -87,6 +82,29 @@ int main(int argc, void* argv[])
 
 	for (auto& m : meshlets)
 		meshopt_optimizeMeshlet(&meshlet_vertices[m.vertex_offset], &meshlet_triangles[m.triangle_offset], m.triangle_count, m.vertex_count);
+
+	std::vector<CullData> cull_data(meshlet_count);
+
+	for (size_t i = 0; i < meshlets.size(); i++)
+	{
+		meshopt_Bounds bounds = meshopt_computeMeshletBounds(
+			&meshlet_vertices[meshlets[i].vertex_offset],
+			&meshlet_triangles[meshlets[i].triangle_offset],
+			meshlets[i].triangle_count,
+			model.GetVertices(),
+			model.GetNumVertices(),
+			sizeof(aiVector3D)
+		);
+
+		CullData c;
+		memcpy(c.sphere_center, bounds.center, sizeof(float) * 3);
+		memcpy(c.cone_apex, bounds.cone_apex, sizeof(float) * 3);
+		memcpy(c.cone_axis_s8, bounds.cone_axis_s8, sizeof(signed char) * 3);
+		c.radius = bounds.radius;
+		c.cone_cutoff_s8 = bounds.cone_cutoff_s8;
+
+		cull_data[i] = c;
+	}
 
 	for (auto& m : meshlets)
 		m.triangle_offset /= 3;
@@ -116,12 +134,11 @@ int main(int argc, void* argv[])
 
 	ostream.write(reinterpret_cast<char*>(&fh), sizeof(FileHeader));
 	ostream.write(reinterpret_cast<char*>(meshlets.data()), sizeof(meshopt_Meshlet) * meshlet_count);
+	ostream.write(reinterpret_cast<char*>(cull_data.data()), sizeof(CullData) * meshlet_count);
 	ostream.write(reinterpret_cast<char*>(meshlet_vertices.data()), sizeof(uint32_t) * meshlet_vertices.size());
 	ostream.write(reinterpret_cast<char*>(meshlet_triangles_packed.data()), sizeof(uint32_t) * meshlet_triangles_packed.size());
 
 	ostream.close();
-
-	assimpImporter.FreeScene();
 
 	printf("Successful create %s\n", outPath.c_str());
 	printf("Meshlet count: %d\nVertices count: %d\nTriangle count: %d\n", fh.meshlets_count, fh.vertices_count, fh.triangles_count);
