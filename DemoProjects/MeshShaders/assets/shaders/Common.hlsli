@@ -14,6 +14,42 @@ bool IsVisible(Instance instance)
     return true;
 }
 
+bool IsVisible(CullData cullData, float4x4 world)
+{
+    if ((gFlags & PASS_FLAG_MESHLET_CULLING) == 0)
+        return true;
+    
+    float3 center = mul(float4(cullData.SphereCenter, 1), world);
+    
+    [unroll]
+    for (int i = 0; i < 6; i++)
+    {
+        if (dot(gPlanes[i], float4(center, 1)) < -cullData.SphereRadius * gScale)
+            return false;
+    }
+    
+    int b0 = (cullData.ConeAxisCutoffPacked >> 0) & 0xFF;
+    int b1 = (cullData.ConeAxisCutoffPacked >> 8) & 0xFF;
+    int b2 = (cullData.ConeAxisCutoffPacked >> 16) & 0xFF;
+    int b3 = (cullData.ConeAxisCutoffPacked >> 24) & 0xFF;
+    
+    b0 = (b0 << 24) >> 24;
+    b1 = (b1 << 24) >> 24;
+    b2 = (b2 << 24) >> 24;
+    b3 = (b3 << 24) >> 24;
+    
+    float3 coneAxis = float3(b0 / 127.0f, b1 / 127.0f, b2 / 127.0f);
+    coneAxis = mul(float4(coneAxis, 0), world);
+    
+    float3 coneApex = mul(float4(cullData.ConeApex, 1), world).xyz;
+    float cutoffAngle = b3 / 127.0f;
+    
+    if (dot(coneAxis, normalize(coneApex - gCameraPos)) >= cutoffAngle)
+        return false;
+    
+    return true;
+}
+
 uint ComputeLod(float4 boundingSphere)
 {
     float3 d = boundingSphere.xyz - gCameraPos;
