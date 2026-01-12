@@ -16,12 +16,14 @@ target_include_directories(AsyncCompute
 
 target_link_libraries(AsyncCompute PRIVATE
     BaseDemo
-    InputSystem
 )
 
 add_custom_command(TARGET AsyncCompute POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_LIST_DIR}/assets"
+        "$<TARGET_FILE_DIR:AsyncCompute>/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/DemoProjects/BaseDemo/assets"
         "$<TARGET_FILE_DIR:AsyncCompute>/assets"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${LIBS_ROOT}/lib"

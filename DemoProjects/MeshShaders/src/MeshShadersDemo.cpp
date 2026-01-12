@@ -2,6 +2,7 @@
 
 #include <InputManager.h>
 #include <fstream>
+#include <DemoHelpers.h>
 
 namespace EduEngine
 {
@@ -139,55 +140,8 @@ namespace EduEngine
 
 	void MeshShadersDemo::OnUpdate(const Timer& timer)
 	{
-		XMVECTOR direction = XMLoadFloat3(&GetCamera()->GetLook());
-		XMVECTOR lrVector = XMLoadFloat3(&GetCamera()->GetRight());
-		XMVECTOR upVector = XMLoadFloat3(&GetCamera()->GetUp());
-
-		float moveScale = 100.0f;
-		static constexpr float rotateScale = 0.01f;
-		static constexpr float rotateLerpSpeed = 20.0f;
-
-		if (InputManager::GetInstance().IsKeyPressed(DIK_LSHIFT))
-			moveScale *= 2;
-
-		if (InputManager::GetInstance().IsKeyPressed(DIK_W))
-			GetCamera()->Move(direction * moveScale * timer.GetDeltaTime());
-		if (InputManager::GetInstance().IsKeyPressed(DIK_S))
-			GetCamera()->Move(-direction * moveScale * timer.GetDeltaTime());
-		if (InputManager::GetInstance().IsKeyPressed(DIK_A))
-			GetCamera()->Move(-lrVector * moveScale * timer.GetDeltaTime());
-		if (InputManager::GetInstance().IsKeyPressed(DIK_D))
-			GetCamera()->Move(lrVector * moveScale * timer.GetDeltaTime());
-		if (InputManager::GetInstance().IsKeyPressed(DIK_E))
-			GetCamera()->Move(upVector * moveScale * timer.GetDeltaTime());
-		if (InputManager::GetInstance().IsKeyPressed(DIK_Q))
-			GetCamera()->Move(-upVector * moveScale * timer.GetDeltaTime());
-
-		auto mouseState = InputManager::GetInstance().GetMouseState();
-
-		static XMFLOAT2 currentDelta = { 0, 0 };
-		static XMFLOAT2 targetDelta = { 0, 0 };
-
-		if ((mouseState.rgbButtons[1] & 0x80) != 0)
-		{
-			targetDelta.x += mouseState.lX * rotateScale;
-			targetDelta.y += mouseState.lY * rotateScale;
-		}
-
-		auto Lerp = [](float a, float b, float t) {
-			return a + (b - a) * t;
-			};
-
-		float prevX = currentDelta.x;
-		currentDelta.x = Lerp(currentDelta.x, targetDelta.x, timer.GetDeltaTime() * rotateLerpSpeed);
-		GetCamera()->RotateY(currentDelta.x - prevX);
-
-		float prevY = currentDelta.y;
-		currentDelta.y = Lerp(currentDelta.y, targetDelta.y, timer.GetDeltaTime() * rotateLerpSpeed);
-		GetCamera()->Pitch(currentDelta.y - prevY);
-
-		GetCamera()->Update(timer);
-
+		FreeCameraUpdate(timer, GetCamera(), 100.0f);
+		
 		//
 		// Update constant buffers data
 		//

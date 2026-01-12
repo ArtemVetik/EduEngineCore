@@ -15,12 +15,14 @@ target_include_directories(MultithreadingDemo
 
 target_link_libraries(MultithreadingDemo PRIVATE
     BaseDemo
-    InputSystem
 )
 
 add_custom_command(TARGET MultithreadingDemo POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_LIST_DIR}/assets"
+        "$<TARGET_FILE_DIR:MultithreadingDemo>/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/DemoProjects/BaseDemo/assets"
         "$<TARGET_FILE_DIR:MultithreadingDemo>/assets"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${LIBS_ROOT}/lib"

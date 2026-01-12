@@ -28,6 +28,7 @@ if(NOT ASSIMP_LIB)
 endif()
 
 target_link_libraries(BaseDemo PUBLIC
+    InputSystem
     RenderTechniques
     Graphics
     EduBinding

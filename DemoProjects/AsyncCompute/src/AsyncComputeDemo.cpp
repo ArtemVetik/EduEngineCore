@@ -1,6 +1,7 @@
 #include "AsyncComputeDemo.h"
 
 #include <InputManager.h>
+#include <DemoHelpers.h>
 
 namespace EduEngine
 {
@@ -90,50 +91,7 @@ namespace EduEngine
 
 	void AsyncComputeDemo::OnUpdate(const Timer& timer)
 	{
-		const float WHEEL_SCALE = 2.0f;
-		static float theta = 0;
-		static float phi = 0;
-		static float radius = 100.0f;
-		static float rotationScale = 0.01f;
-
-		auto mouseState = InputManager::GetInstance().GetMouseState();
-
-		if ((mouseState.rgbButtons[1] & 0x80) != 0)
-		{
-			theta -= mouseState.lX * rotationScale;
-			phi += mouseState.lY * rotationScale;
-			phi = std::clamp(phi, -XM_PIDIV2, XM_PIDIV2);
-		}
-
-		float deltaZoom = (float)mouseState.lZ / WHEEL_DELTA * WHEEL_SCALE;
-		radius = std::clamp(radius - deltaZoom, 2.0f, 200.0f);
-
-		XMVECTOR pos = XMVectorSet
-		(
-			cos(phi) * cos(theta) * radius,
-			sin(phi) * radius,
-			cos(phi) * sin(theta) * radius,
-			0.0f
-		);
-
-		XMVECTOR look = XMVector3Normalize(-pos);
-		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
-		if (fabs(XMVectorGetY(look)) > 0.99f)
-		{
-			up = XMVectorSet(1, 0, 0, 0);
-		}
-
-		XMVECTOR right = XMVector3Normalize(XMVector3Cross(up, look));
-		XMVECTOR realUp = XMVector3Cross(look, right);
-
-		XMFLOAT3 posF, lookF, rightF, upF;
-		XMStoreFloat3(&posF, pos);
-		XMStoreFloat3(&lookF, look);
-		XMStoreFloat3(&rightF, right);
-		XMStoreFloat3(&upF, realUp);
-
-		GetCamera()->Setup(posF, lookF, rightF, upF);
-		GetCamera()->Update(timer);
+		RotateAroundCenterCameraUpdate(timer, GetCamera());
 
 		m_GpuStats->Update(timer.GetDeltaTime());
 	}

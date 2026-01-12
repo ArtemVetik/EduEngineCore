@@ -15,7 +15,6 @@ target_include_directories(PBR
 
 target_link_libraries(PBR PRIVATE
     BaseDemo
-    InputSystem
 )
 
 add_custom_command(TARGET PBR POST_BUILD
