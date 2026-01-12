@@ -7,6 +7,7 @@ namespace EduEngine
 {
 	static const char* BaseModelPath = "assets\\Models\\bunny_LOD";
 	static const uint32 MaxDispatchGroups = 65536u;
+	static const float ModelScale = 100.0f;
 
 	struct CullData
 	{
@@ -22,21 +23,6 @@ namespace EduEngine
 		UINT DispatchInstanceOffset;
 		UINT DispatchInstanceCount;
 		XMUINT2 Padding;
-	};
-
-	struct PassData
-	{
-		XMFLOAT4X4 ViewProj;
-
-		XMFLOAT3 CameraPos;
-		UINT InstanceCount;
-
-		float InvTanHalfFovY;
-		UINT LodCount;
-		UINT RenderMode;
-		UINT Padding;
-
-		XMFLOAT4 Planes[6];
 	};
 
 	void MeshShadersDemo::OnStartUp()
@@ -101,6 +87,7 @@ namespace EduEngine
 			ReadMeshlet(meshletPath.c_str(), meshlets, cull_data, meshlet_vertices, meshlet_triangles_packed);
 
 			CreateBuffer(m_Meshlet[i], true, meshlets.size(), sizeof(Meshlet), meshlets.data(), L"m_Meshlet");
+			CreateBuffer(m_CullData[i], true, cull_data.size(), sizeof(CullData), cull_data.data(), L"m_CullData");
 			CreateBuffer(m_MeshletVertices[i], true, meshlet_vertices.size(), sizeof(uint32_t), meshlet_vertices.data(), L"m_MeshletVertices");
 			CreateBuffer(m_MeshletTris[i], true, meshlet_triangles_packed.size(), sizeof(uint32_t), meshlet_triangles_packed.data(), L"m_MeshletTris");
 
@@ -205,28 +192,32 @@ namespace EduEngine
 		// Update constant buffers data
 		//
 
-		PassData passData = {};
 		XMMATRIX viewProjT = XMMatrixTranspose(GetCamera()->GetViewProjMatrix());
-		XMStoreFloat4x4(&passData.ViewProj, viewProjT);
-		passData.CameraPos = GetCamera()->GetPosition();
-		passData.InstanceCount = m_InstanceCount;
-		passData.LodCount = m_LodCount;
-		passData.RenderMode = m_RenderMode;
-		passData.InvTanHalfFovY = 1.0f / tanf(GetCamera()->GetFovY() * 0.5f);
+		XMStoreFloat4x4(&m_PassData.ViewProj, viewProjT);
 
-		// -w <= x <= w | -> | L: (x >= -w), (x + w >= 0) | R: (x <= w), (w - x >= 0)
-		// -w <= y <= w | -> | B: (y >= -w), (y + w >= 0) | U: (y <= w), (w - y >= 0)
-		//  0 <= z <= w | -> | N: (z >= 0)				  | F: (z <= w), (w - z >= 0)
-		//
-		// x = r[0], y = r[1], z = r[2], w = r[3]
-		XMStoreFloat4(&passData.Planes[0], XMPlaneNormalize(viewProjT.r[3] + viewProjT.r[0])); // Left
-		XMStoreFloat4(&passData.Planes[1], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[0])); // Right
-		XMStoreFloat4(&passData.Planes[2], XMPlaneNormalize(viewProjT.r[3] + viewProjT.r[1])); // Bottom
-		XMStoreFloat4(&passData.Planes[3], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[1])); // Up
-		XMStoreFloat4(&passData.Planes[4], XMPlaneNormalize(viewProjT.r[2]));				   // Near
-		XMStoreFloat4(&passData.Planes[5], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[2])); // Far
+		m_PassData.InstanceCount = m_InstanceCount;
+		m_PassData.LodCount = m_LodCount;
+		m_PassData.Scale = ModelScale;
+		m_PassData.InvTanHalfFovY = 1.0f / tanf(GetCamera()->GetFovY() * 0.5f);
 
-		m_PassBuffer->LoadData(GetMainContext(), passData);
+		if (!m_FreezeCulling)
+		{
+			m_PassData.CameraPos = GetCamera()->GetPosition();
+
+			// -w <= x <= w | -> | L: (x >= -w), (x + w >= 0) | R: (x <= w), (w - x >= 0)
+			// -w <= y <= w | -> | B: (y >= -w), (y + w >= 0) | U: (y <= w), (w - y >= 0)
+			//  0 <= z <= w | -> | N: (z >= 0)				  | F: (z <= w), (w - z >= 0)
+			//
+			// x = r[0], y = r[1], z = r[2], w = r[3]
+			XMStoreFloat4(&m_PassData.Planes[0], XMPlaneNormalize(viewProjT.r[3] + viewProjT.r[0])); // Left
+			XMStoreFloat4(&m_PassData.Planes[1], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[0])); // Right
+			XMStoreFloat4(&m_PassData.Planes[2], XMPlaneNormalize(viewProjT.r[3] + viewProjT.r[1])); // Bottom
+			XMStoreFloat4(&m_PassData.Planes[3], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[1])); // Up
+			XMStoreFloat4(&m_PassData.Planes[4], XMPlaneNormalize(viewProjT.r[2]));					 // Near
+			XMStoreFloat4(&m_PassData.Planes[5], XMPlaneNormalize(viewProjT.r[3] - viewProjT.r[2])); // Far
+		}
+
+		m_PassBuffer->LoadData(GetMainContext(), m_PassData);
 	}
 
 	void MeshShadersDemo::OnRender(const Timer& timer)
@@ -268,9 +259,9 @@ namespace EduEngine
 		ImGui::NewFrame();
 
 		ImGui::SetNextWindowPos({ 10, 10 }, ImGuiCond_Always);
-		ImGui::SetNextWindowSize({ 280, 150 }, ImGuiCond_Always);
+		ImGui::SetNextWindowSize({ 280, 180 }, ImGuiCond_Always);
 		ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-		
+
 		if (ImGui::InputInt("Width", (int*)&m_GridSize.x) ||
 			ImGui::InputInt("Height", (int*)&m_GridSize.y) ||
 			ImGui::InputInt("Depth", (int*)&m_GridSize.z))
@@ -281,7 +272,20 @@ namespace EduEngine
 			"Lods",
 		};
 
-		ImGui::Combo("Render Mode", (int*)&m_RenderMode, items, IM_ARRAYSIZE(items));
+		ImGui::Combo("Render Mode", (int*)&m_PassData.RenderMode, items, IM_ARRAYSIZE(items));
+		
+		if (ImGui::Checkbox("Meshlet Culling", &m_UseMeshletCulling))
+		{
+			if (m_UseMeshletCulling)
+				m_PassData.Flags |= PASS_FLAG_MESHLET_CULLING;
+			else
+				m_PassData.Flags &= ~PASS_FLAG_MESHLET_CULLING;
+
+			m_FreezeCulling = false;
+		}
+
+		if (m_UseMeshletCulling)
+			ImGui::Checkbox("Freeze Culling", &m_FreezeCulling);
 
 		ImGui::End();
 
@@ -295,7 +299,6 @@ namespace EduEngine
 		uint32 h = m_GridSize.y;
 		uint32 d = m_GridSize.z;
 		uint32 spacing = 0;
-		float scale = 100.0f;
 
 		m_InstanceCount = w * h * d;
 
@@ -324,8 +327,7 @@ namespace EduEngine
 		float boundingRadius;
 		m_Model[0]->GetBoundingSphere(boundingCenter, boundingRadius);
 
-		XMMATRIX scaleMatrix = XMMatrixScaling(scale, scale, scale);
-		boundingRadius *= scale;
+		boundingRadius *= ModelScale;
 
 		float diameter = boundingRadius * 2;
 		float step = diameter + spacing;
@@ -348,7 +350,7 @@ namespace EduEngine
 					XMVECTOR instancePos = XMVectorSet(x * step, y * step, z * step, 1.0f);
 					instancePos = XMVectorSubtract(instancePos, extends);
 
-					XMMATRIX instanceWorld = XMMatrixMultiply(XMMatrixScaling(scale, scale, scale), XMMatrixTranslationFromVector(instancePos));
+					XMMATRIX instanceWorld = XMMatrixMultiply(XMMatrixScaling(ModelScale, ModelScale, ModelScale), XMMatrixTranslationFromVector(instancePos));
 
 					XMVECTOR spherePos = XMVectorSet(boundingCenter.x, boundingCenter.y, boundingCenter.z, 1);
 					spherePos = XMVector3TransformCoord(spherePos, instanceWorld);
@@ -382,6 +384,7 @@ namespace EduEngine
 		{
 			m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gVertices", m_Model[i]->GetVertexBufferShared(), 0, i);
 			m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshlets", m_Meshlet[i], 0, i);
+			m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gCullData", m_CullData[i], 0, i);
 			m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshletVertices", m_MeshletVertices[i], 0, i);
 			m_Binder->BindResource(EDU_SHADER_TYPE_MESH, "gMeshletIndices", m_MeshletTris[i], 0, i);
 		}

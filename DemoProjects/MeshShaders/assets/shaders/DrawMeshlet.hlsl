@@ -113,8 +113,6 @@ void MS(
     
     uint instanceOffset = meshletInstanceId % msPayload.InstanceCount[lodLevel];
     uint meshletId = meshletInstanceId / msPayload.InstanceCount[lodLevel];
-   
-    Meshlet m = gMeshlets[lodLevel][meshletId];
     
     uint instanceCount = 1;
     if (meshletId == gMeshletInfoPacked[lodLevel].x - 1)
@@ -124,7 +122,16 @@ void MS(
 
         instanceCount = min(msPayload.InstanceCount[lodLevel] - instanceOffset, packCount);
     }
+    else
+    {
+        uint instanceId = msPayload.InstanceList[msPayload.InstanceOffset[lodLevel] + instanceOffset];
+        Instance instance = gInstances[instanceId];
+        
+        if (!IsVisible(gCullData[lodLevel][meshletId], instance.World))
+            instanceCount = 0;
+    }
     
+    Meshlet m = gMeshlets[lodLevel][meshletId];
     SetMeshOutputCounts(m.VertexCount * instanceCount, m.TriangleCount * instanceCount);
     
     if (tid < m.VertexCount * instanceCount)

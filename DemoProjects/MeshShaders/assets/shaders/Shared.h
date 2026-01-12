@@ -31,3 +31,5 @@ struct Meshlet
     uint VertexCount;
     uint TriangleCount;
 };
+
+#define PASS_FLAG_MESHLET_CULLING (1 << 0)

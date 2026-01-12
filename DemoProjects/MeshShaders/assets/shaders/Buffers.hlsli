@@ -8,11 +8,20 @@ struct Vertex
     float2 TexC;
 };
 
+struct CullData
+{
+    float3 SphereCenter;
+    float SphereRadius;
+    float3 ConeApex;
+    uint ConeAxisCutoffPacked;
+};
+
 StructuredBuffer<Vertex> gVertices[MAX_LOD_LEVEL] : register(t0, space0);
 StructuredBuffer<Meshlet> gMeshlets[MAX_LOD_LEVEL] : register(t0, space1);
-StructuredBuffer<uint> gMeshletVertices[MAX_LOD_LEVEL] : register(t0, space2);
-StructuredBuffer<uint> gMeshletIndices[MAX_LOD_LEVEL] : register(t0, space3);
-StructuredBuffer<Instance> gInstances : register(t0, space4);
+StructuredBuffer<CullData> gCullData[MAX_LOD_LEVEL] : register(t0, space2);
+StructuredBuffer<uint> gMeshletVertices[MAX_LOD_LEVEL] : register(t0, space3);
+StructuredBuffer<uint> gMeshletIndices[MAX_LOD_LEVEL] : register(t0, space4);
+StructuredBuffer<Instance> gInstances : register(t0, space5);
 
 cbuffer cbPass : register(b0)
 {
@@ -24,7 +33,10 @@ cbuffer cbPass : register(b0)
     float gInvTanHalfFovY; // 1.0 / tan(fovY * 0.5)
     uint gLodCount;
     uint gRenderMode;
-    uint gPadding0;
+    float gScale;
+    
+    uint gFlags;
+    uint3 gPadding0;
     
     float4 gPlanes[6];
 }

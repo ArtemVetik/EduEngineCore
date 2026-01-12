@@ -10,6 +10,24 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
+	struct PassData
+	{
+		XMFLOAT4X4 ViewProj;
+
+		XMFLOAT3 CameraPos = { 0.0f, 0.0f, 0.0f };
+		UINT InstanceCount = 0;
+
+		float InvTanHalfFovY = 0.0f;
+		UINT LodCount = 0;
+		UINT RenderMode = 0;
+		float Scale = 0.0f;
+
+		UINT Flags = 0;
+		XMUINT3 Padding = { 0, 0, 0 };
+
+		XMFLOAT4 Planes[6];
+	};
+
 	class MeshShadersDemo : public RenderEngine
 	{
 	protected:
@@ -29,6 +47,7 @@ namespace EduEngine
 	private:
 		std::unique_ptr<Mesh> m_Model[MAX_LOD_LEVEL];
 		std::shared_ptr<BufferD3D12> m_Meshlet[MAX_LOD_LEVEL];
+		std::shared_ptr<BufferD3D12> m_CullData[MAX_LOD_LEVEL];
 		std::shared_ptr<BufferD3D12> m_MeshletVertices[MAX_LOD_LEVEL];
 		std::shared_ptr<BufferD3D12> m_MeshletTris[MAX_LOD_LEVEL];
 		std::shared_ptr<BufferD3D12> m_MeshletData;
@@ -43,6 +62,9 @@ namespace EduEngine
 		uint32 m_LodCount;
 		uint32 m_InstanceCount;
 		XMUINT3 m_GridSize;
-		UINT m_RenderMode = 0;
+		bool m_UseMeshletCulling = false;
+		bool m_FreezeCulling = false;
+
+		PassData m_PassData = {};
 	};
 }
