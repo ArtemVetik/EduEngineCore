@@ -23,6 +23,7 @@ namespace EduEngine::EduBinding
 			std::shared_ptr<ResourceViewD3D12> Mutable;
 			std::shared_ptr<DynamicUploadBuffer> Dynamic;
 		};
+		uint32 Count;
 		CachedDescriptorType Type;
 	};
 
@@ -119,7 +120,11 @@ namespace EduEngine::EduBinding
 
 		void Build(ShaderD3D12** shaders, uint8 shadersNum);
 
-		void BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource, uint32 descriptorOffset = 0);
+		void BindResource(EDU_SHADER_TYPE					 shaderType,
+						  const char*						 name,
+						  std::shared_ptr<ResourceViewD3D12> resource,
+						  uint32							 srcDescriptorOffset = 0,
+						  uint32							 dstDescriptorOffset = 0);
 		void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<DynamicUploadBuffer> resource);
 		void DryMutableResources();
 

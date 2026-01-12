@@ -65,6 +65,8 @@ namespace EduEngine::EduBinding
 		case EDU_SHADER_TYPE_GEOMETRY: return "GEOMETRY";
 		case EDU_SHADER_TYPE_PIXEL: return "PIXEL";
 		case EDU_SHADER_TYPE_COMPUTE: return "COMPUTE";
+		case EDU_SHADER_TYPE_AMPLIFICATION: return "AMPLIFICATION";
+		case EDU_SHADER_TYPE_MESH: return "MESH";
 		default: return "??DEFAULT??";
 		}
 	};

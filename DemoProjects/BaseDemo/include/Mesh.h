@@ -9,10 +9,16 @@
 
 namespace EduEngine
 {
+	enum MESH_LOAD_FLAGS : UINT
+	{
+		MESH_LOAD_FLAG_CREATE_VERTEX_SRV = 1 << 0,
+		MESH_LOAD_FLAG_CREATE_INDEX_SRV = 1 << 1,
+		MESH_LOAD_FLAG_GEN_BOUNDING_BOX = 1 << 2,
+	};
+
 	struct MeshLoadDesc
 	{
-		bool CreateVertexSRV = false;
-		bool CreateIndexSRV = false;
+		UINT Flags = 0;
 	};
 
 	class Mesh
@@ -21,7 +27,7 @@ namespace EduEngine
 		Mesh(RenderDeviceD3D12* device, DeviceContext* context, const char* filePath);
 		~Mesh();
 
-		void Load(const MeshLoadDesc* loadDesc = nullptr);
+		void Load(const MeshLoadDesc loadDesc = MeshLoadDesc{});
 		void Free();
 
 		void UpdateFilePath(const char* filePath);
@@ -38,7 +44,8 @@ namespace EduEngine
 		std::shared_ptr<VertexBufferD3D12> GetVertexBufferShared() const { return m_VertexBuffer; }
 		std::shared_ptr<IndexBufferD3D12> GetIndexBufferShared() const { return m_IndexBuffer; }
 
-		const aiMesh* GetAiMesh() const { return m_Scene->mMeshes[0]; }
+		void GetBoundingBox(aiVector3D& min, aiVector3D& max) const;
+		void GetBoundingSphere(aiVector3D& center, float& radius) const;
 
 	private:
 		RenderDeviceD3D12* m_Device;

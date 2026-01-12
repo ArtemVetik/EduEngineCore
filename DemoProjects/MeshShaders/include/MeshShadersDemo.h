@@ -4,43 +4,12 @@
 #include <Mesh.h>
 #include <MeshPipelineState.h>
 
+#include "../assets/shaders/Shared.h"
+
 using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	struct Meshlet
-	{
-		uint32 VertexOffset;
-		uint32 TriangleOffset;
-		uint32 VertexCount;
-		uint32 TriangleCount;
-	};
-
-	struct CullData
-	{
-		float sphere_center[3];
-		float radius;
-		float cone_apex[3];
-		signed char cone_axis_s8[3];
-		signed char cone_cutoff_s8;
-	};
-
-	struct Pass
-	{
-		XMFLOAT4X4 World;
-		XMFLOAT4X4 ViewProj;
-		XMFLOAT3 CameraPos;
-		float Scale;
-		XMFLOAT4 Planes[6];
-	};
-
-	struct Instance
-	{
-		UINT MeshletCount = 0;
-		UINT Flags = 0;
-		XMUINT2 Padding = { 0, 0 };
-	};
-
 	class MeshShadersDemo : public RenderEngine
 	{
 	protected:
@@ -49,22 +18,31 @@ namespace EduEngine
 		void OnRender(const Timer& timer) override;
 
 	private:
-		std::unique_ptr<Mesh> m_Model;
-		std::shared_ptr<BufferD3D12> m_Meshlet;
-		std::shared_ptr<BufferD3D12> m_CullData;
-		std::shared_ptr<BufferD3D12> m_MeshletVertices;
-		std::shared_ptr<BufferD3D12> m_MeshletTris;
-		std::shared_ptr<BufferD3D12> m_InstanceBuffer;
-		std::shared_ptr<BufferD3D12> m_VisibleCountBuffer;
-		std::shared_ptr<ReadBackBufferD3D12> m_VisibleCountReadback;
+		void BuildInstanceBuffer();
+		void BindResources();
+		bool ReadMeshlet(const char*				   filePath,
+						 std::vector<Meshlet>&		   meshlets,
+						 std::vector<struct CullData>& cull_data,
+						 std::vector<uint32_t>&		   meshlet_vertices,
+						 std::vector<uint32_t>&		   meshlet_triangles_packed);
 
-		MeshPipelineState m_Pso;
+	private:
+		std::unique_ptr<Mesh> m_Model[MAX_LOD_LEVEL];
+		std::shared_ptr<BufferD3D12> m_Meshlet[MAX_LOD_LEVEL];
+		std::shared_ptr<BufferD3D12> m_MeshletVertices[MAX_LOD_LEVEL];
+		std::shared_ptr<BufferD3D12> m_MeshletTris[MAX_LOD_LEVEL];
+		std::shared_ptr<BufferD3D12> m_MeshletData;
+		std::shared_ptr<BufferD3D12> m_InstanceBuffer;
+
 		std::shared_ptr<ShaderBinder> m_Binder;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
+		std::shared_ptr<DynamicUploadBuffer> m_DispatchDataBuffer;
 
-		Instance m_InstanceData;
-		Pass m_PassData;
-		bool m_Freeze = false;
-		bool m_CountVisibleMeshlets = false;
+		MeshPipelineState m_Pso;
+
+		uint32 m_LodCount;
+		uint32 m_InstanceCount;
+		XMUINT3 m_GridSize;
+		UINT m_RenderMode = 0;
 	};
 }

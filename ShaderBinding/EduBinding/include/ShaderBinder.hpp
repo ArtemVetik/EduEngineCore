@@ -28,9 +28,9 @@ namespace EduEngine::EduBinding
 
 	template<typename TOnRootView, typename TOnDescriptor>
 	__forceinline void ShaderBinder::ProcessRootParams(SHADER_RESOURCE_TYPE resType,
-		EDU_SHADER_TYPE	shaderType,
-		TOnRootView			OnRootView,
-		TOnDescriptor		OnDescriptor)
+													   EDU_SHADER_TYPE		shaderType,
+													   TOnRootView			OnRootView,
+													   TOnDescriptor		OnDescriptor)
 	{
 		uint16 resNum = 0;
 		CachedRootParam* params = GetRootParams(resType, shaderType, resNum);
@@ -52,12 +52,15 @@ namespace EduEngine::EduBinding
 			}
 			else
 			{
+				uint16 offset = 0;
 				for (uint16 i = 0; i < rootParam.DescriptorTable.DescriptorsNum; i++)
 				{
 					CachedDescriptor& descriptor = rootParam.DescriptorTable.pDescriptors[i];
 					
-					if (OnDescriptor(&rootParam, &descriptor, i))
+					if (OnDescriptor(&rootParam, &descriptor, offset))
 						return;
+
+					offset += descriptor.Count;
 				}
 			}
 		}

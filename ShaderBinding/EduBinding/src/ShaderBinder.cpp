@@ -63,24 +63,28 @@ namespace EduEngine::EduBinding
 				auto descriptor = new (GetDescriptor(descriptorsOffset++)) CachedDescriptor();
 				descriptor->Name = texSrv.GetName();
 				descriptor->Type = CachedDescriptorType::SRV;
+				descriptor->Count = texSrv.GetBindCount();
 			},
 			[&](ShaderResourceInfo& buffSrv)
 			{
 				auto descriptor = new (GetDescriptor(descriptorsOffset++)) CachedDescriptor();
 				descriptor->Name = buffSrv.GetName();
 				descriptor->Type = CachedDescriptorType::SRV;
+				descriptor->Count = buffSrv.GetBindCount();
 			},
 			[&](ShaderResourceInfo& texUAV)
 			{
 				auto descriptor = new (GetDescriptor(descriptorsOffset++)) CachedDescriptor();
 				descriptor->Name = texUAV.GetName();
 				descriptor->Type = CachedDescriptorType::UAV;
+				descriptor->Count = texUAV.GetBindCount();
 			},
 			[&](ShaderResourceInfo& buffUAV)
 			{
 				auto descriptor = new (GetDescriptor(descriptorsOffset++)) CachedDescriptor();
 				descriptor->Name = buffUAV.GetName();
 				descriptor->Type = CachedDescriptorType::UAV;
+				descriptor->Count = buffUAV.GetBindCount();
 			},
 			[&](uint8 cbNum, uint8 descriptorsNum) // OnShaderEnd
 			{
@@ -100,7 +104,8 @@ namespace EduEngine::EduBinding
 					if (resType != SHADER_RESOURCE_TYPE_DYNAMIC)
 					{
 						rootParam->DescriptorTable.GPUHeapOffset = totalMutableDescriptors;
-						totalMutableDescriptors += descriptorsNum;
+						for (uint16 di = 0; di < rootParam->DescriptorTable.DescriptorsNum; di++)
+							totalMutableDescriptors += rootParam->DescriptorTable.pDescriptors[di].Count;
 					}
 					else
 					{
@@ -117,7 +122,11 @@ namespace EduEngine::EduBinding
 			m_MutableHeapSpace = std::move(m_Device->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, totalMutableDescriptors));
 	}
 
-	void ShaderBinder::BindResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<ResourceViewD3D12> resource, uint32 descriptorOffset)
+	void ShaderBinder::BindResource(EDU_SHADER_TYPE					shaderType,
+								 const char*						name,
+								 std::shared_ptr<ResourceViewD3D12> resource,
+								 uint32								srcDescriptorOffset,
+								 uint32								dstDescriptorOffset)
 	{
 		ProcessRootParams(SHADER_RESOURCE_TYPE_MUTABLE, shaderType,
 			[&](CachedRootParam* param) // OnRootView
@@ -139,10 +148,13 @@ namespace EduEngine::EduBinding
 					descriptor->Mutable = resource;
 
 					auto srcHandle = descriptor->Type == CachedDescriptorType::SRV ?
-						descriptor->Mutable->GetSRVView()->GetCpuHandle(descriptorOffset) :
-						descriptor->Mutable->GetUAVView()->GetCpuHandle(descriptorOffset);
+						descriptor->Mutable->GetSRVView()->GetCpuHandle(srcDescriptorOffset) :
+						descriptor->Mutable->GetUAVView()->GetCpuHandle(srcDescriptorOffset);
 
-					auto dstHandle = m_MutableHeapSpace.GetCpuHandle(param->DescriptorTable.GPUHeapOffset + offset);
+					VERIFY_EXPR(dstDescriptorOffset < descriptor->Count,
+						"dstDescriptorOffset (", dstDescriptorOffset, ") must be less than descriptors count (", descriptor->Count, ")");
+
+					auto dstHandle = m_MutableHeapSpace.GetCpuHandle(param->DescriptorTable.GPUHeapOffset + offset + dstDescriptorOffset);
 
 					m_Device->GetD3D12Device()->CopyDescriptorsSimple(1, dstHandle, srcHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
@@ -298,9 +310,10 @@ namespace EduEngine::EduBinding
 			{
 				printf("\t%s\tDynamic: %d\t",
 					descriptor->Name, param->IsDynamic());
-				printf("Resource: %p\n", ((param->IsDynamic()) ?
+				printf("Resource: %p\t", ((param->IsDynamic()) ?
 					(void*)descriptor->Dynamic.get() :
 					(void*)descriptor->Mutable.get()));
+				printf("Size: %u\n", descriptor->Count);
 			});
 	}
 #endif

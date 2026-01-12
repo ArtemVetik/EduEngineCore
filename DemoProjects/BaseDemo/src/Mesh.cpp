@@ -22,7 +22,7 @@ namespace EduEngine
 		m_IndexBuffer.reset();
 	}
 
-	void Mesh::Load(const MeshLoadDesc* loadDesc)
+	void Mesh::Load(const MeshLoadDesc loadDesc)
 	{
 		if (m_RefCount > 0)
 		{
@@ -30,7 +30,12 @@ namespace EduEngine
 			return;
 		}
 
-		m_Scene = m_AssimpImporter.ReadFile(m_FilePath, aiProcessPreset_TargetRealtime_Fast | aiProcess_ConvertToLeftHanded);
+		UINT flags = aiProcessPreset_TargetRealtime_Fast | aiProcess_ConvertToLeftHanded;
+
+		if (loadDesc.Flags & MESH_LOAD_FLAG_GEN_BOUNDING_BOX)
+			flags |= aiProcess_GenBoundingBoxes;
+
+		m_Scene = m_AssimpImporter.ReadFile(m_FilePath, flags);
 
 		MeshData meshData;
 		for (int i = 0; i < m_Scene->mMeshes[0]->mNumVertices; i++)
@@ -63,31 +68,29 @@ namespace EduEngine
 		m_IndexBuffer = std::make_shared<IndexBufferD3D12>(m_Device, m_Context, meshData.GetIndices16().data(),
 			sizeof(uint16), (UINT)meshData.GetIndices16().size(), DXGI_FORMAT_R16_UINT);
 
-		if (loadDesc)
+
+		if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_VERTEX_SRV)
 		{
-			if (loadDesc->CreateVertexSRV)
-			{
-				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
-				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-				srvDesc.Buffer.FirstElement = 0;
-				srvDesc.Buffer.NumElements = meshData.Vertices.size();
-				srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			srvDesc.Buffer.FirstElement = 0;
+			srvDesc.Buffer.NumElements = meshData.Vertices.size();
+			srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
 
-				m_VertexBuffer->CreateSRV(&srvDesc);
-			}
+			m_VertexBuffer->CreateSRV(&srvDesc);
+		}
 
-			if (loadDesc->CreateIndexSRV)
-			{
-				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
-				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-				srvDesc.Buffer.FirstElement = 0;
-				srvDesc.Buffer.NumElements = meshData.GetIndices16().size();
-				srvDesc.Buffer.StructureByteStride = sizeof(uint16);
+		if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_INDEX_SRV)
+		{
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			srvDesc.Buffer.FirstElement = 0;
+			srvDesc.Buffer.NumElements = meshData.GetIndices16().size();
+			srvDesc.Buffer.StructureByteStride = sizeof(uint16);
 
-				m_IndexBuffer->CreateSRV(&srvDesc);
-			}
+			m_IndexBuffer->CreateSRV(&srvDesc);
 		}
 
 		m_RefCount = 1;
@@ -124,5 +127,19 @@ namespace EduEngine
 	int Mesh::GetIndexCount()
 	{
 		return m_Scene->mMeshes[0]->mNumFaces * 3;
+	}
+
+	void Mesh::GetBoundingBox(aiVector3D& min, aiVector3D& max) const
+	{
+		min = m_Scene->mMeshes[0]->mAABB.mMin;
+		max = m_Scene->mMeshes[0]->mAABB.mMax;
+	}
+
+	void Mesh::GetBoundingSphere(aiVector3D& center, float& radius) const
+	{
+		aiAABB& aabb = m_Scene->mMeshes[0]->mAABB;
+
+		center = (aabb.mMin + aabb.mMax) * 0.5f;
+		radius = ((aabb.mMax - aabb.mMin) * 0.5f).Length();
 	}
 }
