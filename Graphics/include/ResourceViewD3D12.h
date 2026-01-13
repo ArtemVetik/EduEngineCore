@@ -20,6 +20,8 @@ namespace EduEngine
 
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(uint32 offset = 0) const { return m_Allocation.GetGpuHandle(offset); }
 
+		UINT64 GetGpuHeapIndex(uint64 offset = 0) const { return m_Allocation.GetGpuHeapIndex(offset); }
+
 		bool OnCpu() const { return m_OnCpu; }
 	};
 

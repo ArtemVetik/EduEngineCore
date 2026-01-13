@@ -27,6 +27,7 @@ namespace EduEngine
 								 ID3D12DescriptorHeap*		 heap,
 								 D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
 								 D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle,
+								 uint64						 heapOffset,
 								 uint32						 nHandles,
 								 uint16						 allocationManagerId);
 
@@ -50,6 +51,7 @@ namespace EduEngine
 		bool IsShaderVisible() const { return m_FirstGpuHandle.ptr != 0; }
 		size_t GetAllocationManagerId() { return m_AllocationManagerId; }
 		uint16 GetDescriptorSize() const { return m_DescriptorSize; }
+		uint64 GetGpuHeapIndex(uint64 offset = 0) const { return m_HeapOffset + offset; }
 
 		static constexpr uint16 InvalidAllocationMgrId = 0xFFFF;
 
@@ -64,5 +66,6 @@ namespace EduEngine
 		uint32 m_NumHandles = 0;
 		uint16 m_AllocationManagerId = static_cast<uint16>(-1);
 		uint16 m_DescriptorSize = 0;
+		uint64 m_HeapOffset;
 	};
 }

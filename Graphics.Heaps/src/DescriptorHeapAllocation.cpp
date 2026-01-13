@@ -6,7 +6,8 @@ namespace EduEngine
 	DescriptorHeapAllocation::DescriptorHeapAllocation() : 
         m_pDescriptorHeap{ nullptr },
         m_NumHandles{ 1 },
-        m_DescriptorSize{ 0 }
+        m_DescriptorSize{ 0 },
+        m_HeapOffset{ 0 }
     {
         m_FirstCpuHandle.ptr = 0;
         m_FirstGpuHandle.ptr = 0;
@@ -16,10 +17,12 @@ namespace EduEngine
                                                        ID3D12DescriptorHeap*       heap,
                                                        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
                                                        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle,
+                                                       uint64                      heapOffset,
                                                        uint32                      nHandles,
                                                        uint16                      allocationManagerId) :
         m_FirstCpuHandle{ cpuHandle },
         m_FirstGpuHandle{ gpuHandle },
+        m_HeapOffset{ heapOffset },
         m_pAllocator{ &allocator },
         m_pDescriptorHeap{ heap },
         m_NumHandles{ nHandles },
@@ -35,6 +38,7 @@ namespace EduEngine
     DescriptorHeapAllocation::DescriptorHeapAllocation(DescriptorHeapAllocation&& allocation) noexcept :
         m_FirstCpuHandle{ std::move(allocation.m_FirstCpuHandle) },
         m_FirstGpuHandle{ std::move(allocation.m_FirstGpuHandle) },
+        m_HeapOffset{ std::move(allocation.m_HeapOffset) },
         m_pAllocator{ std::move(allocation.m_pAllocator) },
         m_pDescriptorHeap{ std::move(allocation.m_pDescriptorHeap) },
         m_NumHandles{ std::move(allocation.m_NumHandles) },
@@ -48,6 +52,7 @@ namespace EduEngine
     {
         m_FirstCpuHandle = std::move(allocation.m_FirstCpuHandle);
         m_FirstGpuHandle = std::move(allocation.m_FirstGpuHandle);
+        m_HeapOffset = std::move(allocation.m_HeapOffset);
         m_NumHandles = std::move(allocation.m_NumHandles);
         m_pAllocator = std::move(allocation.m_pAllocator);
         m_AllocationManagerId = std::move(allocation.m_AllocationManagerId);
@@ -69,6 +74,7 @@ namespace EduEngine
     {
         m_FirstCpuHandle.ptr = 0;
         m_FirstGpuHandle.ptr = 0;
+        m_HeapOffset = 0;
         m_pAllocator = nullptr;
         m_pDescriptorHeap = nullptr;
         m_NumHandles = 0;

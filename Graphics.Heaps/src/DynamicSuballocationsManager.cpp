@@ -49,6 +49,7 @@ namespace EduEngine
             currentSuballocation.GetDescriptorHeap(),
             currentSuballocation.GetCpuHandle(m_CurrentSuballocationOffset),
             currentSuballocation.GetGpuHandle(m_CurrentSuballocationOffset),
+            currentSuballocation.GetGpuHeapIndex(m_CurrentSuballocationOffset),
             count,
             static_cast<uint16>(managerId)
         );

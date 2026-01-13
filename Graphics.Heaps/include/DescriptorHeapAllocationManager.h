@@ -42,6 +42,7 @@ namespace EduEngine
 
         D3D12_CPU_DESCRIPTOR_HANDLE m_FirstCPUHandle = { 0 };
         D3D12_GPU_DESCRIPTOR_HANDLE m_FirstGPUHandle = { 0 };
+        UINT64 m_HeapOffset = { 0 };
 
         UINT m_DescriptorSize = 0;
 

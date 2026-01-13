@@ -32,6 +32,12 @@ namespace EduEngine::EduBinding
 			return;
 		}
 
+		D3D12_FEATURE_DATA_D3D12_OPTIONS opts = {};
+		if (FAILED(device->GetD3D12Device()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &opts, sizeof(opts))))
+		{
+			ASSERT_FAILED("Failed to fetch D3D12_FEATURE_D3D12_OPTIONS");
+		}
+
 		auto CreateTableRange = [](ShaderResourceInfo& resInfo, D3D12_DESCRIPTOR_RANGE_TYPE rangeType)
 			{
 				D3D12_DESCRIPTOR_RANGE1 range;
@@ -119,9 +125,11 @@ namespace EduEngine::EduBinding
 
 		rootSigDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 		rootSigDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-#if 0
-		rootSigDesc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
-#endif
+		if (opts.ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3)
+			rootSigDesc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+		else
+			LOG_ERROR("Device doesn't support D3D12_RESOURCE_BINDING_TIER_3. It's not possible to use bindless rendering");
+
 		rootSigDesc.Desc_1_1.NumStaticSamplers = _countof(staticSamplers);
 		rootSigDesc.Desc_1_1.pStaticSamplers = staticSamplers;
 		rootSigDesc.Desc_1_1.pParameters = params;
