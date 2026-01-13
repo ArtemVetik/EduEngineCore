@@ -5,7 +5,8 @@ namespace EduEngine
 	Texture::Texture() :
 		m_Device(nullptr),
 		m_Texture(nullptr),
-		m_GpuAllocation{}
+		m_GpuAllocation{},
+		m_LoadDesc{}
 	{ }
 
 	Texture::~Texture()
@@ -16,20 +17,24 @@ namespace EduEngine
 	void Texture::Load(const wchar_t* filePath,
 					   RenderDeviceD3D12* device,
 					   DeviceContext* context,
-					   D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc,
+					   const TextureLoadDesc& loadDesc,
 					   wchar_t* name)
 	{
 		m_Device = device;
+		m_LoadDesc = loadDesc;
+
 		m_Texture = std::make_shared<TextureD3D12>(m_Device, context, std::wstring(filePath), QueueId::Direct);
+		if (name)
+			m_Texture->SetName(name);
 
 		auto texDesc = m_Texture->GetD3D12Resource()->GetDesc();
 		bool cubeMap = texDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && texDesc.DepthOrArraySize == 6;
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 
-		if (overrideDesc)
+		if (loadDesc.OverrideDesc)
 		{
-			srvDesc = *overrideDesc;
+			srvDesc = *loadDesc.OverrideDesc;
 			srvDesc.Format = m_Texture->GetD3D12Resource()->GetDesc().Format;
 		}
 		else
@@ -52,15 +57,21 @@ namespace EduEngine
 			}
 		}
 
-		m_Texture->CreateSRV(&srvDesc, true);
-		if (name)
-			m_Texture->SetName(name);
+		if (loadDesc.Flags & TextureLoadDesc::CREATE_SRV)
+			m_Texture->CreateSRV(&srvDesc, loadDesc.OnCPU);
 
 		m_GpuAllocation.Reset();
 	}
 
 	void* Texture::GetGPUPtr()
 	{
+		VERIFY_EXPR(m_LoadDesc.Flags & TextureLoadDesc::CREATE_SRV, "");
+
+		if (m_LoadDesc.OnCPU == false)
+		{
+			return reinterpret_cast<void*>(m_Texture->GetSRVView()->GetGpuHandle().ptr);
+		}
+
 		if (m_GpuAllocation.IsNull())
 		{
 			m_GpuAllocation = m_Device->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);

@@ -22,13 +22,6 @@ SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 
-Texture2D gAlbedo : register(t0);
-Texture2D gMetallicRoughness : register(t1);
-Texture2D gAO : register(t2);
-Texture2D gNormalMap : register(t3);
-TextureCube gIrradianceMap : register(t4);
-TextureCube gPrefilteredMap : register(t5);
-Texture2D gBRDFLut : register(t6);
 StructuredBuffer<Light> gLight : register(t7);
 
 cbuffer cbPerObject : register(b0)
@@ -42,16 +35,29 @@ cbuffer cbPerPass : register(b1)
     uint gDirectionalLightsCount;
     float3 gCamPos;
     uint gPrefilteredMapLods;
-    uint3 gPadding;
+    uint3 gPadding1;
 }
 
-cbuffer cbMaterial : register(b2)
+cbuffer cbTextureIndexes : register(b2)
+{
+    uint gAlbedoTexIdx;
+    uint gMetallicRoughnessIdx;
+    uint gAOIdx;
+    uint gNormalMapIdx;
+    
+    uint gIrradianceMapIdx;
+    uint gPrefilteredMapIdx;
+    uint gBRDFLutIdx;
+    uint gPadding2;
+}
+
+cbuffer cbMaterial : register(b3)
 {
     float4 gDiffuseAlbedo;
     float gRoughnessF;
     float gMetallicF;
     float gAOF;
-    uint gPadding2;
+    uint gPadding3;
 }
 
 struct VertexIn
@@ -175,14 +181,20 @@ float4 PS(VertexOut pin) : SV_Target
     pin.NormalW = normalize(pin.NormalW);
     
 #if PBR_TEXTURED
-    float3 albedo = pow(gAlbedo.Sample(gsamLinearWrap, pin.TexC), 2.2) * gDiffuseAlbedo;
-    float2 metallicRoughness = gMetallicRoughness.Sample(gsamLinearWrap, pin.TexC).gb;
-    float ao = gAO.Sample(gsamLinearWrap, pin.TexC).r;
+    Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
+    Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessIdx];
+    Texture2D aoTex = ResourceDescriptorHeap[gAOIdx];
+    Texture2D normalMapTex = ResourceDescriptorHeap[gNormalMapIdx];
+    
+    float3 albedo = pow(albedoTex.Sample(gsamLinearWrap, pin.TexC), 2.2) * gDiffuseAlbedo;
+    
+    float2 metallicRoughness = metallicRoughnessTex.Sample(gsamLinearWrap, pin.TexC).gb;
+    float ao = aoTex.Sample(gsamLinearWrap, pin.TexC).r;
     
     float roughness = metallicRoughness.r;
     float metallic = metallicRoughness.g;
     
-    float3 normalMapSample = gNormalMap.Sample(gsamAnisotropicWrap, pin.TexC).xyz;
+    float3 normalMapSample = normalMapTex.Sample(gsamAnisotropicWrap, pin.TexC).xyz;
     float3 N = NormalSampleToWorldSpace(normalMapSample, pin.NormalW, pin.TangentW);
 #else
     float3 albedo = gDiffuseAlbedo;
@@ -232,13 +244,17 @@ float4 PS(VertexOut pin) : SV_Target
     float3 kD = 1.0 - kS;
     kD *= 1.0 - metallic;
     
-    float3 irradiance = gIrradianceMap.Sample(gsamLinearWrap, N).rgb;
+    TextureCube irradianceMapTex = ResourceDescriptorHeap[gIrradianceMapIdx];
+    TextureCube prefilteredMapTex = ResourceDescriptorHeap[gPrefilteredMapIdx];
+    Texture2D brdfLutTex = ResourceDescriptorHeap[gBRDFLutIdx];
+    
+    float3 irradiance = irradianceMapTex.Sample(gsamLinearWrap, N).rgb;
     float3 diffuse = irradiance * albedo;
     
     float3 R = reflect(-V, N);
-    float3 prefilteredColor = gPrefilteredMap.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
+    float3 prefilteredColor = prefilteredMapTex.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
     
-    float2 envBRDF = gBRDFLut.Sample(gsamLinearClamp, float2(max(dot(N, V), 0.0), roughness)).rg;
+    float2 envBRDF = brdfLutTex.Sample(gsamLinearClamp, float2(max(dot(N, V), 0.0), roughness)).rg;
     float3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
     float3 ambient = (kD * diffuse + specular) * ao;
     

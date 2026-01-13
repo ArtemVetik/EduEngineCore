@@ -4,6 +4,21 @@
 
 namespace EduEngine
 {
+	struct TextureLoadDesc
+	{
+		enum Flags
+		{
+			CREATE_SRV = 1 << 0,
+			//CREATE_UAV = 1 << 1,
+			//CREATE_RTV = 1 << 2,
+			//CREATE_DSV = 1 << 3,
+		};
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC* OverrideDesc = nullptr;
+		UINT Flags = 0;
+		bool OnCPU = true;
+	};
+
 	class Texture
 	{
 	public:
@@ -15,7 +30,7 @@ namespace EduEngine
 		void Load(const wchar_t* filePath,
 				  RenderDeviceD3D12* device,
 				  DeviceContext* context,
-				  D3D12_SHADER_RESOURCE_VIEW_DESC* overrideDesc = nullptr,
+				  const TextureLoadDesc& loadDesc = {},
 				  wchar_t* name = nullptr);
 		
 		std::shared_ptr<TextureD3D12>& GetD3D12Texture() { return m_Texture; }
@@ -24,6 +39,7 @@ namespace EduEngine
 		RenderDeviceD3D12* m_Device;
 		std::shared_ptr<TextureD3D12> m_Texture;
 
+		TextureLoadDesc m_LoadDesc;
 		DescriptorHeapAllocation m_GpuAllocation;
 	};
 }

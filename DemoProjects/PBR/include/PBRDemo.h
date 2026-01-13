@@ -27,6 +27,7 @@ namespace EduEngine
 
 	private:
 		std::shared_ptr<BufferD3D12> m_MaterialBuffer;
+		std::shared_ptr<BufferD3D12> m_TextureIdxBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_LightBuffer;
@@ -41,11 +42,13 @@ namespace EduEngine
 		std::shared_ptr<Mesh> m_Mesh;
 
 		std::shared_ptr<PBRPrepass> m_Prepass;
+		DescriptorHeapAllocation m_PrepassTextureGPUHandles;
 		std::shared_ptr<DebugRendererSystem> m_DebugRenderer;
 	
 		float m_MeshScale;
 		XMFLOAT3 m_MeshRotation;
 		PBRLighting::MaterialConstants m_MaterialConstants;
+		PBRLighting::TextureIndexes m_TextureIndexes;
 		PBRLighting::Light m_LightConstants;
 	};
 }

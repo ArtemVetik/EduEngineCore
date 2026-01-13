@@ -22,10 +22,14 @@ namespace EduEngine
 		XMFLOAT3 camRight = { 0, 0, -1 };
 		GetCamera()->Setup(camPos, camDir, camRight, camUp);
 
-		m_AlbedoTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_albedo.dds", GetDevice(), GetMainContext(), nullptr, L"Tex Albedo");
-		m_MetallicRoughnessTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), nullptr, L"Tex MetalRough");
-		m_AOTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_AO.dds", GetDevice(), GetMainContext(), nullptr, L"Tex AO");
-		m_NormalMapTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_normal.dds", GetDevice(), GetMainContext(), nullptr, L"Tex NormalMap");
+		TextureLoadDesc loadDesc = {};
+		loadDesc.Flags = TextureLoadDesc::CREATE_SRV;
+		loadDesc.OnCPU = false;
+
+		m_AlbedoTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_albedo.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex Albedo");
+		m_MetallicRoughnessTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex MetalRough");
+		m_AOTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_AO.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex AO");
+		m_NormalMapTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_normal.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex NormalMap");
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
@@ -34,7 +38,7 @@ namespace EduEngine
 		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 		buffDesc.Alignment = 0;
 		buffDesc.Height = 1;
-		buffDesc.Width = (sizeof(PBRLighting::MaterialConstants) + 255) & ~255;
+		buffDesc.Width = (sizeof(PBRLighting::MaterialConstants) + 255) & ~255; // TODO: create align function
 		buffDesc.DepthOrArraySize = 1;
 		buffDesc.MipLevels = 1;
 		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -53,6 +57,24 @@ namespace EduEngine
 
 		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
 		m_Prepass->GenerateTextures("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext());
+
+		m_PrepassTextureGPUHandles = GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
+		GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_PrepassTextureGPUHandles.GetCpuHandle(0), m_Prepass->GetIrradianceMap()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_PrepassTextureGPUHandles.GetCpuHandle(1), m_Prepass->GetPrefilteredMap()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_PrepassTextureGPUHandles.GetCpuHandle(2), m_Prepass->GetBrdfLut()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		m_TextureIndexes = {};
+		m_TextureIndexes.AlbedoTexIdx = m_AlbedoTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.MetallicRoughnessIdx = m_MetallicRoughnessTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.AOIdx = m_AOTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.NormalMapIdx = m_NormalMapTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.IrradianceMapIdx = m_PrepassTextureGPUHandles.GetGpuHeapIndex(0);
+		m_TextureIndexes.PrefilteredMapIdx = m_PrepassTextureGPUHandles.GetGpuHeapIndex(1);
+		m_TextureIndexes.BRDFLutIdx = m_PrepassTextureGPUHandles.GetGpuHeapIndex(2);
+
+		buffDesc.Width = (sizeof(PBRLighting::TextureIndexes) + 255) & ~255; // TODO: create align function
+		m_TextureIdxBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &m_TextureIndexes, QueueId::Direct);
+		m_TextureIdxBuffer->SetName(L"TextureIndexes");
 
 		m_PBRTextured = true;
 		
@@ -146,16 +168,16 @@ namespace EduEngine
 		struct PBRTexLoad
 		{
 			const char* Name;
-			const char* BindName;
+			UINT* Idx;
 			Texture* PBRTex = nullptr;
 		};
 
 		PBRTexLoad pbrTexLoad[]
 		{
-			{ "Albedo: ", "gAlbedo", &m_AlbedoTexture},
-			{ "MetalRough: ", "gMetallicRoughness", &m_MetallicRoughnessTexture},
-			{ "AO: ", "gAO", &m_AOTexture },
-			{ "NormalMap: ", "gNormalMap", &m_NormalMapTexture },
+			{ "Albedo: ", &m_TextureIndexes.AlbedoTexIdx, &m_AlbedoTexture},
+			{ "MetalRough: ", &m_TextureIndexes.MetallicRoughnessIdx, &m_MetallicRoughnessTexture},
+			{ "AO: ", &m_TextureIndexes.AOIdx, &m_AOTexture },
+			{ "NormalMap: ", &m_TextureIndexes.NormalMapIdx, &m_NormalMapTexture },
 		};
 
 		genEnvMap = false;
@@ -219,17 +241,20 @@ namespace EduEngine
 				{
 					ImGui::Text(pbrTexLoad[i].Name);
 					ImGui::SameLine();
-					ImGui::Text("(%s)", pbrTexLoad[i].BindName);
-					ImGui::SameLine();
 					if (ImGui::Button(("Load##" + std::to_string(i)).c_str()))
 					{
 						wchar_t selectedFileW[MAX_PATH];
 						memset(selectedFileW, 0, sizeof(wchar_t) * MAX_PATH);
 						if (FileUtils::OpenFileW(L"Models\0*.dds\0", selectedFileW))
 						{
+							TextureLoadDesc loadDesc = {};
+							loadDesc.Flags = TextureLoadDesc::CREATE_SRV;
+							loadDesc.OnCPU = false;
+
 							auto tex = pbrTexLoad[i].PBRTex;
-							tex->Load(selectedFileW, GetDevice(), GetMainContext());
-							m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, pbrTexLoad[i].BindName, tex->GetD3D12Texture());
+							tex->Load(selectedFileW, GetDevice(), GetMainContext(), loadDesc);
+							*pbrTexLoad[i].Idx = tex->GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+							m_TextureIdxBuffer->LoadData(GetMainContext(), &m_TextureIndexes);
 						}
 					}
 					if (pbrTexLoad[i].PBRTex->GetGPUPtr())
@@ -324,14 +349,7 @@ namespace EduEngine
 
 		m_Binder = m_ColorPass->GetPipelineState().CreateShaderBinder();
 
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_AlbedoTexture.GetD3D12Texture());
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gMetallicRoughness", m_MetallicRoughnessTexture.GetD3D12Texture());
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gAO", m_AOTexture.GetD3D12Texture());
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gNormalMap", m_NormalMapTexture.GetD3D12Texture());
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gIrradianceMap", m_Prepass->GetIrradianceMap());
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gPrefilteredMap", m_Prepass->GetPrefilteredMap());
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gBRDFLut", m_Prepass->GetBrdfLut());
-
+		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbTextureIndexes", m_TextureIdxBuffer);
 		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);

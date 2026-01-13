@@ -25,6 +25,19 @@ namespace EduEngine
 			XMUINT3 Padding = { 0, 0, 0 };
 		};
 
+		struct TextureIndexes
+		{
+			UINT AlbedoTexIdx;
+			UINT MetallicRoughnessIdx;
+			UINT AOIdx;
+			UINT NormalMapIdx;
+
+			UINT IrradianceMapIdx;
+			UINT PrefilteredMapIdx;
+			UINT BRDFLutIdx;
+			UINT Padding2;
+		};
+
 		struct MaterialConstants
 		{
 			XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -74,10 +87,6 @@ namespace EduEngine
 				EduEngine::EduBinding::ShaderResourceDesc("cbPerPass", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),
 				EduEngine::EduBinding::ShaderResourceDesc("cbMaterial", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
 				EduEngine::EduBinding::ShaderResourceDesc("gLight", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),
-				EduEngine::EduBinding::ShaderResourceDesc("gAlbedo", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
-				EduEngine::EduBinding::ShaderResourceDesc("gMetallicRoughness", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
-				EduEngine::EduBinding::ShaderResourceDesc("gAO", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
-				EduEngine::EduBinding::ShaderResourceDesc("gNormalMap", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
 			};
 
 			m_vsDesc.DefaultType = EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE;
@@ -88,8 +97,8 @@ namespace EduEngine
 			m_psDesc.ResourceNum = _countof(psVars);
 			m_psDesc.ResourceDesc = psVars;
 
-			m_VertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\PBRLighting.hlsl", L"VS", L"vs_6_0", macros, m_vsDesc);
-			m_PixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\PBRLighting.hlsl", L"PS", L"ps_6_0", macros, m_psDesc);
+			m_VertexShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\PBRLighting.hlsl", L"VS", L"vs_6_6", macros, m_vsDesc);
+			m_PixelShader = std::make_shared<EduEngine::EduBinding::ShaderD3D12>(L"assets\\Shaders\\PBRLighting.hlsl", L"PS", L"ps_6_6", macros, m_psDesc);
 		}
 
 		void Build(RenderDeviceD3D12* device)
