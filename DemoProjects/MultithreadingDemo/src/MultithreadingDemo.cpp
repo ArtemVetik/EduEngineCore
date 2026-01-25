@@ -117,8 +117,11 @@ namespace EduEngine
 
 		for (uint32 i = 0; i < TextureCount; i++)
 		{
+			TextureLoadDesc texLoadDesc = {};
+			texLoadDesc.Flags = TextureLoadDesc::CREATE_SRV;
+
 			Texture texture;
-			texture.Load(texturePaths[i % TextureCount], GetDevice(), GetMainContext());
+			texture.Load(texturePaths[i % TextureCount], GetDevice(), GetMainContext(), texLoadDesc);
 
 			m_Binder[i] = m_PSO.CreateShaderBinder();
 			m_Binder[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuff);
