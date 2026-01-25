@@ -25,6 +25,7 @@ add_subdirectory(DemoProjects/PBR)
 add_subdirectory(DemoProjects/MultithreadingDemo)
 add_subdirectory(DemoProjects/MeshShaders)
 add_subdirectory(DemoProjects/AsyncCompute)
+add_subdirectory(DemoProjects/TemporalAA)
 
 add_subdirectory(ThirdParty/ImGui)
 add_subdirectory(ThirdParty/meshoptimizer)

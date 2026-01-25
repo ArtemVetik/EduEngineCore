@@ -52,6 +52,7 @@ namespace EduEngine
 		virtual void OnStartUp() {};
 		virtual void OnUpdate(const Timer& timer) {};
 		virtual void OnRender(const Timer& timer) {};
+		virtual void OnResize() {};
 
 		void PopulateDebugImguiCommand();
 

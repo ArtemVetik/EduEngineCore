@@ -233,6 +233,8 @@ namespace EduEngine
 		m_ScissorRect = { 0, 0, (int)w, (int)h };
 
 		m_Camera->SetProjectionMatrix(w, h);
+
+		OnResize();
 	}
 
 	DeviceContext* RenderEngine::GetImmediateContext(uint16 idx) const
