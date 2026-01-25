@@ -36,23 +36,48 @@ namespace EduEngine
 		{
 			DirectX::XMFLOAT3 Pos;
 			DirectX::XMFLOAT2 TexC;
+			DirectX::XMFLOAT3 Normal;
 		};
 
 		Vertex vertices[] =
 		{
-			// +X
-			{ { +1, +1, -1 }, { 0, 0 } }, { { +1, -1, -1 }, { 0, 1 } }, { { +1, -1, +1 }, { 1, 1 } }, { { +1, +1, +1 }, { 1, 0 } },
-			// -X
-			{ { -1, +1, +1 }, { 0, 0 } }, { { -1, -1, +1 }, { 0, 1 } }, { { -1, -1, -1 }, { 1, 1 } }, { { -1, +1, -1 }, { 1, 0 } },
-			// +Y
-			{ { -1, +1, +1 }, { 0, 0 } }, { { -1, +1, -1 }, { 0, 1 } }, { { +1, +1, -1 }, { 1, 1 } }, { { +1, +1, +1 }, { 1, 0 } },
-			// -Y
-			{ { -1, -1, -1 }, { 0, 0 } }, { { -1, -1, +1 }, { 0, 1 } }, { { +1, -1, +1 }, { 1, 1 } }, { { +1, -1, -1 }, { 1, 0 } },
-			// +Z
-			{ { -1, +1, +1 }, { 0, 0 } }, { { +1, +1, +1 }, { 0, 1 } }, { { +1, -1, +1 }, { 1, 1 } }, { { -1, -1, +1 }, { 1, 0 } },
-			// -Z
-			{ { +1, +1, -1 }, { 0, 0 } }, { { -1, +1, -1 }, { 0, 1 } }, { { -1, -1, -1 }, { 1, 1 } }, { { +1, -1, -1 }, { 1, 0 } },
+			// +X (1,0,0)
+			{ { +1, +1, -1 }, { 0, 0 }, { +1, 0, 0 } },
+			{ { +1, -1, -1 }, { 0, 1 }, { +1, 0, 0 } },
+			{ { +1, -1, +1 }, { 1, 1 }, { +1, 0, 0 } },
+			{ { +1, +1, +1 }, { 1, 0 }, { +1, 0, 0 } },
+
+			// -X (-1,0,0)
+			{ { -1, +1, +1 }, { 0, 0 }, { -1, 0, 0 } },
+			{ { -1, -1, +1 }, { 0, 1 }, { -1, 0, 0 } },
+			{ { -1, -1, -1 }, { 1, 1 }, { -1, 0, 0 } },
+			{ { -1, +1, -1 }, { 1, 0 }, { -1, 0, 0 } },
+
+			// +Y (0,1,0)
+			{ { -1, +1, +1 }, { 0, 0 }, { 0, +1, 0 } },
+			{ { -1, +1, -1 }, { 0, 1 }, { 0, +1, 0 } },
+			{ { +1, +1, -1 }, { 1, 1 }, { 0, +1, 0 } },
+			{ { +1, +1, +1 }, { 1, 0 }, { 0, +1, 0 } },
+
+			// -Y (0,-1,0)
+			{ { -1, -1, -1 }, { 0, 0 }, { 0, -1, 0 } },
+			{ { -1, -1, +1 }, { 0, 1 }, { 0, -1, 0 } },
+			{ { +1, -1, +1 }, { 1, 1 }, { 0, -1, 0 } },
+			{ { +1, -1, -1 }, { 1, 0 }, { 0, -1, 0 } },
+
+			// +Z (0,0,1)
+			{ { -1, +1, +1 }, { 0, 0 }, { 0, 0, +1 } },
+			{ { +1, +1, +1 }, { 0, 1 }, { 0, 0, +1 } },
+			{ { +1, -1, +1 }, { 1, 1 }, { 0, 0, +1 } },
+			{ { -1, -1, +1 }, { 1, 0 }, { 0, 0, +1 } },
+
+			// -Z (0,0,-1)
+			{ { +1, +1, -1 }, { 0, 0 }, { 0, 0, -1 } },
+			{ { -1, +1, -1 }, { 0, 1 }, { 0, 0, -1 } },
+			{ { -1, -1, -1 }, { 1, 1 }, { 0, 0, -1 } },
+			{ { +1, -1, -1 }, { 1, 0 }, { 0, 0, -1 } },
 		};
+
 
 		uint16 indices[] = {
 			0,2,1,		0,3,2,		// +X
@@ -84,6 +109,7 @@ namespace EduEngine
 		{
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,	  0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,	  0, 20, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
@@ -108,10 +134,10 @@ namespace EduEngine
 
 		const wchar_t* texturePaths[]
 		{
-			L"assets/Textures/Yellow1.dds",
 			L"assets/Textures/Blue1.dds",
 			L"assets/Textures/Orange1.dds",
 			L"assets/Textures/Green1.dds",
+			L"assets/Textures/Yellow1.dds",
 			L"assets/Textures/Red1.dds",
 		};
 
@@ -269,7 +295,10 @@ namespace EduEngine
 
 				char sign = contextId % 2 == 0 ? 1 : -1;
 
-				Matrix world = Matrix::CreateScale(10.0f) * Matrix::CreateRotationY(sign * pThis->m_Timer->GetTotalTime()) * Matrix::CreateTranslation(x * radius, y * radius, z * radius);
+				Matrix world = Matrix::CreateScale(10.0f) * 
+					Matrix::CreateRotationX(idx + pThis->m_Timer->GetTotalTime()) *
+					Matrix::CreateRotationY(sign * pThis->m_Timer->GetTotalTime()) * 
+					Matrix::CreateRotationZ(idx + pThis->m_Timer->GetTotalTime()) *Matrix::CreateTranslation(x * radius, y * radius, z * radius);
 
 				XMFLOAT4X4 viewProj;
 				XMStoreFloat4x4(&viewProj, XMMatrixTranspose(pThis->GetCamera()->GetViewProjMatrix()));

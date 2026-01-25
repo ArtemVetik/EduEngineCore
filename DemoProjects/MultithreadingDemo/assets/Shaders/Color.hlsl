@@ -21,12 +21,14 @@ struct VertexIn
 {
     float3 PosW : POSITION;
     float2 TexC : TEXCOORD;
+    float3 Normal : NORMAL;
 };
 
 struct VertexOut
 {
     float4 PosH : SV_Position;
     float2 TexC : TEXCOORD;
+    float3 Normal : NORMAL;
 };
 
 VertexOut VS(VertexIn vIn)
@@ -35,11 +37,19 @@ VertexOut VS(VertexIn vIn)
     
     output.PosH = mul(mul(float4(vIn.PosW, 1.0), gWorld), gViewProj);
     output.TexC = vIn.TexC;
+    output.Normal = mul(float4(vIn.Normal, 0.0), gWorld);
     
     return output;
 }
 
 float4 PS(VertexOut vOut) : SV_Target
 {
-    return gAlbedo.Sample(gsamLinearWrap, vOut.TexC);
+    float3 L = normalize(float3(0, 1, -1));
+    float3 N = normalize(vOut.Normal);
+    
+    float4 color = gAlbedo.Sample(gsamLinearWrap, vOut.TexC);
+    
+    color = color * (dot(N, L) + 0.3f);
+    
+    return color;
 }
