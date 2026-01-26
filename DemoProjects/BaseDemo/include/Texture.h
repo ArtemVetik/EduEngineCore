@@ -15,7 +15,7 @@ namespace EduEngine
 		};
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC* OverrideDesc = nullptr;
-		UINT Flags = 0;
+		UINT Flags = CREATE_SRV;
 		bool OnCPU = true;
 	};
 
@@ -24,6 +24,12 @@ namespace EduEngine
 	public:
 		Texture();
 		~Texture();
+
+		Texture(const Texture&) = delete;
+		Texture& operator =(const Texture&) = delete;
+
+		Texture(Texture&&) = delete;
+		Texture& operator =(Texture&&) = delete;
 
 		void* GetGPUPtr();
 

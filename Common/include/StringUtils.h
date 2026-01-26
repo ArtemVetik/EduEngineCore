@@ -47,3 +47,14 @@ inline bool StrHasSuff(const char* str, const char* suff)
 
 	return true;
 }
+
+inline std::wstring ToWString(const std::string& s)
+{
+	if (s.empty()) return {};
+
+	int size = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+	std::wstring result(size - 1, 0);
+
+	MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, result.data(), size);
+	return result;
+}

@@ -14,7 +14,7 @@ namespace EduEngine
 		m_Mesh->Load();
 
 		m_MeshScale = 50.0f;
-		m_MeshRotation = { -90.0, 90.0, 0.0 };
+		m_MeshRotation = { 0, 90.0, 0.0 };
 
 		XMFLOAT3 camPos = { -150, 0, 0 };
 		XMFLOAT3 camDir = { 1, 0, 0 };

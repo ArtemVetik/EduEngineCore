@@ -6,6 +6,7 @@
 #include <assimp/postprocess.h>
 
 #include <BufferD3D12.h>
+#include <Texture.h>
 
 namespace EduEngine
 {
@@ -14,11 +15,14 @@ namespace EduEngine
 		MESH_LOAD_FLAG_CREATE_VERTEX_SRV = 1 << 0,
 		MESH_LOAD_FLAG_CREATE_INDEX_SRV = 1 << 1,
 		MESH_LOAD_FLAG_GEN_BOUNDING_BOX = 1 << 2,
+		MESH_LOAD_FLAG_LOAD_TEXTURES = 1 << 3,
 	};
 
 	struct MeshLoadDesc
 	{
 		UINT Flags = 0;
+		const char* TextureBasePath = nullptr;
+		const char* TextureExt = nullptr;
 	};
 
 	class Mesh
@@ -30,22 +34,23 @@ namespace EduEngine
 		void Load(const MeshLoadDesc loadDesc = MeshLoadDesc{});
 		void Free();
 
-		void UpdateFilePath(const char* filePath);
-
 		int GetRefCount() const { return m_RefCount; }
 		const char* GetFilePath() const { return m_FilePath; }
 
-		int GetVertexCount();
-		int GetIndexCount();
+		int GetVertexCount(uint32 meshIdx = 0);
+		int GetIndexCount(uint32 meshIdx = 0);
 
-		VertexBufferD3D12* GetVertexBuffer() const { return m_VertexBuffer.get(); }
-		IndexBufferD3D12* GetIndexBuffer() const { return m_IndexBuffer.get(); }
+		int GetMeshCount() const { return m_Scene->mNumMeshes; }
+		VertexBufferD3D12* GetVertexBuffer(uint32 meshIdx = 0) const { return m_VertexBuffers[meshIdx].get(); }
+		IndexBufferD3D12* GetIndexBuffer(uint32 meshIdx = 0) const { return m_IndexBuffers[meshIdx].get(); }
 
-		std::shared_ptr<VertexBufferD3D12> GetVertexBufferShared() const { return m_VertexBuffer; }
-		std::shared_ptr<IndexBufferD3D12> GetIndexBufferShared() const { return m_IndexBuffer; }
+		std::shared_ptr<VertexBufferD3D12> GetVertexBufferShared(uint32 meshIdx = 0) const { return m_VertexBuffers[meshIdx]; }
+		std::shared_ptr<IndexBufferD3D12> GetIndexBufferShared(uint32 meshIdx = 0) const { return m_IndexBuffers[meshIdx]; }
 
-		void GetBoundingBox(aiVector3D& min, aiVector3D& max) const;
-		void GetBoundingSphere(aiVector3D& center, float& radius) const;
+		Texture* GetTexture(uint32 meshIdx = 0) const { return m_Textures[meshIdx].get(); }
+
+		void GetBoundingBox(aiVector3D& min, aiVector3D& max, uint32 meshIdx = 0) const;
+		void GetBoundingSphere(aiVector3D& center, float& radius, uint32 meshIdx = 0) const;
 
 	private:
 		RenderDeviceD3D12* m_Device;
@@ -53,8 +58,10 @@ namespace EduEngine
 
 		Assimp::Importer m_AssimpImporter;
 		const aiScene* m_Scene;
-		std::shared_ptr<VertexBufferD3D12> m_VertexBuffer;
-		std::shared_ptr<IndexBufferD3D12> m_IndexBuffer;
+
+		std::vector<std::unique_ptr<Texture>> m_Textures;
+		std::vector<std::shared_ptr<VertexBufferD3D12>> m_VertexBuffers;
+		std::vector<std::shared_ptr<IndexBufferD3D12>> m_IndexBuffers;
 
 		const char* m_FilePath;
 		int m_RefCount;

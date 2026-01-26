@@ -1,6 +1,9 @@
 #include "Mesh.h"
 #include "MeshData.h"
 
+#include <StringUtils.h>
+#include <filesystem>
+
 namespace EduEngine
 {
 	Mesh::Mesh(RenderDeviceD3D12* device, DeviceContext* context, const char* filePath) :
@@ -16,10 +19,16 @@ namespace EduEngine
 	Mesh::~Mesh()
 	{
 		m_RefCount = 0;
-		m_Scene = nullptr;
+
+		for (size_t i = 0; i < m_Scene->mNumMeshes; i++)
+		{
+			m_VertexBuffers[i].reset();
+			m_IndexBuffers[i].reset();
+		}
+
+		m_Textures.clear();
 		m_AssimpImporter.FreeScene();
-		m_VertexBuffer.reset();
-		m_IndexBuffer.reset();
+		m_Scene = nullptr;
 	}
 
 	void Mesh::Load(const MeshLoadDesc loadDesc)
@@ -30,67 +39,103 @@ namespace EduEngine
 			return;
 		}
 
-		UINT flags = aiProcessPreset_TargetRealtime_Fast | aiProcess_ConvertToLeftHanded;
+		UINT flags = aiProcessPreset_TargetRealtime_Fast | aiProcess_ConvertToLeftHanded | aiProcess_PreTransformVertices;
 
 		if (loadDesc.Flags & MESH_LOAD_FLAG_GEN_BOUNDING_BOX)
 			flags |= aiProcess_GenBoundingBoxes;
 
 		m_Scene = m_AssimpImporter.ReadFile(m_FilePath, flags);
 
-		MeshData meshData;
-		for (int i = 0; i < m_Scene->mMeshes[0]->mNumVertices; i++)
-		{
-			auto aiVertex = m_Scene->mMeshes[0]->mVertices[i];
-			auto aiNormal = m_Scene->mMeshes[0]->mNormals[i];
-			auto aiTangents = m_Scene->mMeshes[0]->mTangents ? m_Scene->mMeshes[0]->mTangents[i] : aiVector3D();
-			auto aiTexC = m_Scene->mMeshes[0]->mTextureCoords[0] ? m_Scene->mMeshes[0]->mTextureCoords[0][i] : aiVector3D();
+		if (loadDesc.Flags & MESH_LOAD_FLAG_LOAD_TEXTURES)
+			m_Textures.resize(m_Scene->mNumMeshes);
 
-			meshData.Vertices.push_back(Vertex(
-				{ aiVertex.x, aiVertex.y, aiVertex.z },
-				{ aiNormal.x, aiNormal.y, aiNormal.z },
-				{ aiTangents.x, aiTangents.y, aiTangents.z },
-				{ aiTexC.x, aiTexC.y }
-			));
-		}
+		m_VertexBuffers.resize(m_Scene->mNumMeshes);
+		m_IndexBuffers.resize(m_Scene->mNumMeshes);
 
-		for (size_t i = 0; i < m_Scene->mMeshes[0]->mNumFaces; i++)
+		for (uint32 i = 0; i < m_Scene->mNumMeshes; i++)
 		{
-			for (size_t k = 0; k < m_Scene->mMeshes[0]->mFaces[i].mNumIndices; k += 3)
+			aiMesh* mesh = m_Scene->mMeshes[i];
+
+			if (loadDesc.Flags & MESH_LOAD_FLAG_LOAD_TEXTURES)
 			{
-				meshData.Indices32.push_back(m_Scene->mMeshes[0]->mFaces[i].mIndices[k + 2]);
-				meshData.Indices32.push_back(m_Scene->mMeshes[0]->mFaces[i].mIndices[k]);
-				meshData.Indices32.push_back(m_Scene->mMeshes[0]->mFaces[i].mIndices[k + 1]);
+				aiMaterial* material = m_Scene->mMaterials[mesh->mMaterialIndex];
+				if (material->GetTextureCount(aiTextureType_DIFFUSE))
+				{
+					aiString texPath;
+					material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
+
+					namespace fs = std::filesystem;
+					fs::path p(texPath.C_Str());
+					std::string texName = p.stem().string();
+					texName = loadDesc.TextureBasePath + texName + loadDesc.TextureExt;
+
+					m_Textures[i] = std::make_unique<Texture>();
+					m_Textures[i]->Load(ToWString(texName).c_str(), m_Device, m_Context);
+				}
+				else
+				{
+					int aa = 123;
+				}
 			}
-		}
+			else
+			{
+				int edads = 123;
+			}
 
-		m_VertexBuffer = std::make_shared<VertexBufferD3D12>(m_Device, m_Context, meshData.Vertices.data(),
-			sizeof(Vertex), (UINT)meshData.Vertices.size());
-		m_IndexBuffer = std::make_shared<IndexBufferD3D12>(m_Device, m_Context, meshData.GetIndices16().data(),
-			sizeof(uint16), (UINT)meshData.GetIndices16().size(), DXGI_FORMAT_R16_UINT);
+			MeshData meshData;
+			for (int i = 0; i < mesh->mNumVertices; i++)
+			{
+				auto aiVertex = mesh->mVertices[i];
+				auto aiNormal = mesh->mNormals[i];
+				auto aiTangents = mesh->mTangents ? mesh->mTangents[i] : aiVector3D();
+				auto aiTexC = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][i] : aiVector3D();
 
+				meshData.Vertices.push_back(Vertex(
+					{ aiVertex.x, aiVertex.y, aiVertex.z },
+					{ aiNormal.x, aiNormal.y, aiNormal.z },
+					{ aiTangents.x, aiTangents.y, aiTangents.z },
+					{ aiTexC.x, aiTexC.y }
+				));
+			}
 
-		if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_VERTEX_SRV)
-		{
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-			srvDesc.Buffer.FirstElement = 0;
-			srvDesc.Buffer.NumElements = meshData.Vertices.size();
-			srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
+			for (size_t i = 0; i < mesh->mNumFaces; i++)
+			{
+				for (size_t k = 0; k < mesh->mFaces[i].mNumIndices; k += 3)
+				{
+					meshData.Indices32.push_back(mesh->mFaces[i].mIndices[k + 2]);
+					meshData.Indices32.push_back(mesh->mFaces[i].mIndices[k]);
+					meshData.Indices32.push_back(mesh->mFaces[i].mIndices[k + 1]);
+				}
+			}
 
-			m_VertexBuffer->CreateSRV(&srvDesc);
-		}
+			m_VertexBuffers[i] = std::make_shared<VertexBufferD3D12>(m_Device, m_Context, meshData.Vertices.data(),
+				sizeof(Vertex), (UINT)meshData.Vertices.size());
+			m_IndexBuffers[i] = std::make_shared<IndexBufferD3D12>(m_Device, m_Context, meshData.GetIndices16().data(),
+				sizeof(uint16), (UINT)meshData.GetIndices16().size(), DXGI_FORMAT_R16_UINT);
 
-		if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_INDEX_SRV)
-		{
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-			srvDesc.Buffer.FirstElement = 0;
-			srvDesc.Buffer.NumElements = meshData.GetIndices16().size();
-			srvDesc.Buffer.StructureByteStride = sizeof(uint16);
+			if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_VERTEX_SRV)
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+				srvDesc.Buffer.FirstElement = 0;
+				srvDesc.Buffer.NumElements = meshData.Vertices.size();
+				srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
 
-			m_IndexBuffer->CreateSRV(&srvDesc);
+				m_VertexBuffers[i]->CreateSRV(&srvDesc);
+			}
+
+			if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_INDEX_SRV)
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = { };
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+				srvDesc.Buffer.FirstElement = 0;
+				srvDesc.Buffer.NumElements = meshData.GetIndices16().size();
+				srvDesc.Buffer.StructureByteStride = sizeof(uint16);
+
+				m_IndexBuffers[i]->CreateSRV(&srvDesc);
+			}
 		}
 
 		m_RefCount = 1;
@@ -105,39 +150,38 @@ namespace EduEngine
 
 		if (m_RefCount == 0)
 		{
-			m_VertexBuffer.reset();
-			m_IndexBuffer.reset();
+			for (size_t i = 0; i < m_Scene->mNumMeshes; i++)
+			{
+				m_VertexBuffers[i].reset();
+				m_IndexBuffers[i].reset();
+			}
 
+			m_Textures.clear();
 			m_AssimpImporter.FreeScene();
 			m_Scene = nullptr;
 		}
 
 	}
 
-	void Mesh::UpdateFilePath(const char* filePath)
+	int Mesh::GetVertexCount(uint32 meshIdx)
 	{
-		m_FilePath = filePath;
+		return m_Scene->mMeshes[meshIdx]->mNumVertices;
 	}
 
-	int Mesh::GetVertexCount()
+	int Mesh::GetIndexCount(uint32 meshIdx)
 	{
-		return m_Scene->mMeshes[0]->mNumVertices;
+		return m_Scene->mMeshes[meshIdx]->mNumFaces * 3;
 	}
 
-	int Mesh::GetIndexCount()
+	void Mesh::GetBoundingBox(aiVector3D& min, aiVector3D& max, uint32 meshIdx) const
 	{
-		return m_Scene->mMeshes[0]->mNumFaces * 3;
+		min = m_Scene->mMeshes[meshIdx]->mAABB.mMin;
+		max = m_Scene->mMeshes[meshIdx]->mAABB.mMax;
 	}
 
-	void Mesh::GetBoundingBox(aiVector3D& min, aiVector3D& max) const
+	void Mesh::GetBoundingSphere(aiVector3D& center, float& radius, uint32 meshIdx) const
 	{
-		min = m_Scene->mMeshes[0]->mAABB.mMin;
-		max = m_Scene->mMeshes[0]->mAABB.mMax;
-	}
-
-	void Mesh::GetBoundingSphere(aiVector3D& center, float& radius) const
-	{
-		aiAABB& aabb = m_Scene->mMeshes[0]->mAABB;
+		aiAABB& aabb = m_Scene->mMeshes[meshIdx]->mAABB;
 
 		center = (aabb.mMin + aabb.mMax) * 0.5f;
 		radius = ((aabb.mMax - aabb.mMin) * 0.5f).Length();
