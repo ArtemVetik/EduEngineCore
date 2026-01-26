@@ -108,7 +108,6 @@ float4 PS(VertexOut vOut) : SV_Target
     float2 texelSize = 1.0 / gTextureSize;
     
     float3 currentColor = gCurrentTex.Sample(gsamLinearClamp, uv);
-    //float3 previousColor = gHistoryTex.Sample(gsamLinearClamp, reprojectedUV);
     float3 previousColor = SampleCatmullRom(gHistoryTex, gsamLinearClamp, reprojectedUV, gTextureSize);
     
     float3 minColor = currentColor, maxColor = currentColor;

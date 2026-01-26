@@ -4,16 +4,17 @@
 
 namespace EduEngine
 {
+
 	static constexpr char* Models[]
 	{
-		"assets\\Models\\birdcage1_001.obj",
-		"assets\\Models\\FantasyHouse\\scene.gltf",
+		"assets\\Models\\tree_gn\\scene.gltf",
+		"assets\\Models\\stylised_sky_player_home_dioroma\\scene.gltf",
 	};
 
-	static constexpr wchar_t* Textures[]
+	static constexpr char* Textures[]
 	{
-		L"assets\\Textures\\birdcage1_001_map_BirdCage_01_BaseColor.dds",
-		L"assets\\Textures\\material_0_baseColor.dds",
+		"assets\\Textures\\tree_gn\\",
+		"assets\\Textures\\stylised_sky_player_home_dioroma\\",
 	};
 
 	__forceinline float RadicalInverseBase2(uint32 bits)
@@ -44,7 +45,7 @@ namespace EduEngine
 		texLoadDesc.Flags = TextureLoadDesc::CREATE_SRV;
 
 		Texture skyTex;
-		skyTex.Load(L"assets\\Textures\\grasscube1024.dds", GetDevice(), GetMainContext(), texLoadDesc);
+		skyTex.Load(L"assets\\Textures\\cubemap.dds", GetDevice(), GetMainContext(), texLoadDesc);
 
 		ShaderResourceDesc sRes[]
 		{
@@ -133,8 +134,6 @@ namespace EduEngine
 		m_SkyboxBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_SkyboxPassBuffer);
 		m_SkyboxBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", skyTex.GetD3D12Texture());
 
-		m_DrawBinder = m_DrawPso.CreateShaderBinder();
-
 		for (uint8 i = 0; i < 2; i++)
 		{
 			m_ResolveBinder[i] = m_ResolvePso.CreateShaderBinder();
@@ -143,9 +142,6 @@ namespace EduEngine
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
-
-		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
-		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
 
 		LoadModel(Models[m_ModelIdx], Textures[m_ModelIdx]);
 
@@ -179,6 +175,8 @@ namespace EduEngine
 
 		m_CubeVB->SetName(L"VB Cube");
 		m_CubeIB->SetName(L"IB Cube");
+
+		m_DebugRenderer = std::make_shared<DebugRendererSystem>(GetDevice());
 
 		OnResize();
 	}
@@ -215,7 +213,7 @@ namespace EduEngine
 			XMFLOAT4X4 CurrViewProjNoJitter;
 			XMFLOAT4X4 PrevViewProjNoJitter;
 			XMFLOAT2 RTSize;
-			XMUINT2 Padding;
+			XMFLOAT2 Jitter;
 		};
 
 		static ObjData objData;
@@ -228,14 +226,15 @@ namespace EduEngine
 
 		if (m_Animate)
 		{
-			RT = XMMatrixRotationZ(m_AnimateSpeed * timer.GetTotalTime()) *
-				XMMatrixTranslation(0, sin(m_AnimateSpeed * timer.GetTotalTime()) * 50, 0);
+			RT = XMMatrixRotationY(m_AnimateSpeed * timer.GetTotalTime()) *
+				XMMatrixTranslation(sin(m_AnimateSpeed * timer.GetTotalTime()) * 50, 0, 0);
 		}
 
-		XMStoreFloat4x4(&objData.CurrWorld, XMMatrixTranspose(XMMatrixScaling(30, 30, 30) * RT));
+		XMStoreFloat4x4(&objData.CurrWorld, XMMatrixTranspose(XMMatrixScaling(3, 3, 3) * RT));
 		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix() * offsetMatrix));
 		XMStoreFloat4x4(&passData.CurrViewProjNoJitter, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		passData.RTSize = XMFLOAT2(GetViewport().Width, GetViewport().Height);
+		passData.Jitter = XMFLOAT2(-jitter.x, jitter.y);
 
 		m_ObjBuffer->LoadData(GetMainContext(), objData);
 		m_PassBuffer->LoadData(GetMainContext(), passData);
@@ -262,7 +261,6 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_CurrentTex->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_MotionVectors->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 
-		m_DrawPso.CommitAll(GetMainContext(), m_DrawBinder.get());
 		
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]
 		{
@@ -274,10 +272,15 @@ namespace EduEngine
 		// Render geometry and generate velocity texture
 		//
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(2, rtvs, false, &GetSwapChain()->DepthStencilView());
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer()->GetView());
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer()->GetView());
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(), 1, 0, 0, 0);
+
+		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
+		{
+			m_DrawPso.CommitAll(GetMainContext(), m_DrawBinders[i].get());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(i)->GetView());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(i)->GetView());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(i), 1, 0, 0, 0);
+		}
 
 		//
 		// Render skybox
@@ -303,7 +306,6 @@ namespace EduEngine
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
-
 			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
 		}
 
@@ -343,8 +345,8 @@ namespace EduEngine
 		ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
 		const char* models[] = {
-			"BirdCage",
-			"FantasyHouse",
+			"Tree",
+			"SkyHome",
 		};
 
 		const char* velModes[] = {
@@ -458,19 +460,28 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->TransitionResource(m_MotionVectors.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
-	void TemporalAADemo::LoadModel(const char* model, const wchar_t* texture)
+	void TemporalAADemo::LoadModel(const char* model, const char* texturePath)
 	{
+		MeshLoadDesc meshDesc = {};
+		meshDesc.Flags = MESH_LOAD_FLAG_LOAD_TEXTURES;
+		meshDesc.TextureBasePath = texturePath;
+		meshDesc.TextureExt = ".dds";
+
 		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), model);
-		m_Mesh->Load();
+		m_Mesh->Load(meshDesc);
 
-		TextureLoadDesc texLoadDesc = {};
-		texLoadDesc.Flags = TextureLoadDesc::CREATE_SRV;
+		m_DrawBinders.resize(m_Mesh->GetMeshCount());
 
-		Texture albedoTex;
-		albedoTex.Load(texture, GetDevice(), GetMainContext(), texLoadDesc);
+		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
+		{
+			m_DrawBinders[i] = m_DrawPso.CreateShaderBinder();
+			m_DrawBinders[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
+			m_DrawBinders[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
+			m_DrawBinders[i]->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
 
-		m_DrawBinder->DryMutableResources();
-		m_DrawBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gAlbedo", albedoTex.GetD3D12Texture());
+			if (m_Mesh->GetTexture(i))
+				m_DrawBinders[i]->BindResource(EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_Mesh->GetTexture(i)->GetD3D12Texture());
+		}
 	}
 
 	void TemporalAADemo::BuildResolveConstantBuffer()

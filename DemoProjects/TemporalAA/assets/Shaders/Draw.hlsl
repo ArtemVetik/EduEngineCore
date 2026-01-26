@@ -19,7 +19,7 @@ cbuffer cbPass : register(b1)
     float4x4 gCurrViewProjNoJitter;
     float4x4 gPrevViewProjNoJitter;
     float2 gRTSize;
-    uint2 gPadding;
+    float2 gJitter;
 }
 
 struct VertexIn
@@ -43,6 +43,11 @@ struct PSOutput
     float4 Color : SV_Target0;
     float2 Velocity : SV_Target1;
 };
+
+float2 UnjitterTextureUV(float2 uv, float2 currentJitterInPixels)
+{
+    return uv - ddx_fine(uv) * currentJitterInPixels.x + ddy_fine(uv) * currentJitterInPixels.y;
+}
 
 VertexOut VS(VertexIn vIn)
 {
@@ -68,6 +73,8 @@ PSOutput PS(VertexOut vOut)
     PSOutput output;
     
     float4 albedo = gAlbedo.Sample(gsamLinearWrap, vOut.TexC);
+    
+    clip(albedo.a - 0.1f);
     
     output.Color = pow(albedo, 2.2f);
     

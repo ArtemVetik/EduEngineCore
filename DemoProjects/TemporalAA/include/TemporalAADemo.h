@@ -4,6 +4,7 @@
 #include <Camera.h>
 #include <PipelineState.h>
 #include <BufferD3D12.h>
+#include <DebugRendererSystem.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -18,7 +19,7 @@ namespace EduEngine
 		void OnResize() override;
 
 	private:
-		void LoadModel(const char* model, const wchar_t* texture);
+		void LoadModel(const char* model, const char* texturePath);
 		void BuildResolveConstantBuffer();
 
 	private:
@@ -33,7 +34,7 @@ namespace EduEngine
 		PipelineState m_PostProcPso;
 		PipelineState m_SkyboxPso;
 
-		std::shared_ptr<ShaderBinder> m_DrawBinder;
+		std::vector<std::shared_ptr<ShaderBinder>> m_DrawBinders;
 		std::shared_ptr<ShaderBinder> m_ResolveBinder[2];
 		std::shared_ptr<ShaderBinder> m_PostProcBinder[2];
 		std::shared_ptr<ShaderBinder> m_SkyboxBinder;
@@ -46,6 +47,8 @@ namespace EduEngine
 
 		std::shared_ptr<IndexBufferD3D12> m_CubeIB;
 		std::shared_ptr<VertexBufferD3D12> m_CubeVB;
+
+		std::shared_ptr<DebugRendererSystem> m_DebugRenderer;
 
 		uint32 m_ModelIdx = 0;
 		uint32 m_VelocityMode = 0;
