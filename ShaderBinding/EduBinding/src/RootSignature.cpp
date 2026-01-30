@@ -20,7 +20,11 @@ namespace EduEngine::EduBinding
 		}
 	}
 
-	void RootSignature::Build(RenderDeviceD3D12* device, ShaderD3D12** shaders, uint8 shadersNum)
+	void RootSignature::Build(RenderDeviceD3D12* device,
+							  ShaderD3D12** shaders,
+							  uint8 shadersNum,
+							  D3D12_STATIC_SAMPLER_DESC* overrideStaticSamplers /* = nullptr */,
+							  uint32 numOverrideStaticSamplers /* = 0*/)
 	{
 		D3D12_FEATURE_DATA_ROOT_SIGNATURE rsFeature = {};
 		rsFeature.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -113,9 +117,19 @@ namespace EduEngine::EduBinding
 		);
 
 #ifndef EDUBINDINGDEBUG
-		D3D12_STATIC_SAMPLER_DESC staticSamplers[7];
+		D3D12_STATIC_SAMPLER_DESC staticSamplers[16];
 #endif
-		InitStaticSamplers(staticSamplers);
+		uint32 samplersNum = 7;
+
+		if (overrideStaticSamplers)
+		{
+			memcpy(staticSamplers, overrideStaticSamplers, sizeof(D3D12_STATIC_SAMPLER_DESC) * numOverrideStaticSamplers);
+			samplersNum = numOverrideStaticSamplers;
+		}
+		else
+		{
+			InitStaticSamplers(staticSamplers);
+		}
 
 #ifndef EDUBINDINGDEBUG
 		D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc = {};
@@ -130,7 +144,7 @@ namespace EduEngine::EduBinding
 		else
 			LOG_ERROR("Device doesn't support D3D12_RESOURCE_BINDING_TIER_3. It's not possible to use bindless rendering");
 
-		rootSigDesc.Desc_1_1.NumStaticSamplers = _countof(staticSamplers);
+		rootSigDesc.Desc_1_1.NumStaticSamplers = samplersNum;
 		rootSigDesc.Desc_1_1.pStaticSamplers = staticSamplers;
 		rootSigDesc.Desc_1_1.pParameters = params;
 		rootSigDesc.Desc_1_1.NumParameters = rootIndex;

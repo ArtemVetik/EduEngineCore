@@ -159,7 +159,7 @@ namespace EduEngine
 		dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		dsvDesc.Texture2D.MipSlice = 0;
 
-		m_DepthStencilTexture = std::make_unique<TextureD3D12>(m_Device, dsDesc, &dsClear, QueueId::Direct);
+		m_DepthStencilTexture = std::make_shared<TextureD3D12>(m_Device, dsDesc, &dsClear, QueueId::Direct);
 		m_DepthStencilTexture->SetName(L"MainDepthStencil");
 		m_DepthStencilTexture->CreateDSV(&dsvDesc);
 
@@ -171,7 +171,7 @@ namespace EduEngine
 		depthSrvDesc.Texture2D.MipLevels = 1;
 		depthSrvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		depthSrvDesc.Texture2D.PlaneSlice = 0;
-		m_DepthStencilTexture->CreateSRV(&depthSrvDesc, false);
+		m_DepthStencilTexture->CreateSRV(&depthSrvDesc);
 
 		context->GetCommandCtx()->ResourceBarrier(
 			CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilTexture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
@@ -217,5 +217,10 @@ namespace EduEngine
 	D3D12_GPU_DESCRIPTOR_HANDLE SwapChain::DepthStencilSRVView() const
 	{
 		return m_DepthStencilTexture->GetSRVView()->GetGpuHandle();
+	}
+
+	std::shared_ptr<TextureD3D12> SwapChain::GetDepthStencilTextureShared() const
+	{
+		return m_DepthStencilTexture;
 	}
 }

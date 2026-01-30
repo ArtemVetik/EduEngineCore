@@ -23,7 +23,7 @@ namespace EduEngine::EduBinding
 		m_Device = nullptr;
 	}
 
-	void PipelineStateBase::Build(RenderDeviceD3D12* device)
+	void PipelineStateBase::Build(RenderDeviceD3D12* device, D3D12_STATIC_SAMPLER_DESC* staticSamplers, uint32 numStaticSamplers)
 	{
 		VERIFY_EXPR(m_Device == nullptr, "PipelineState has already been built");
 		m_Device = device;
@@ -39,7 +39,7 @@ namespace EduEngine::EduBinding
 			}
 		}
 
-		m_RootSignature.Build(device, activeShaders, shadersNum);
+		m_RootSignature.Build(device, activeShaders, shadersNum, staticSamplers, numStaticSamplers);
 
 		BuildPSO(device->GetD3D12Device(), m_RootSignature.GetD3D12RootSignature(), m_PSO);
 	}

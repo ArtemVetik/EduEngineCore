@@ -10,7 +10,9 @@ add_library(Common STATIC
     include/FileUtils.h
 
     include/SimpleMath.inl
+    include/RandomUtils.h
 )
+
 target_include_directories(Common
     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
 )

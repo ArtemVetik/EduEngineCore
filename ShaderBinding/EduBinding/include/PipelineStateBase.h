@@ -13,7 +13,7 @@ namespace EduEngine::EduBinding
 		PipelineStateBase(QueueMask queueMask, bool isCompute);
 		virtual ~PipelineStateBase();
 
-		void Build(RenderDeviceD3D12* pDevice);
+		void Build(RenderDeviceD3D12* pDevice, D3D12_STATIC_SAMPLER_DESC* staticSamplers = nullptr, uint32 numStaticSamplers = 0);
 		void CommitAll(DeviceContext* context, ShaderBinder* shaderBinder);
 
 		std::shared_ptr<ShaderBinder> CreateShaderBinder();

@@ -23,6 +23,8 @@ namespace EduEngine
 		D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 		D3D12_GPU_DESCRIPTOR_HANDLE DepthStencilSRVView() const;
 
+		std::shared_ptr<TextureD3D12> GetDepthStencilTextureShared() const;
+
 		int GetWidth() const { return m_Width; }
 		int GetHeight() const { return m_Height; }
 		
@@ -38,7 +40,7 @@ namespace EduEngine
 		Microsoft::WRL::ComPtr<IDCompositionVisual> m_DcompVisual;
 
 		std::unique_ptr<TextureD3D12> m_SwapChainBuffers[SwapChainBufferCount];
-		std::unique_ptr<TextureD3D12> m_DepthStencilTexture;
+		std::shared_ptr<TextureD3D12> m_DepthStencilTexture;
 
 		RenderDeviceD3D12* m_Device;
 		int m_CurrentBackBuffer;
