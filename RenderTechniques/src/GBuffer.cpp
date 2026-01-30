@@ -55,7 +55,7 @@ namespace EduEngine
 
 			m_GBuffers[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
 			m_GBuffers[i]->CreateRTV(nullptr);
-			m_GBuffers[i]->CreateSRV(&gBuffDescSRV, false);
+			m_GBuffers[i]->CreateSRV(&gBuffDescSRV);
 
 			commandContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(
 				m_GBuffers[i]->GetD3D12Resource(),
@@ -75,7 +75,7 @@ namespace EduEngine
 		for (int i = 0; i < m_accumCount; i++)
 		{
 			m_AccumBuffer[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
-			m_AccumBuffer[i]->CreateSRV(&gBuffDescSRV, false);
+			m_AccumBuffer[i]->CreateSRV(&gBuffDescSRV);
 			m_AccumBuffer[i]->CreateRTV(nullptr);
 			
 			wchar_t bufferName[32];

@@ -10,7 +10,7 @@
 
 namespace EduEngine
 {
-	class PBRPrepass
+	class RENDERTECHNIQUES_API PBRPrepass
 	{
 	public:
 		PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context);

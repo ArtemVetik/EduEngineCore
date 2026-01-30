@@ -4,7 +4,7 @@
 
 namespace EduEngine
 {
-	class GRAPHICS_API GBuffer
+	class RENDERTECHNIQUES_API GBuffer
 	{
 	public:
 		GBuffer(int gBufferCount, const DXGI_FORMAT* formats, int accumCount, DXGI_FORMAT accumBuffFormat);

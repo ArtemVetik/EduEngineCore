@@ -11,7 +11,7 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	class GenerateMipMaps
+	class RENDERTECHNIQUES_API GenerateMipMaps
 	{
 	public:
 		GenerateMipMaps(RenderDeviceD3D12* device);

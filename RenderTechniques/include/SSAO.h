@@ -7,7 +7,7 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	class SSAO
+	class RENDERTECHNIQUES_API SSAO
 	{
 	public:
 		SSAO(RenderDeviceD3D12* device, DeviceContext* context, uint64 rtWidth, uint64 rtHeight);

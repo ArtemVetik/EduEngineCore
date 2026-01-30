@@ -3,7 +3,9 @@ add_library(RenderTechniques STATIC
     src/GenerateMipMaps.cpp
     src/PBRPrepass.cpp
     src/Timer.cpp
-    src/SSAO.cpp)
+    src/SSAO.cpp
+    src/GBuffer.cpp
+)
 
 target_include_directories(RenderTechniques
     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include

@@ -7,7 +7,7 @@ add_library(Graphics STATIC
     src/DDSTextureLoader.cpp
     src/DeviceContext.cpp
     src/DynamicUploadBuffer.cpp
-    src/GBuffer.cpp
+    
     src/pch.cpp
     src/QueryHeap.cpp
     src/RenderDeviceD3D12.cpp
