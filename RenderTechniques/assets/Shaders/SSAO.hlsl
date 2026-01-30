@@ -10,6 +10,7 @@ SamplerState gsamLinearWrap : register(s3);
 
 cbuffer cbSsao : register(b0)
 {
+    float4x4 gView;
     float4x4 gProj;
     float4x4 gInvProj;
     float4x4 gProjTex;
@@ -44,16 +45,6 @@ static const float2 uv[3] =
     float2(2, 1)
 };
 
-static const float2 gTexCoords[6] =
-{
-    float2(0.0f, 1.0f),
-    float2(0.0f, 0.0f),
-    float2(1.0f, 0.0f),
-    float2(0.0f, 1.0f),
-    float2(1.0f, 0.0f),
-    float2(1.0f, 1.0f)
-};
-
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
@@ -61,33 +52,17 @@ struct VertexOut
     float2 TexC : TEXCOORD;
 };
 
-VertexOut VS(uint vid : SV_VertexID)
+VertexOut VS(uint vertexId : SV_VertexID)
 {
-    VertexOut vout;
-
-    vout.TexC = gTexCoords[vid];
-
-    // Quad covering screen in NDC space.
-    vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
- 
-    // Transform quad corners to view space near plane.
-    float4 ph = mul(vout.PosH, gInvProj);
-    vout.PosV = ph.xyz / ph.w;
-
-    return vout;
+    VertexOut output;
+    output.PosH = float4(pos[vertexId], 0, 1);
+    output.TexC = uv[vertexId];
+    
+    float4 ph = mul(output.PosH, gInvProj);
+    output.PosV = ph.xyz / ph.w;
+    
+    return output;
 }
-
-//VertexOut VS(uint vertexId : SV_VertexID)
-//{
-//    VertexOut output;
-//    output.PosH = float4(pos[vertexId], 0, 1);
-//    output.TexC = uv[vertexId];
-    
-//    float4 ph = mul(output.PosH, gInvProj);
-//    output.PosV = ph.xyz / ph.w;
-    
-//    return output;
-//}
 
 // Determines how much the sample point q occludes the point p as a function
 // of distZ.
@@ -141,6 +116,9 @@ float4 PS_SSAO(VertexOut pin) : SV_Target
 
 	// Get viewspace normal and z-coord of this pixel.  
     float3 n = normalize(gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz);
+#if WORLD_SPACE_NORMALS
+    n = mul(n, (float3x3)gView);
+#endif
     float pz = gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
     pz = NdcDepthToViewDepth(pz);
 
@@ -244,6 +222,10 @@ float4 PS_Blur(VertexOut pin) : SV_Target
     float totalWeight = blurWeights[gBlurRadius];
 	 
     float3 centerNormal = gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
+#if WORLD_SPACE_NORMALS
+    centerNormal = mul(centerNormal, (float3x3) gView);
+#endif    
+
     float centerDepth = NdcDepthToViewDepth(
         gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r);
 
@@ -256,6 +238,10 @@ float4 PS_Blur(VertexOut pin) : SV_Target
         float2 tex = pin.TexC + i * texOffset;
 
         float3 neighborNormal = gNormalMap.SampleLevel(gsamPointClamp, tex, 0.0f).xyz;
+#if WORLD_SPACE_NORMALS
+        neighborNormal = mul(neighborNormal, (float3x3) gView);
+#endif        
+
         float neighborDepth = NdcDepthToViewDepth(
             gDepthMap.SampleLevel(gsamDepthMap, tex, 0.0f).r);
 

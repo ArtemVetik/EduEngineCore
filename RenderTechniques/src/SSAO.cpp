@@ -137,10 +137,16 @@ namespace EduEngine
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
 		sDesc.ResourceNum = _countof(sRes);
 		sDesc.ResourceDesc = sRes;
+		
+		LPCWSTR defines[]
+		{
+			L"WORLD_SPACE_NORMALS", L"1", // TODO: create parameter
+			NULL, NULL
+		};
 
-		auto ssaoVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ssaoPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_SSAO", L"ps_6_0", nullptr, sDesc);
-		auto blurPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_Blur", L"ps_6_0", nullptr, sDesc);
+		auto ssaoVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"VS", L"vs_6_0", defines, sDesc);
+		auto ssaoPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_SSAO", L"ps_6_0", defines, sDesc);
+		auto blurPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_Blur", L"ps_6_0", defines, sDesc);
 		
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;
@@ -168,9 +174,6 @@ namespace EduEngine
 
 	void SSAO::BindResources(std::shared_ptr<TextureD3D12> normalMap, std::shared_ptr<TextureD3D12> depthMap)
 	{
-		auto aaa = normalMap->GetD3D12Resource()->GetDesc();
-		auto bbb = depthMap->GetD3D12Resource()->GetDesc();
-
 		m_SsaoBinder->DryMutableResources();
 		m_SsaoBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbSsao", m_SsaoBuffer);
 		m_SsaoBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbSsao", m_SsaoBuffer);
@@ -194,6 +197,7 @@ namespace EduEngine
 	{
 		struct SsaoData
 		{
+			XMFLOAT4X4 View;
 			XMFLOAT4X4 Proj;
 			XMFLOAT4X4 InvProj;
 			XMFLOAT4X4 ProjTex;
@@ -208,6 +212,7 @@ namespace EduEngine
 
 		SsaoData ssaoData = {};
 
+		XMMATRIX View = XMLoadFloat4x4(&camera->GetViewMatrix());
 		XMMATRIX Proj = XMLoadFloat4x4(&camera->GetProjectionMatrix());
 
 		// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
@@ -217,6 +222,7 @@ namespace EduEngine
 			0.0f, 0.0f, 1.0f, 0.0f,
 			0.5f, 0.5f, 0.0f, 1.0f);
 
+		XMStoreFloat4x4(&ssaoData.View, XMMatrixTranspose(View));
 		XMStoreFloat4x4(&ssaoData.Proj, XMMatrixTranspose(Proj));
 		XMStoreFloat4x4(&ssaoData.InvProj, XMMatrixTranspose(XMMatrixInverse(&XMMatrixDeterminant(Proj), Proj)));
 		XMStoreFloat4x4(&ssaoData.ProjTex, XMMatrixTranspose(Proj * T));
@@ -246,7 +252,7 @@ namespace EduEngine
 		context->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), false, nullptr);
 		m_SsaoPso.CommitAll(context, m_SsaoBinder.get());
-		context->GetCommandCtx()->GetCmdList()->DrawInstanced(6, 1, 0, 0);
+		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 		
 		bool horizontalBlur = true;
 		m_ConstantsBuffer->LoadData(context, horizontalBlur);
@@ -257,7 +263,7 @@ namespace EduEngine
 		context->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_SsaoTexture[1]->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[1]->GetRTVView()->GetCpuHandle(), false, nullptr);
 		m_BlurPso.CommitAll(context, m_BlurBinder[0].get());
-		context->GetCommandCtx()->GetCmdList()->DrawInstanced(6, 1, 0, 0);
+		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		horizontalBlur = false;
 		m_ConstantsBuffer->LoadData(context, horizontalBlur);
@@ -267,7 +273,7 @@ namespace EduEngine
 
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), false, nullptr);
 		m_BlurPso.CommitAll(context, m_BlurBinder[1].get());
-		context->GetCommandCtx()->GetCmdList()->DrawInstanced(6, 1, 0, 0);
+		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 	}
 
 	void SSAO::Resize(RenderDeviceD3D12* device, uint64 rtWidth, uint64 rtHeight)

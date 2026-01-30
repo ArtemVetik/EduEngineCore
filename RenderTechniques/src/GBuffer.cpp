@@ -53,7 +53,7 @@ namespace EduEngine
 			clearVal.Format = m_Formats[i];
 			gBuffDescSRV.Format = m_Formats[i];
 
-			m_GBuffers[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
+			m_GBuffers[i] = std::make_shared<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
 			m_GBuffers[i]->CreateRTV(nullptr);
 			m_GBuffers[i]->CreateSRV(&gBuffDescSRV);
 
@@ -74,7 +74,7 @@ namespace EduEngine
 
 		for (int i = 0; i < m_accumCount; i++)
 		{
-			m_AccumBuffer[i] = std::make_unique<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
+			m_AccumBuffer[i] = std::make_shared<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
 			m_AccumBuffer[i]->CreateSRV(&gBuffDescSRV);
 			m_AccumBuffer[i]->CreateRTV(nullptr);
 			
@@ -90,9 +90,14 @@ namespace EduEngine
 		}
 	}
 
-	ID3D12Resource* GBuffer::GetGBuffer(int index) const
+	TextureD3D12* GBuffer::GetGBuffer(int index) const
 	{
-		return m_GBuffers[index]->GetD3D12Resource();
+		return m_GBuffers[index].get();
+	}
+
+	std::shared_ptr<TextureD3D12> GBuffer::GetGBufferShared(int index) const
+	{
+		return m_GBuffers[index];
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::GetGBufferRTVView(int index) const
@@ -105,9 +110,14 @@ namespace EduEngine
 		return m_GBuffers[index]->GetSRVView()->GetGpuHandle();
 	}
 
-	ID3D12Resource* GBuffer::GetAccumBuffer(int index) const
+	TextureD3D12* GBuffer::GetAccumBuffer(int index) const
 	{
-		return m_AccumBuffer[index]->GetD3D12Resource();
+		return m_AccumBuffer[index].get();
+	}
+
+	std::shared_ptr<TextureD3D12> GBuffer::GetAccumBufferShared(int index) const
+	{
+		return m_AccumBuffer[index];
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::GetAccumBuffRTVView(int index) const

@@ -15,7 +15,6 @@ cbuffer cbPerObject : register(b0)
 cbuffer cbPass : register(b1)
 {
     float4x4 gViewProj;
-    float4x4 gView;
 }
 
 struct VertexIn
@@ -36,7 +35,7 @@ struct VertexOut
 struct PSOut
 {
     float4 Color : SV_TARGET0;
-    float4 NormalV : SV_TARGET1;
+    float4 NormalW : SV_TARGET1;
 };
 
 VertexOut VS(VertexIn vIn)
@@ -63,11 +62,7 @@ PSOut PS(VertexOut vOut)
     clip(color.a - 0.01f);
     
     psOut.Color = color;
-    
-    vOut.NormalW = normalize(vOut.NormalW);
-    
-    float3 normalV = mul(vOut.NormalW, (float3x3)gView);
-    psOut.NormalV = float4(normalV, 0);
+    psOut.NormalW = float4(normalize(vOut.NormalW), 0);
     
     return psOut;
 }

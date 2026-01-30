@@ -5,6 +5,8 @@
 #include <PipelineState.h>
 #include <BufferD3D12.h>
 #include <SSAO.h>
+#include <GBuffer.h>
+#include <SponzaCommon.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -20,15 +22,14 @@ namespace EduEngine
 
 	private:
 		std::unique_ptr<SSAO> m_Ssao;
+		std::unique_ptr<GBuffer> m_GBuffer;
+
 		std::shared_ptr<Mesh> m_Mesh;
 
 		PipelineState m_DrawPso;
 		PipelineState m_PostProcPso;
 		std::vector<std::shared_ptr<ShaderBinder>> m_DrawBinders;
 		std::shared_ptr<ShaderBinder> m_PostProcBinder;
-
-		std::shared_ptr<TextureD3D12> m_ColorRT;
-		std::shared_ptr<TextureD3D12> m_NormalRT;
 
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
