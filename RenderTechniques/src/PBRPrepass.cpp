@@ -9,11 +9,11 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	PBRPrepass::PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context) :
+	PBRPrepass::PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context, bool cpuHandles) :
 		m_SkyLod(0)
 	{
 		InitCube(device, context);
-		InitTextures(device, context);
+		InitTextures(device, context, cpuHandles);
 		InitSkyboxPSO(device);
 	}
 
@@ -327,7 +327,7 @@ namespace EduEngine
 		m_CubeIB->SetName(L"IB Cube");
 	}
 
-	void PBRPrepass::InitTextures(RenderDeviceD3D12* device, DeviceContext* context)
+	void PBRPrepass::InitTextures(RenderDeviceD3D12* device, DeviceContext* context, bool cpuHandles)
 	{
 		//
 		// HDR Environment CubeMap
@@ -367,7 +367,7 @@ namespace EduEngine
 			m_HDRCubeEnvMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
 			m_HDRCubeEnvMap->SetName(L"PBR_HDR_Env_CubeMap");
 			m_HDRCubeEnvMap->CreateRTV_Array(rtvDesc);
-			m_HDRCubeEnvMap->CreateSRV(&srvDesc);
+			m_HDRCubeEnvMap->CreateSRV(&srvDesc, cpuHandles);
 		}
 
 		//
@@ -402,7 +402,7 @@ namespace EduEngine
 			m_IrradianceMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
 			m_IrradianceMap->SetName(L"PBR_Irradiance_Map");
 			m_IrradianceMap->CreateRTV_Array(rtvDesc);
-			m_IrradianceMap->CreateSRV(&srvDesc);
+			m_IrradianceMap->CreateSRV(&srvDesc, cpuHandles);
 		}
 
 		//
@@ -437,7 +437,7 @@ namespace EduEngine
 			m_PrefilteredMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
 			m_PrefilteredMap->SetName(L"PBR_Prefiltered_Map");
 			m_PrefilteredMap->CreateRTV_Array(rtvDesc);
-			m_PrefilteredMap->CreateSRV(&srvDesc);
+			m_PrefilteredMap->CreateSRV(&srvDesc, cpuHandles);
 		}
 
 		//
@@ -473,7 +473,7 @@ namespace EduEngine
 			m_BrdfLut = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
 			m_BrdfLut->SetName(L"PBR_BRDF_Lut");
 			m_BrdfLut->CreateRTV(&rtvDesc);
-			m_BrdfLut->CreateSRV(&srvDesc);
+			m_BrdfLut->CreateSRV(&srvDesc, cpuHandles);
 		}
 	}
 

@@ -1,6 +1,7 @@
 #include "ShaderD3D12.h"
 #include "DebugEnumPrint.h"
 
+#include <StringUtils.h>
 #include <Asserts.h>
 #include <vector>
 
@@ -78,7 +79,7 @@ namespace EduEngine::EduBinding
 
 		if (pSource == nullptr)
 		{
-			ASSERT_FAILED("Shader file \"", name, "\" not found!");
+			ASSERT_FAILED("Shader file \"", WCharToString(name), "\" not found!");
 			return;
 		}
 

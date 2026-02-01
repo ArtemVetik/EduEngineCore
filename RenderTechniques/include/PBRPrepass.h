@@ -13,7 +13,7 @@ namespace EduEngine
 	class RENDERTECHNIQUES_API PBRPrepass
 	{
 	public:
-		PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context);
+		PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context, bool cpuHandles = true);
 
 		void GenerateTextures(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context);
 
@@ -31,7 +31,7 @@ namespace EduEngine
 
 	private:
 		void InitCube(RenderDeviceD3D12* device, DeviceContext* context);
-		void InitTextures(RenderDeviceD3D12* device, DeviceContext* context);
+		void InitTextures(RenderDeviceD3D12* device, DeviceContext* context, bool cpuHandles);
 		void InitSkyboxPSO(RenderDeviceD3D12* device);
 
 	private:

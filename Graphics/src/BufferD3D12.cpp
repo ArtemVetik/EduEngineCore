@@ -69,6 +69,7 @@ namespace EduEngine
 
 		memcpy(reinterpret_cast<char*>(uploadBuff.GetCpuAddress()), data, uploadBufferSize);
 
+		// TODO: does m_Context really work? why not use context variable instead of m_Context?
 		D3D12_RESOURCE_STATES beforeState = GetState();
 		m_Context->GetCommandCtx()->TransitionResource(this, D3D12_RESOURCE_STATE_COPY_DEST, true);
 		m_Context->GetCommandCtx()->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), 0, uploadBuff.GetResource(), uploadBuff.GetOffset(), uploadBufferSize);

@@ -55,22 +55,17 @@ namespace EduEngine
 		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
 		m_LightBuffer->CreateSRV(GetMainContext(), 1, sizeof(PBRLighting::Light));
 
-		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
+		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext(), false);
 		m_Prepass->GenerateTextures("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext());
-
-		m_PrepassTextureGPUHandles = GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
-		GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_PrepassTextureGPUHandles.GetCpuHandle(0), m_Prepass->GetIrradianceMap()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_PrepassTextureGPUHandles.GetCpuHandle(1), m_Prepass->GetPrefilteredMap()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_PrepassTextureGPUHandles.GetCpuHandle(2), m_Prepass->GetBrdfLut()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		m_TextureIndexes = {};
 		m_TextureIndexes.AlbedoTexIdx = m_AlbedoTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.MetallicRoughnessIdx = m_MetallicRoughnessTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.AOIdx = m_AOTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.NormalMapIdx = m_NormalMapTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
-		m_TextureIndexes.IrradianceMapIdx = m_PrepassTextureGPUHandles.GetGpuHeapIndex(0);
-		m_TextureIndexes.PrefilteredMapIdx = m_PrepassTextureGPUHandles.GetGpuHeapIndex(1);
-		m_TextureIndexes.BRDFLutIdx = m_PrepassTextureGPUHandles.GetGpuHeapIndex(2);
+		m_TextureIndexes.IrradianceMapIdx = m_Prepass->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.PrefilteredMapIdx = m_Prepass->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.BRDFLutIdx = m_Prepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
 
 		buffDesc.Width = (sizeof(PBRLighting::TextureIndexes) + 255) & ~255; // TODO: create align function
 		m_TextureIdxBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &m_TextureIndexes, QueueId::Direct);

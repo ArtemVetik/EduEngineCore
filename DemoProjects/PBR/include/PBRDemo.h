@@ -42,7 +42,6 @@ namespace EduEngine
 		std::shared_ptr<Mesh> m_Mesh;
 
 		std::shared_ptr<PBRPrepass> m_Prepass;
-		DescriptorHeapAllocation m_PrepassTextureGPUHandles;
 		std::shared_ptr<DebugRendererSystem> m_DebugRenderer;
 	
 		float m_MeshScale;

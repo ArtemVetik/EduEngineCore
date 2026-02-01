@@ -3,6 +3,12 @@
 
 namespace EduEngine
 {
+	void DynamicUploadBuffer::LoadData(DeviceContext* context, void* data, uint64 byteSize)
+	{
+		m_DynHeapAllocation[context->GetContextId()] = context->AllocateDynamicSpace(byteSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		memcpy(m_DynHeapAllocation[context->GetContextId()].GetCpuAddress(), data, byteSize);
+	}
+
 	void DynamicUploadBuffer::CreateSRV(DeviceContext* context, size_t elemCount, size_t byteStride)
 	{
 		VERIFY_EXPR(m_DynHeapAllocation[context->GetContextId()].GetOffset() % byteStride == 0, "DynamicHeapAllocation offset must be a multiple of byteStride");

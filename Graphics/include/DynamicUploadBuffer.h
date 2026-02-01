@@ -28,6 +28,8 @@ namespace EduEngine
 		template <class T>
 		void LoadData(DeviceContext* context, const T& initialData);
 
+		void LoadData(DeviceContext* context, void* data, uint64 byteSize);
+
 		void DynamicUploadBuffer::CreateSRV(DeviceContext* context, size_t elemCount, size_t byteStride);
 		void DynamicUploadBuffer::CreateUAV(DeviceContext* context, size_t elemCount, size_t byteStride);
 
