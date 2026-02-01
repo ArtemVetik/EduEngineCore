@@ -1,6 +1,7 @@
 #include "DeferredPBRLightPass.h"
 
 #include <PBRPrepass.h>
+#include <StringUtils.h>
 
 namespace EduEngine
 {
@@ -28,7 +29,7 @@ namespace EduEngine
 		buffDesc.Width = sizeof(MaterialData);
 		m_MaterialBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
 
-		RebuildPSO(device, rtFormat, L"NULL");
+		RebuildPSO(device, rtFormat, {});
 	}
 
 	void DeferredPBRLightPass::Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights)
@@ -65,7 +66,7 @@ namespace EduEngine
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 	}
 
-	void DeferredPBRLightPass::RebuildPSO(RenderDeviceD3D12* device, DXGI_FORMAT rtFormat, const wchar_t* debugView)
+	void DeferredPBRLightPass::RebuildPSO(RenderDeviceD3D12* device, DXGI_FORMAT rtFormat, PsoMacros macros)
 	{
 		ShaderResourceDesc sRes[]
 		{
@@ -78,14 +79,18 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(sRes);
 		sDesc.ResourceDesc = sRes;
 
-		LPCWSTR macros[]
+		auto debugView = ToWString(std::string(DebugViews[macros.DebugView]));
+		auto packNormal = std::to_wstring(macros.PackNormalMethod);
+
+		LPCWSTR macrosBuff[]
 		{
-			debugView, L"1",
+			debugView.c_str(), L"1",
+			L"PACK_NORMALS", packNormal.c_str(),
 			NULL, NULL,
 		};
 
-		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto lightPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRLightingDeferred.hlsl", L"PS", L"ps_6_6", macros, sDesc);
+		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", macrosBuff, sDesc);
+		auto lightPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRLightingDeferred.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;

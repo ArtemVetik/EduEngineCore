@@ -51,13 +51,26 @@ namespace EduEngine
 			float SpotPower = 64.0f;							 // spot light only
 		};
 
+		struct PsoMacros
+		{
+			uint32 DebugView = 0;
+			uint32 PackNormalMethod = 0;
+		};
+
+		inline static const char* DebugViews[12] =
+		{
+			"NONE", "DEBUGVIEW_ROUGHNESS", "DEBUGVIEW_METALLIC", "DEBUGVIEW_AO",
+			"DEBUGVIEW_NORMAL", "DEBUGVIEW_DIFFUSE_IBL", "DEBUGVIEW_SPECULAR_IBL",
+			"DEBUGVIEW_NDOTV", "DEBUGVIEW_FRESNEL", "DEBUGVIEW_BRDF_Y", "DEBUGVIEW_BRDF_X", "DEBUGVIEW_SSAO"
+		};
+
 	public:
 		DeferredPBRLightPass(RenderDeviceD3D12* device, DeviceContext* context, DXGI_FORMAT rtFormat);
 
 		void Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights);
 		void Render(DeviceContext* context, TextureD3D12* target);
 
-		void RebuildPSO(RenderDeviceD3D12* device, DXGI_FORMAT rtFormat, const wchar_t* debugView);
+		void RebuildPSO(RenderDeviceD3D12* device, DXGI_FORMAT rtFormat, PsoMacros macros);
 
 		void SetBufferIndexes(DeviceContext* context, const BuffersIndexesData& data);
 		void SetMaterial(DeviceContext* context, const MaterialData& data);

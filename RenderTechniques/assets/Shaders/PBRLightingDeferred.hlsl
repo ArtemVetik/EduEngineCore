@@ -65,6 +65,8 @@ struct VertexOut
     float2 TexC : TEXCOORD;
 };
 
+#include "PackNormals.hlsl"
+
 static const float PI = 3.14159265358979323846;
 
 float3 fresnelSchlick(float cosTheta, float3 F0)
@@ -126,7 +128,12 @@ float4 PS(VertexOut pin) : SV_Target
     float roughness = metallicRoughAo.g;
     float ao = metallicRoughAo.b;
     
-    float3 N = normalWTex.Sample(gsamPointWrap, pin.TexC).xyz;
+#if PACK_NORMALS > 0
+    half2 packedN = normalWTex.Sample(gsamPointWrap, pin.TexC).xy;
+    half3 N = normal_decode(packedN);
+#else
+    half3 N = normalWTex.Sample(gsamPointWrap, pin.TexC).xyz;
+#endif
     
     float3 F0 = 0.04;
     F0 = lerp(F0, albedo, metallic);
@@ -219,6 +226,8 @@ float4 PS(VertexOut pin) : SV_Target
     color = envBRDF.y;
 #elif DEBUGVIEW_BRDF_X
     color = envBRDF.x;
+#elif DEBUGVIEW_SSAO
+    color = ssao;
 #endif
     
     return float4(color, 1.0);

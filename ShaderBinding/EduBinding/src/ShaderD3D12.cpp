@@ -66,11 +66,14 @@ namespace EduEngine::EduBinding
 		{
 			for (uint32 i = 0; defines[i] != NULL; i += 2)
 			{
-				macroStr.emplace_back(defines[i]);
+				macroStr.push_back(defines[i]);
 				macroStr.back().append(L"=").append(defines[i + 1]);
+			}
 
+			for (uint32 i = 0; i < macroStr.size(); i++)
+			{
 				pszArgs.push_back(L"-D");
-				pszArgs.push_back(macroStr.back().c_str());
+				pszArgs.push_back(macroStr[i].c_str());
 			}
 		}
 

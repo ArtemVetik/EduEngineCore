@@ -23,6 +23,9 @@ namespace EduEngine
 		void OnResize() override;
 
 	private:
+		void BuildDrawPso();
+
+	private:
 		std::unique_ptr<PBRPrepass> m_PbrPrepass;
 		std::unique_ptr<DeferredPBRLightPass> m_LightPass;
 		std::unique_ptr<SSAO> m_Ssao;
@@ -39,5 +42,14 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 
 		DescriptorHeapAllocation m_GpuCopyDescriptors;
+		DeferredPBRLightPass::PsoMacros m_LightMacros = {};
+
+	private:
+		DXGI_FORMAT SPONZA_G_BUFFERS[SponzaGBufferId::NumBuffers]
+		{
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+		};
 	};
 }

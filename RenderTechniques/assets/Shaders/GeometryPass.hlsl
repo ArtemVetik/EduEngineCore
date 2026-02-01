@@ -38,9 +38,13 @@ struct VertexOut
 
 struct PSOut
 {
-    float4 Albedo : SV_TARGET0;
-    float4 NormalW : SV_TARGET1;
-    float4 MetalRoughAo : SV_TARGET2;
+    half4 Albedo : SV_TARGET0;
+#if PACK_NORMALS > 0
+    half2 NormalW : SV_TARGET1;
+#else
+    half4 NormalW : SV_TARGET1;
+#endif
+    half4 MetalRoughAo : SV_TARGET2;
 };
 
 //---------------------------------------------------------------------------------------
@@ -76,6 +80,8 @@ float3x3 InverseTranspose3x3(float3x3 M)
     return adjugate / det;
 }
 
+#include "PackNormals.hlsl"
+
 VertexOut VS(VertexIn vIn)
 {
     VertexOut output;
@@ -107,11 +113,20 @@ PSOut PS(VertexOut vOut)
         Texture2D normalMapTex = ResourceDescriptorHeap[gNormalMapIdx];
         float3 normalMapSample = normalMapTex.Sample(gsamAnisotropicWrap, vOut.TexC).xyz;
         float3 N = NormalSampleToWorldSpace(normalMapSample, vOut.NormalW, vOut.TangentW);
+        
+#if PACK_NORMALS > 0
+        psOut.NormalW = normal_encode(N);
+#else
         psOut.NormalW = float4(N, 0);
+#endif
     }
     else
     {
+#if PACK_NORMALS > 0
+        psOut.NormalW = normal_encode(vOut.NormalW);
+#else
         psOut.NormalW = float4(vOut.NormalW, 0);
+#endif
     }
     
     if (gMetallicRoughnessIdx != -1)

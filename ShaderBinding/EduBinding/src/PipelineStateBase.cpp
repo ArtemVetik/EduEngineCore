@@ -25,7 +25,13 @@ namespace EduEngine::EduBinding
 
 	void PipelineStateBase::Build(RenderDeviceD3D12* device, D3D12_STATIC_SAMPLER_DESC* staticSamplers, uint32 numStaticSamplers)
 	{
-		VERIFY_EXPR(m_Device == nullptr, "PipelineState has already been built");
+		if (m_Device)
+		{
+			ReleaseResourceWrapper staleResource;
+			staleResource.Set(std::move(m_PSO));
+			m_Device->SafeReleaseObject(std::move(staleResource), m_QueueMask);
+		}
+
 		m_Device = device;
 
 		uint8 shadersNum = 0;
@@ -80,7 +86,6 @@ namespace EduEngine::EduBinding
 	void PipelineStateBase::SetShaderBase(const std::shared_ptr<ShaderD3D12>& shader)
 	{
 		VERIFY_EXPR(shader != nullptr, "");
-		VERIFY_EXPR(m_Shaders[shader->GetType()] == nullptr, "");
 		m_Shaders[shader->GetType()] = shader;
 	}
 

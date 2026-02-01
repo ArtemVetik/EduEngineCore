@@ -48,34 +48,13 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(sRes);
 		sDesc.ResourceDesc = sRes;
 
-		auto drawVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto drawPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
-		
 		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
 		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
-
-		D3D12_INPUT_ELEMENT_DESC inputLayout[]
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,	  0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		};
-
-		D3D12_DEPTH_STENCIL_DESC dss = {};
-		dss.DepthEnable = true;
-		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
 
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;
 
-		m_DrawPso.SetDepthStencilState(dss);
-		m_DrawPso.SetInputLayout({ inputLayout, _countof(inputLayout) });
-		m_DrawPso.SetShader(drawVS);
-		m_DrawPso.SetShader(drawPS);
-		m_DrawPso.SetRTVFormats(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS);
-		m_DrawPso.Build(GetDevice());
+		BuildDrawPso();
 
 		m_PostProcPso.SetDepthStencilState(dssOff);
 		m_PostProcPso.SetShader(fsQuadVS);
@@ -217,21 +196,32 @@ namespace EduEngine
 		if (ImGui::CollapsingHeader("Debug View"))
 		{
 			static int currentView = 0;
-			const char* debugViews[] =
+			
+			if (ImGui::Combo("Type##DebugView", &currentView, DeferredPBRLightPass::DebugViews, IM_ARRAYSIZE(DeferredPBRLightPass::DebugViews)))
 			{
-				"NONE", "DEBUGVIEW_ROUGHNESS", "DEBUGVIEW_METALLIC", "DEBUGVIEW_AO",
-				"DEBUGVIEW_NORMAL", "DEBUGVIEW_DIFFUSE_IBL", "DEBUGVIEW_SPECULAR_IBL",
-				"DEBUGVIEW_NDOTV", "DEBUGVIEW_FRESNEL", "DEBUGVIEW_BRDF_Y", "DEBUGVIEW_BRDF_X",
+				m_LightMacros.DebugView = currentView;
+				m_LightPass->RebuildPSO(GetDevice(), ACCUM_BUFFER_FORMAT, m_LightMacros);
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Pack Normals"))
+		{
+			static int currentPackMethod = 0;
+			const char* packMethods[] =
+			{
+				"NONE", "Simple", "Spherical", "Spheremap", "Stereographic",
 			};
-			if (ImGui::Combo("Type##DebugView", &currentView, debugViews, IM_ARRAYSIZE(debugViews)))
+
+			if (ImGui::Combo("Type##PackNormals", &currentPackMethod, packMethods, IM_ARRAYSIZE(packMethods)))
 			{
-				UINT cSize = strlen(debugViews[currentView]) + 1;
-				wchar_t* wc = new wchar_t[cSize];
-				mbstowcs(wc, debugViews[currentView], cSize);
+				SPONZA_G_BUFFERS[SponzaGBufferId::Normal] = currentPackMethod == 0 ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R16G16_FLOAT;
 
-				m_LightPass->RebuildPSO(GetDevice(), ACCUM_BUFFER_FORMAT, wc);
-
-				delete[] wc;
+				m_LightMacros.PackNormalMethod = currentPackMethod;
+				m_LightPass->RebuildPSO(GetDevice(), ACCUM_BUFFER_FORMAT, m_LightMacros);
+				
+				BuildDrawPso();
+				m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
+				OnResize();
 			}
 		}
 
@@ -259,7 +249,6 @@ namespace EduEngine
 			m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(0));
 		}
 
-		
 		if (m_LightPass)
 		{
 			m_GpuCopyDescriptors = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5));
@@ -291,5 +280,50 @@ namespace EduEngine
 
 			m_LightPass->SetBufferIndexes(GetMainContext(), deferredLightBuffers);
 		}
+	}
+
+	void SponzaDemo::BuildDrawPso()
+	{
+		ShaderResourceDesc sRes[]
+		{
+			ShaderResourceDesc("cbPerObject", SHADER_RESOURCE_TYPE_DYNAMIC),
+			ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
+		};
+
+		ShaderDesc sDesc = { };
+		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
+		sDesc.ResourceNum = _countof(sRes);
+		sDesc.ResourceDesc = sRes;
+
+		auto packNormal = std::to_wstring(m_LightMacros.PackNormalMethod);
+
+		LPCWSTR macrosBuff[]
+		{
+			L"PACK_NORMALS", packNormal.c_str(),
+			NULL, NULL,
+		};
+
+		auto drawVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"VS", L"vs_6_6", macrosBuff, sDesc);
+		auto drawPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
+
+		D3D12_INPUT_ELEMENT_DESC inputLayout[]
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,	  0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		};
+
+		D3D12_DEPTH_STENCIL_DESC dss = {};
+		dss.DepthEnable = true;
+		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+
+		m_DrawPso.SetDepthStencilState(dss);
+		m_DrawPso.SetInputLayout({ inputLayout, _countof(inputLayout) });
+		m_DrawPso.SetShader(drawVS);
+		m_DrawPso.SetShader(drawPS);
+		m_DrawPso.SetRTVFormats(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS);
+		m_DrawPso.Build(GetDevice());
 	}
 }
