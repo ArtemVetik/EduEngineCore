@@ -26,7 +26,9 @@ namespace EduEngine
 			m_IndexBuffers[i].reset();
 		}
 
-		m_Textures.clear();
+		for (size_t i = 0; i < PBR_TEXTURE_NUM; i++)
+			m_Textures[i].clear();
+
 		m_AssimpImporter.FreeScene();
 		m_Scene = nullptr;
 	}
@@ -47,7 +49,10 @@ namespace EduEngine
 		m_Scene = m_AssimpImporter.ReadFile(m_FilePath, flags);
 
 		if (loadDesc.Flags & MESH_LOAD_FLAG_LOAD_TEXTURES)
-			m_Textures.resize(m_Scene->mNumMeshes);
+		{
+			for (size_t i = 0; i < PBR_TEXTURE_NUM; i++)
+				m_Textures[i].resize(m_Scene->mNumMeshes);
+		}
 
 		m_VertexBuffers.resize(m_Scene->mNumMeshes);
 		m_IndexBuffers.resize(m_Scene->mNumMeshes);
@@ -57,30 +62,7 @@ namespace EduEngine
 			aiMesh* mesh = m_Scene->mMeshes[i];
 
 			if (loadDesc.Flags & MESH_LOAD_FLAG_LOAD_TEXTURES)
-			{
-				aiMaterial* material = m_Scene->mMaterials[mesh->mMaterialIndex];
-				if (material->GetTextureCount(aiTextureType_DIFFUSE))
-				{
-					aiString texPath;
-					material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath);
-
-					namespace fs = std::filesystem;
-					fs::path p(texPath.C_Str());
-					std::string texName = p.stem().string();
-					texName = loadDesc.TextureBasePath + texName + loadDesc.TextureExt;
-
-					m_Textures[i] = std::make_unique<Texture>();
-					m_Textures[i]->Load(ToWString(texName).c_str(), m_Device, m_Context);
-				}
-				else
-				{
-					int aa = 123;
-				}
-			}
-			else
-			{
-				int edads = 123;
-			}
+				LoadPBRTextures(i, loadDesc);
 
 			MeshData meshData;
 			for (int i = 0; i < mesh->mNumVertices; i++)
@@ -156,7 +138,9 @@ namespace EduEngine
 				m_IndexBuffers[i].reset();
 			}
 
-			m_Textures.clear();
+			for (size_t i = 0; i < PBR_TEXTURE_NUM; i++)
+				m_Textures[i].clear();
+
 			m_AssimpImporter.FreeScene();
 			m_Scene = nullptr;
 		}
@@ -185,5 +169,41 @@ namespace EduEngine
 
 		center = (aabb.mMin + aabb.mMax) * 0.5f;
 		radius = ((aabb.mMax - aabb.mMin) * 0.5f).Length();
+	}
+
+	void Mesh::LoadPBRTextures(uint32 meshIdx, const MeshLoadDesc& loadDesc)
+	{
+		namespace fs = std::filesystem;
+
+		aiMesh* mesh = m_Scene->mMeshes[meshIdx];
+		aiMaterial* material = m_Scene->mMaterials[mesh->mMaterialIndex];
+
+		for (uint32 i = 0; i < PBR_TEXTURE_NUM; i++)
+		{
+			aiTextureType texType = TextureType(static_cast<PBR_TEXTURE_TYPE>(i));
+			aiString texPath;
+
+			if (material->GetTexture(texType, 0, &texPath) == AI_SUCCESS)
+			{
+				fs::path p(texPath.C_Str());
+				std::string texName = p.stem().string();
+				texName = loadDesc.TextureBasePath + texName + loadDesc.TextureExt;
+
+				m_Textures[i][meshIdx] = std::make_unique<Texture>();
+				m_Textures[i][meshIdx]->Load(ToWString(texName).c_str(), m_Device, m_Context, loadDesc.TextureLoadDesc);
+			}
+		}
+	}
+
+	aiTextureType Mesh::TextureType(PBR_TEXTURE_TYPE type) const
+	{
+		switch (type)
+		{
+		case EduEngine::PBR_TEXTURE_BASE_COLOR: return aiTextureType_BASE_COLOR;
+		case EduEngine::PBR_TEXTURE_NORMAL_MAP: return aiTextureType_NORMALS;
+		case EduEngine::PBR_TEXTURE_METALLIC_ROUGHNESS: return aiTextureType_METALNESS; // TODO: compare metallic & roughness texture paths
+		case EduEngine::PBR_TEXTURE_AMBIENT_OCCLUSION: return aiTextureType_AMBIENT_OCCLUSION;
+		default: ASSERT_FAILED("Invalid PBR_TEXTURE_TYPE: ", type);
+		}
 	}
 }

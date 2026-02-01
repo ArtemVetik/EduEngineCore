@@ -18,9 +18,19 @@ namespace EduEngine
 		MESH_LOAD_FLAG_LOAD_TEXTURES = 1 << 3,
 	};
 
+	enum PBR_TEXTURE_TYPE : UINT
+	{
+		PBR_TEXTURE_BASE_COLOR = 0,
+		PBR_TEXTURE_NORMAL_MAP = 1,
+		PBR_TEXTURE_METALLIC_ROUGHNESS = 2,
+		PBR_TEXTURE_AMBIENT_OCCLUSION = 3,
+		PBR_TEXTURE_NUM = 4,
+	};
+
 	struct MeshLoadDesc
 	{
 		UINT Flags = 0;
+		TextureLoadDesc TextureLoadDesc = {};
 		const char* TextureBasePath = nullptr;
 		const char* TextureExt = nullptr;
 	};
@@ -47,10 +57,14 @@ namespace EduEngine
 		std::shared_ptr<VertexBufferD3D12> GetVertexBufferShared(uint32 meshIdx = 0) const { return m_VertexBuffers[meshIdx]; }
 		std::shared_ptr<IndexBufferD3D12> GetIndexBufferShared(uint32 meshIdx = 0) const { return m_IndexBuffers[meshIdx]; }
 
-		Texture* GetTexture(uint32 meshIdx = 0) const { return m_Textures[meshIdx].get(); }
+		Texture* GetTexture(uint32 meshIdx = 0, PBR_TEXTURE_TYPE type = PBR_TEXTURE_BASE_COLOR) const { return m_Textures[type][meshIdx].get(); }
 
 		void GetBoundingBox(aiVector3D& min, aiVector3D& max, uint32 meshIdx = 0) const;
 		void GetBoundingSphere(aiVector3D& center, float& radius, uint32 meshIdx = 0) const;
+
+	private:
+		void LoadPBRTextures(uint32 meshIdx, const MeshLoadDesc& loadDesc);
+		aiTextureType TextureType(PBR_TEXTURE_TYPE type) const;
 
 	private:
 		RenderDeviceD3D12* m_Device;
@@ -59,7 +73,7 @@ namespace EduEngine
 		Assimp::Importer m_AssimpImporter;
 		const aiScene* m_Scene;
 
-		std::vector<std::unique_ptr<Texture>> m_Textures;
+		std::vector<std::unique_ptr<Texture>> m_Textures[PBR_TEXTURE_NUM];
 		std::vector<std::shared_ptr<VertexBufferD3D12>> m_VertexBuffers;
 		std::vector<std::shared_ptr<IndexBufferD3D12>> m_IndexBuffers;
 

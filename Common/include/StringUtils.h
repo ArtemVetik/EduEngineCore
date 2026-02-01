@@ -58,3 +58,12 @@ inline std::wstring ToWString(const std::string& s)
 	MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, result.data(), size);
 	return result;
 }
+
+inline std::string WCharToString(const wchar_t* wstr)
+{
+	int size = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
+	std::string result(size - 1, 0);
+
+	WideCharToMultiByte(CP_UTF8, 0, wstr, -1, result.data(), size, nullptr, nullptr);
+	return result;
+}
