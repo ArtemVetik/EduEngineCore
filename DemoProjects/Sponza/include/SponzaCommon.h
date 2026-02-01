@@ -7,12 +7,14 @@ namespace EduEngine
 	{
 		Albedo = 0,
 		Normal = 1,
-		NumBuffers = 2,
+		MetalRoughAo = 2,
+		NumBuffers = 3,
 	};
 
-	const DXGI_FORMAT G_BUFFERS[SponzaGBufferId::NumBuffers]
+	const DXGI_FORMAT SPONZA_G_BUFFERS[SponzaGBufferId::NumBuffers]
 	{
 		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R16G16B16A16_FLOAT,
 		DXGI_FORMAT_R16G16B16A16_FLOAT,
 	};
 

@@ -20,15 +20,22 @@ namespace EduEngine
 		meshDesc.Flags = MESH_LOAD_FLAG_LOAD_TEXTURES;
 		meshDesc.TextureBasePath = "assets\\Textures\\";
 		meshDesc.TextureExt = ".dds";
+		meshDesc.TextureLoadDesc.OnCPU = false;
 
 		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), "assets\\Models\\scene.gltf");
 		m_Mesh->Load(meshDesc);
 
-		m_GBuffer = std::make_unique<GBuffer>(2, G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
-		m_GBuffer->Resize(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
+		m_PbrPrepass = std::make_unique<PBRPrepass>(GetDevice(), GetMainContext(), false);
+		m_PbrPrepass->GenerateTextures("assets\\Textures\\HDR\\neurathen_rock_castle_4k.hdr", GetDevice(), GetMainContext());
 
+		m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
 		m_Ssao = std::make_unique<SSAO>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
-		m_Ssao->BindResources(m_GBuffer->GetGBufferShared(SponzaGBufferId::Normal), GetSwapChain()->GetDepthStencilTextureShared());
+
+		DeferredPBRLightPass::MaterialData material = {};
+		material.DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		m_LightPass = std::make_unique<DeferredPBRLightPass>(GetDevice(), GetMainContext(), ACCUM_BUFFER_FORMAT);
+		m_LightPass->SetMaterial(GetMainContext(), material);
 
 		ShaderResourceDesc sRes[]
 		{
@@ -41,9 +48,9 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(sRes);
 		sDesc.ResourceDesc = sRes;
 
-		auto drawVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Color.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto drawPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Color.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
-
+		auto drawVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto drawPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		
 		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
 		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
 
@@ -67,7 +74,7 @@ namespace EduEngine
 		m_DrawPso.SetInputLayout({ inputLayout, _countof(inputLayout) });
 		m_DrawPso.SetShader(drawVS);
 		m_DrawPso.SetShader(drawPS);
-		m_DrawPso.SetRTVFormats(SponzaGBufferId::NumBuffers, G_BUFFERS);
+		m_DrawPso.SetRTVFormats(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS);
 		m_DrawPso.Build(GetDevice());
 
 		m_PostProcPso.SetDepthStencilState(dssOff);
@@ -79,44 +86,34 @@ namespace EduEngine
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 
-		m_DrawBinders.resize(m_Mesh->GetMeshCount());
-		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
-		{
-			m_DrawBinders[i] = m_DrawPso.CreateShaderBinder();
-
-			m_DrawBinders[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
-			m_DrawBinders[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
-			m_DrawBinders[i]->BindResource(EDU_SHADER_TYPE_PIXEL, "gAlbedo", m_Mesh->GetTexture(i)->GetD3D12Texture());
-		}
+		m_DrawBinder = m_DrawPso.CreateShaderBinder();
+		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
+		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerObject", m_ObjBuffer);
+		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
 
 		m_PostProcBinder = m_PostProcPso.CreateShaderBinder();
-		m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_Ssao->GetSSAOMap());
+
+		OnResize();
 	}
 	
 	void SponzaDemo::OnUpdate(const Timer& timer)
 	{
 		FreeCameraUpdate(timer, GetCamera());
 
-		struct ObjData
-		{
-			XMFLOAT4X4 World;
-		};
-
 		struct PassData
 		{
 			XMFLOAT4X4 ViewProj;
 		};
 
-		ObjData objData;
 		PassData passData;
 		
-		XMStoreFloat4x4(&objData.World, XMMatrixTranspose(XMMatrixScaling(20, 20, 20)));
 		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
-	
-		m_ObjBuffer->LoadData(GetMainContext(), objData);
 		m_PassBuffer->LoadData(GetMainContext(), passData);
 
 		m_Ssao->Update(GetCamera(), GetMainContext());
+
+		DeferredPBRLightPass::Light lights = {};
+		m_LightPass->Update(GetMainContext(), GetCamera(), &lights, 1);
 	}
 
 	void SponzaDemo::OnRender(const Timer& timer)
@@ -135,44 +132,115 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(GetSwapChain()->CurrentBackBufferView(), clear, 0, nullptr);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(GetSwapChain()->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
-		GetMainContext()->GetCommandCtx()->TransitionResource(m_GBuffer->GetGBuffer(0), D3D12_RESOURCE_STATE_RENDER_TARGET);
-		GetMainContext()->GetCommandCtx()->TransitionResource(m_GBuffer->GetGBuffer(1), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		for (uint32 i = 0; i < SponzaGBufferId::NumBuffers; i++)
+			GetMainContext()->GetCommandCtx()->TransitionResource(m_GBuffer->GetGBuffer(i), D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_GBuffer->GetGBufferRTVView(0), clear, 0, nullptr);
-		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_GBuffer->GetGBufferRTVView(1), clear, 0, nullptr);
+		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
+
+		for (uint32 i = 0; i < SponzaGBufferId::NumBuffers; i++)
+			GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_GBuffer->GetGBufferRTVView(i), clear, 0, nullptr);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]
 		{
 			m_GBuffer->GetGBufferRTVView(0),
 			m_GBuffer->GetGBufferRTVView(1),
+			m_GBuffer->GetGBufferRTVView(2),
 		};
 
-		GetMainContext()->GetCommandCtx()->SetRenderTargets(2, rtvs, false, &GetSwapChain()->DepthStencilView());
+		GetMainContext()->GetCommandCtx()->SetRenderTargets(SponzaGBufferId::NumBuffers, rtvs, false, &GetSwapChain()->DepthStencilView());
+
+		auto GetTexIdx = [&](Texture* texture) -> UINT
+			{
+				if (texture)
+					return texture->GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+
+				return -1;
+			};
 
 		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
 		{
-			m_DrawPso.CommitAll(GetMainContext(), m_DrawBinders[i].get());
+			struct ObjData
+			{
+				XMFLOAT4X4 World;
+				UINT AlbedoTexIdx;
+				UINT NormalMapIdx;
+				UINT MetallicRoughnessIdx;
+				UINT AOIdx;
+			} objData;
+
+			XMStoreFloat4x4(&objData.World, XMMatrixTranspose(XMMatrixScaling(20, 20, 20)));
+			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_BASE_COLOR));
+			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_NORMAL_MAP));
+			objData.MetallicRoughnessIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_METALLIC_ROUGHNESS));
+			objData.AOIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_AMBIENT_OCCLUSION));
+
+			m_ObjBuffer->LoadData(GetMainContext(), objData);
+
+			m_DrawPso.CommitAll(GetMainContext(), m_DrawBinder.get());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(i)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(i)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(i), 1, 0, 0, 0);
 		}
 		
-		GetMainContext()->GetCommandCtx()->TransitionResource(m_GBuffer->GetGBuffer(0), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		GetMainContext()->GetCommandCtx()->TransitionResource(m_GBuffer->GetGBuffer(1), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		for (uint32 i = 0; i < SponzaGBufferId::NumBuffers; i++)
+			GetMainContext()->GetCommandCtx()->TransitionResource(m_GBuffer->GetGBuffer(i), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
 
 		m_Ssao->Render(GetMainContext());
+
+		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
+		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
+
+		m_LightPass->Render(GetMainContext(), m_GBuffer->GetAccumBuffer(0));
 
 		//
 		// Post process pass
 		//
-		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
-		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
-
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
 		m_PostProcPso.CommitAll(GetMainContext(), m_PostProcBinder.get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
+		m_PbrPrepass->RenderSky(GetDevice(), GetMainContext(), GetCamera());
+
+		//
+		// GUI
+		//
+
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::Begin("Editor", nullptr);
+
+		if (ImGui::CollapsingHeader("Debug View"))
+		{
+			static int currentView = 0;
+			const char* debugViews[] =
+			{
+				"NONE", "DEBUGVIEW_ROUGHNESS", "DEBUGVIEW_METALLIC", "DEBUGVIEW_AO",
+				"DEBUGVIEW_NORMAL", "DEBUGVIEW_DIFFUSE_IBL", "DEBUGVIEW_SPECULAR_IBL",
+				"DEBUGVIEW_NDOTV", "DEBUGVIEW_FRESNEL", "DEBUGVIEW_BRDF_Y", "DEBUGVIEW_BRDF_X",
+			};
+			if (ImGui::Combo("Type##DebugView", &currentView, debugViews, IM_ARRAYSIZE(debugViews)))
+			{
+				UINT cSize = strlen(debugViews[currentView]) + 1;
+				wchar_t* wc = new wchar_t[cSize];
+				mbstowcs(wc, debugViews[currentView], cSize);
+
+				m_LightPass->RebuildPSO(GetDevice(), ACCUM_BUFFER_FORMAT, wc);
+
+				delete[] wc;
+			}
+		}
+
+		ImGui::End();
+
+		RenderEngine::PopulateDebugImguiCommand();
+
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
 	}
 
 	void SponzaDemo::OnResize()
@@ -188,7 +256,40 @@ namespace EduEngine
 			m_Ssao->BindResources(m_GBuffer->GetGBufferShared(SponzaGBufferId::Normal), GetSwapChain()->GetDepthStencilTextureShared());
 
 			m_PostProcBinder->DryMutableResources();
-			m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_Ssao->GetSSAOMap());
+			m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(0));
+		}
+
+		
+		if (m_LightPass)
+		{
+			m_GpuCopyDescriptors = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5));
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(0),
+				m_GBuffer->GetGBuffer(SponzaGBufferId::Albedo)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(1),
+				m_GBuffer->GetGBuffer(SponzaGBufferId::Normal)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(2),
+				m_GBuffer->GetGBuffer(SponzaGBufferId::MetalRoughAo)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(3),
+				GetSwapChain()->GetDepthStencilTextureShared()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(4),
+				m_Ssao->GetSSAOMap()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			DeferredPBRLightPass::BuffersIndexesData deferredLightBuffers = {};
+			deferredLightBuffers.AlbedoIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(0);
+			deferredLightBuffers.NormalIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(1);
+			deferredLightBuffers.MetallicRoughAoIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(2);
+			deferredLightBuffers.DepthIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(3);
+			deferredLightBuffers.SsaoMapIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(4);
+			deferredLightBuffers.IrradianceMapIdx = m_PbrPrepass->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.PrefilteredMapIdx = m_PbrPrepass->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.BRDFLutIdx = m_PbrPrepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
+
+			m_LightPass->SetBufferIndexes(GetMainContext(), deferredLightBuffers);
 		}
 	}
 }

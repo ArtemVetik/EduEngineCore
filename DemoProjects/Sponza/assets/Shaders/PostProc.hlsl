@@ -16,8 +16,8 @@ struct VertexOut
 float4 PS(VertexOut vOut) : SV_Target
 {
     float3 color = gSceneTex.Sample(gsamPointClamp, vOut.TexC);
-    //color = color / (color + 1);
-    //color = pow(color, 1.0 / 2.2);
+    color = color / (color + 1);
+    color = pow(color, 1.0 / 2.2);
     
     return float4(color, 1);
 }
