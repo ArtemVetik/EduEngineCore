@@ -25,6 +25,9 @@ add_custom_command(TARGET PBR POST_BUILD
         "${CMAKE_SOURCE_DIR}/DemoProjects/BaseDemo/assets"
         "$<TARGET_FILE_DIR:PBR>/assets"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/RenderTechniques/assets"
+        "$<TARGET_FILE_DIR:Sponza>/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${LIBS_ROOT}/lib"
         "$<TARGET_FILE_DIR:PBR>"
 )
