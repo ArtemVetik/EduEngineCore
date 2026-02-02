@@ -26,7 +26,7 @@ namespace EduEngine
 		m_Mesh->Load(meshDesc);
 
 		m_PbrPrepass = std::make_unique<PBRPrepass>(GetDevice(), GetMainContext(), false);
-		m_PbrPrepass->GenerateTextures("assets\\Textures\\HDR\\neurathen_rock_castle_4k.hdr", GetDevice(), GetMainContext());
+		m_PbrPrepass->GenerateTextures("assets\\Textures\\HDR\\kloofendal_48d_partly_cloudy_puresky_4k.hdr", GetDevice(), GetMainContext());
 
 		m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
 		m_Ssao = std::make_unique<SSAO>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);

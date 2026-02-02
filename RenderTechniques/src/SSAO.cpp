@@ -215,8 +215,8 @@ namespace EduEngine
 
 	void SSAO::Resize(uint64 rtWidth, uint64 rtHeight)
 	{
-		m_Width = rtWidth / 2;
-		m_Height = rtHeight / 2;
+		m_Width = rtWidth;
+		m_Height = rtHeight;
 
 		m_Viewport.TopLeftX = 0.0f;
 		m_Viewport.TopLeftY = 0.0f;
