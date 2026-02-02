@@ -42,7 +42,6 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 
 		DescriptorHeapAllocation m_GpuCopyDescriptors;
-		DeferredPBRLightPass::PsoMacros m_LightMacros = {};
 
 	private:
 		DXGI_FORMAT SPONZA_G_BUFFERS[SponzaGBufferId::NumBuffers]

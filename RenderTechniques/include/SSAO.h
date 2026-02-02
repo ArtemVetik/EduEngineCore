@@ -2,6 +2,7 @@
 #include <Camera.h>
 #include <TextureD3D12.h>
 #include <PipelineState.h>
+#include <RenderFeatures.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -17,19 +18,20 @@ namespace EduEngine
 		void Update(const Camera* camera, DeviceContext* context);
 		void Render(DeviceContext* context);
 
-		void Resize(RenderDeviceD3D12* device, uint64 rtWidth, uint64 rtHeight);
+		void Resize(uint64 rtWidth, uint64 rtHeight);
 
 		std::shared_ptr<TextureD3D12> GetSSAOMap() const { return m_SsaoTexture[0]; }
 
 	private:
+		std::shared_ptr<PipelineState> BuildPSO(bool blurPso);
 		std::vector<float> CalcGaussWeights(float sigma);
 
 	private:
 		const DXGI_FORMAT SSAO_FORMAT = DXGI_FORMAT_R16G16B16A16_FLOAT;
 		const int MAX_BLUR_RADIUS = 5;
 
-		PipelineState m_SsaoPso;
-		PipelineState m_BlurPso;
+		PSOEntry m_SsaoPsoEntry = {};
+		PSOEntry m_BlurPsoEntry = {};
 
 		std::shared_ptr<ShaderBinder> m_SsaoBinder;
 		std::shared_ptr<ShaderBinder> m_BlurBinder[2];
@@ -45,5 +47,7 @@ namespace EduEngine
 		uint64 m_Height;
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT m_ScissorRect;
+
+		RenderDeviceD3D12* m_Device;
 	};
 }

@@ -2,6 +2,7 @@
 
 #include "../../InputSystem/include/InputManager.h"
 
+#include <RenderFeatures.h>
 #include <dxgi1_6.h>
 
 namespace EduEngine
@@ -23,6 +24,8 @@ namespace EduEngine
 
 	RenderEngine::~RenderEngine()
 	{
+		g_PsoCache.Clear();
+
 		ImGui_ImplDX12_Shutdown();
 		ImGui_ImplWin32_Shutdown();
 		ImGui::DestroyContext();

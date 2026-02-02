@@ -197,30 +197,27 @@ namespace EduEngine
 		{
 			static int currentView = 0;
 			
-			if (ImGui::Combo("Type##DebugView", &currentView, DeferredPBRLightPass::DebugViews, IM_ARRAYSIZE(DeferredPBRLightPass::DebugViews)))
+			if (ImGui::Combo("Type##DebugView", &currentView, DebugViewsStr, IM_ARRAYSIZE(DebugViewsStr)))
 			{
-				m_LightMacros.DebugView = currentView;
-				m_LightPass->RebuildPSO(GetDevice(), ACCUM_BUFFER_FORMAT, m_LightMacros);
+				g_RenderFeatures.DebugView = (DebugView)currentView;
+				g_PsoCache.OnRenderFeaturesChanged(g_RenderFeatures, RenderFeatureID::DebugView);
 			}
 		}
 
 		if (ImGui::CollapsingHeader("Pack Normals"))
 		{
 			static int currentPackMethod = 0;
-			const char* packMethods[] =
-			{
-				"NONE", "Simple", "Spherical", "Spheremap", "Stereographic",
-			};
 
-			if (ImGui::Combo("Type##PackNormals", &currentPackMethod, packMethods, IM_ARRAYSIZE(packMethods)))
+			if (ImGui::Combo("Type##PackNormals", &currentPackMethod, PackNormalsMethodStr, IM_ARRAYSIZE(PackNormalsMethodStr)))
 			{
-				SPONZA_G_BUFFERS[SponzaGBufferId::Normal] = currentPackMethod == 0 ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R16G16_FLOAT;
-
-				m_LightMacros.PackNormalMethod = currentPackMethod;
-				m_LightPass->RebuildPSO(GetDevice(), ACCUM_BUFFER_FORMAT, m_LightMacros);
+				g_RenderFeatures.PackNormalsMethod = (PackNormalsMethod)currentPackMethod;
 				
-				BuildDrawPso();
+				SPONZA_G_BUFFERS[SponzaGBufferId::Normal] = currentPackMethod == 0 ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R16G16_FLOAT;
 				m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
+
+				BuildDrawPso();
+				g_PsoCache.OnRenderFeaturesChanged(g_RenderFeatures, RenderFeatureID::PackNormalsMethod);
+
 				OnResize();
 			}
 		}
@@ -242,7 +239,7 @@ namespace EduEngine
 
 		if (m_Ssao)
 		{
-			m_Ssao->Resize(GetDevice(), GetViewport().Width, GetViewport().Height);
+			m_Ssao->Resize(GetViewport().Width, GetViewport().Height);
 			m_Ssao->BindResources(m_GBuffer->GetGBufferShared(SponzaGBufferId::Normal), GetSwapChain()->GetDepthStencilTextureShared());
 
 			m_PostProcBinder->DryMutableResources();
@@ -295,7 +292,7 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(sRes);
 		sDesc.ResourceDesc = sRes;
 
-		auto packNormal = std::to_wstring(m_LightMacros.PackNormalMethod);
+		auto packNormal = std::to_wstring((int)g_RenderFeatures.PackNormalsMethod);
 
 		LPCWSTR macrosBuff[]
 		{

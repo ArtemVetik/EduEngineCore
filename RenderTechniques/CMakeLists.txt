@@ -6,6 +6,7 @@ add_library(RenderTechniques STATIC
     src/SSAO.cpp
     src/GBuffer.cpp
     src/DeferredPBRLightPass.cpp
+    src/RenderFeatures.cpp
 )
 
 target_include_directories(RenderTechniques

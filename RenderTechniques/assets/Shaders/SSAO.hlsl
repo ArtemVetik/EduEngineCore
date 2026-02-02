@@ -52,6 +52,8 @@ struct VertexOut
     float2 TexC : TEXCOORD;
 };
 
+#include "PackNormals.hlsl"
+
 VertexOut VS(uint vertexId : SV_VertexID)
 {
     VertexOut output;
@@ -62,6 +64,22 @@ VertexOut VS(uint vertexId : SV_VertexID)
     output.PosV = ph.xyz / ph.w;
     
     return output;
+}
+
+half3 SampleNormal(float2 texC)
+{
+#if PACK_NORMALS > 0
+    half2 nEnc = gNormalMap.SampleLevel(gsamPointClamp, texC, 0.0f).xy;
+    half3 n = normal_decode(nEnc);
+#else
+    half3 n = gNormalMap.SampleLevel(gsamPointClamp, texC, 0.0f).xyz;
+#endif
+    
+#if WORLD_SPACE_NORMALS
+    n = mul(n, (float3x3)gView);
+#endif
+    
+    return n;
 }
 
 // Determines how much the sample point q occludes the point p as a function
@@ -115,10 +133,7 @@ float4 PS_SSAO(VertexOut pin) : SV_Target
 	// r -- a potential occluder that might occlude p.
 
 	// Get viewspace normal and z-coord of this pixel.  
-    float3 n = normalize(gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz);
-#if WORLD_SPACE_NORMALS
-    n = mul(n, (float3x3)gView);
-#endif
+    half3 n = SampleNormal(pin.TexC);
     float pz = gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
     pz = NdcDepthToViewDepth(pz);
 
@@ -221,10 +236,7 @@ float4 PS_Blur(VertexOut pin) : SV_Target
     float4 color = blurWeights[gBlurRadius] * gInputMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0);
     float totalWeight = blurWeights[gBlurRadius];
 	 
-    float3 centerNormal = gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
-#if WORLD_SPACE_NORMALS
-    centerNormal = mul(centerNormal, (float3x3) gView);
-#endif    
+    half3 centerNormal = SampleNormal(pin.TexC);
 
     float centerDepth = NdcDepthToViewDepth(
         gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r);
@@ -237,10 +249,7 @@ float4 PS_Blur(VertexOut pin) : SV_Target
 
         float2 tex = pin.TexC + i * texOffset;
 
-        float3 neighborNormal = gNormalMap.SampleLevel(gsamPointClamp, tex, 0.0f).xyz;
-#if WORLD_SPACE_NORMALS
-        neighborNormal = mul(neighborNormal, (float3x3) gView);
-#endif        
+        half3 neighborNormal = SampleNormal(tex);
 
         float neighborDepth = NdcDepthToViewDepth(
             gDepthMap.SampleLevel(gsamDepthMap, tex, 0.0f).r);

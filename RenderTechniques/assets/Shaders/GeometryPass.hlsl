@@ -113,6 +113,7 @@ PSOut PS(VertexOut vOut)
         Texture2D normalMapTex = ResourceDescriptorHeap[gNormalMapIdx];
         float3 normalMapSample = normalMapTex.Sample(gsamAnisotropicWrap, vOut.TexC).xyz;
         float3 N = NormalSampleToWorldSpace(normalMapSample, vOut.NormalW, vOut.TangentW);
+        N = normalize(N);
         
 #if PACK_NORMALS > 0
         psOut.NormalW = normal_encode(N);

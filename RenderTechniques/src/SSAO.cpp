@@ -1,5 +1,6 @@
 #include "SSAO.h"
 
+#include <string>
 #include <array>
 #include <RandomUtils.h>
 #include <DirectXPackedVector.h>
@@ -9,9 +10,26 @@ using namespace DirectX::PackedVector;
 
 namespace EduEngine
 {
-	SSAO::SSAO(RenderDeviceD3D12* device, DeviceContext* context, uint64 rtWidth, uint64 rtHeight)
+	SSAO::SSAO(RenderDeviceD3D12* device, DeviceContext* context, uint64 rtWidth, uint64 rtHeight) :
+		m_Device(device)
 	{
-		Resize(device, rtWidth, rtHeight);
+		m_SsaoPsoEntry.Name = "SSAO_Gen";
+		m_SsaoPsoEntry.DependentParams = { RenderFeatureID::PackNormalsMethod };
+		m_SsaoPsoEntry.CurrentKey = m_SsaoPsoEntry.MakeKeyFromFeatures(g_RenderFeatures);
+		m_SsaoPsoEntry.BuildPsoFunc = [this]() { return BuildPSO(false); };
+		m_SsaoPsoEntry.OnPsoUpdated = [this]() { m_SsaoBinder = m_SsaoPsoEntry.Pso->CreateShaderBinder(); };
+
+		m_BlurPsoEntry.Name = "SSAO_Blur";
+		m_BlurPsoEntry.DependentParams = { RenderFeatureID::PackNormalsMethod };
+		m_BlurPsoEntry.CurrentKey = m_BlurPsoEntry.MakeKeyFromFeatures(g_RenderFeatures);
+		m_BlurPsoEntry.BuildPsoFunc = [this]() { return BuildPSO(true); };
+		m_BlurPsoEntry.OnPsoUpdated = [this]() 
+			{
+				for (uint32 i = 0; i < 2; i++)
+					m_BlurBinder[i] = m_BlurPsoEntry.Pso->CreateShaderBinder();
+			};
+
+		Resize(rtWidth, rtHeight);
 		
 		//
 		// Generate RandVectorMap
@@ -47,7 +65,7 @@ namespace EduEngine
 			}
 		}
 
-		m_RandVectorMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
+		m_RandVectorMap = std::make_shared<TextureD3D12>(m_Device, texDesc, nullptr, QueueId::Direct);
 		m_RandVectorMap->LoadData(context, initData.data());
 		m_RandVectorMap->CreateSRV(&srvDesc);
 
@@ -84,92 +102,11 @@ namespace EduEngine
 			XMStoreFloat4(&m_Offsets[i], v);
 		}
 
-		//
-		// Init static samplers
-		//
-		const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
-			0, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+		m_SsaoBuffer = std::make_shared<DynamicUploadBuffer>(m_Device);
+		m_ConstantsBuffer = std::make_shared<DynamicUploadBuffer>(m_Device);
 
-		const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
-			1, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
-
-		const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
-			2, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
-			0.0f,
-			0,
-			D3D12_COMPARISON_FUNC_LESS_EQUAL,
-			D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE);
-
-		const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
-			3, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-		std::array<CD3DX12_STATIC_SAMPLER_DESC, 4> staticSamplers =
-		{
-			pointClamp, linearClamp, depthMapSam, linearWrap
-		};
-
-		//
-		// Build PSO
-		//
-		ShaderResourceDesc sRes[]
-		{
-			ShaderResourceDesc("cbSsao", SHADER_RESOURCE_TYPE_DYNAMIC),
-			ShaderResourceDesc("cbConstants", SHADER_RESOURCE_TYPE_DYNAMIC), // TODO: make mutable
-		};
-
-		ShaderDesc sDesc = { };
-		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
-		sDesc.ResourceNum = _countof(sRes);
-		sDesc.ResourceDesc = sRes;
-		
-		LPCWSTR defines[]
-		{
-			L"WORLD_SPACE_NORMALS", L"1", // TODO: create parameter
-			NULL, NULL
-		};
-
-		auto ssaoVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"VS", L"vs_6_0", defines, sDesc);
-		auto ssaoPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_SSAO", L"ps_6_0", defines, sDesc);
-		auto blurPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_Blur", L"ps_6_0", defines, sDesc);
-		
-		D3D12_DEPTH_STENCIL_DESC dssOff = {};
-		dssOff.DepthEnable = false;
-
-		m_SsaoPso.SetDepthStencilState(dssOff);
-		m_SsaoPso.SetShader(ssaoVS);
-		m_SsaoPso.SetShader(ssaoPS);
-		m_SsaoPso.SetRTVFormat(SSAO_FORMAT);
-		m_SsaoPso.Build(device, staticSamplers.data(), staticSamplers.size());
-
-		m_BlurPso.SetDepthStencilState(dssOff);
-		m_BlurPso.SetShader(ssaoVS);
-		m_BlurPso.SetShader(blurPS);
-		m_BlurPso.SetRTVFormat(SSAO_FORMAT);
-		m_BlurPso.Build(device, staticSamplers.data(), staticSamplers.size());
-
-		m_SsaoBuffer = std::make_shared<DynamicUploadBuffer>(device);
-		m_ConstantsBuffer = std::make_shared<DynamicUploadBuffer>(device);
-
-		m_SsaoBinder = m_SsaoPso.CreateShaderBinder();
-
-		for (uint32 i = 0; i < 2; i++)
-			m_BlurBinder[i] = m_BlurPso.CreateShaderBinder();
+		m_SsaoPsoEntry.Initialize();
+		m_BlurPsoEntry.Initialize();
 	}
 
 	void SSAO::BindResources(std::shared_ptr<TextureD3D12> normalMap, std::shared_ptr<TextureD3D12> depthMap)
@@ -251,7 +188,7 @@ namespace EduEngine
 
 		context->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_SsaoPso.CommitAll(context, m_SsaoBinder.get());
+		m_SsaoPsoEntry.Pso->CommitAll(context, m_SsaoBinder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 		
 		bool horizontalBlur = true;
@@ -262,7 +199,7 @@ namespace EduEngine
 
 		context->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_SsaoTexture[1]->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[1]->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_BlurPso.CommitAll(context, m_BlurBinder[0].get());
+		m_BlurPsoEntry.Pso->CommitAll(context, m_BlurBinder[0].get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		horizontalBlur = false;
@@ -272,11 +209,11 @@ namespace EduEngine
 		context->GetCommandCtx()->TransitionResource(m_SsaoTexture[1].get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_BlurPso.CommitAll(context, m_BlurBinder[1].get());
+		m_BlurPsoEntry.Pso->CommitAll(context, m_BlurBinder[1].get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 	}
 
-	void SSAO::Resize(RenderDeviceD3D12* device, uint64 rtWidth, uint64 rtHeight)
+	void SSAO::Resize(uint64 rtWidth, uint64 rtHeight)
 	{
 		m_Width = rtWidth / 2;
 		m_Height = rtHeight / 2;
@@ -326,7 +263,7 @@ namespace EduEngine
 
 		for (uint32 i = 0; i < 2; i++)
 		{
-			m_SsaoTexture[i] = std::make_shared<TextureD3D12>(device, texDesc, &clearVal, QueueId::Direct);
+			m_SsaoTexture[i] = std::make_shared<TextureD3D12>(m_Device, texDesc, &clearVal, QueueId::Direct);
 			m_SsaoTexture[i]->CreateSRV(&srvDesc);
 			m_SsaoTexture[i]->CreateRTV(&rtvDesc);
 
@@ -334,6 +271,87 @@ namespace EduEngine
 			swprintf(bufferName, 16, L"m_SsaoTex-%d", i);
 			m_SsaoTexture[i]->SetName(bufferName);
 		}
+	}
+
+	std::shared_ptr<PipelineState> SSAO::BuildPSO(bool blurPso)
+	{
+		const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+			0, // shaderRegister
+			D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+		const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+			1, // shaderRegister
+			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+		const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
+			2, // shaderRegister
+			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
+			0.0f,
+			0,
+			D3D12_COMPARISON_FUNC_LESS_EQUAL,
+			D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE);
+
+		const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+			3, // shaderRegister
+			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+		std::array<CD3DX12_STATIC_SAMPLER_DESC, 4> staticSamplers =
+		{
+			pointClamp, linearClamp, depthMapSam, linearWrap
+		};
+
+		ShaderResourceDesc sRes[]
+		{
+			ShaderResourceDesc("cbSsao", SHADER_RESOURCE_TYPE_DYNAMIC),
+			ShaderResourceDesc("cbConstants", SHADER_RESOURCE_TYPE_DYNAMIC), // TODO: make mutable
+		};
+
+		ShaderDesc sDesc = { };
+		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
+		sDesc.ResourceNum = _countof(sRes);
+		sDesc.ResourceDesc = sRes;
+
+		std::wstring packNormals = std::to_wstring((int)g_RenderFeatures.PackNormalsMethod);
+
+		LPCWSTR defines[]
+		{
+			L"WORLD_SPACE_NORMALS", L"1", // TODO: create parameter
+			L"PACK_NORMALS", packNormals.c_str(),
+			NULL, NULL
+		};
+
+		auto VS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"VS", L"vs_6_0", defines, sDesc);
+		std::shared_ptr<ShaderD3D12> PS = nullptr;
+
+		if (blurPso)
+			PS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_Blur", L"ps_6_0", defines, sDesc);
+		else
+			PS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"PS_SSAO", L"ps_6_0", defines, sDesc);
+		
+		D3D12_DEPTH_STENCIL_DESC dssOff = {};
+		dssOff.DepthEnable = false;
+
+		auto pso = std::make_shared<PipelineState>();
+		pso->SetDepthStencilState(dssOff);
+		pso->SetShader(VS);
+		pso->SetShader(PS);
+		pso->SetRTVFormat(SSAO_FORMAT);
+		pso->Build(m_Device, staticSamplers.data(), staticSamplers.size());
+
+		return pso;
+
 	}
 
 	std::vector<float> SSAO::CalcGaussWeights(float sigma)

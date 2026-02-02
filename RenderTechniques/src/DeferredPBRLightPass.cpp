@@ -5,10 +5,31 @@
 
 namespace EduEngine
 {
-	DeferredPBRLightPass::DeferredPBRLightPass(RenderDeviceD3D12* device, DeviceContext* context, DXGI_FORMAT rtFormat)
+	DeferredPBRLightPass::DeferredPBRLightPass(RenderDeviceD3D12* device, DeviceContext* context, DXGI_FORMAT rtFormat) :
+		m_Device(device),
+		m_RtFormat(rtFormat)
 	{
-		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(device);
-		m_LightsBuffer = std::make_shared<DynamicUploadBuffer>(device);
+		m_PsoEntry.Name = "DeferredPBRLight";
+		m_PsoEntry.DependentParams = 
+		{ 
+			RenderFeatureID::UseSSAO,
+			RenderFeatureID::UseIBL,
+			RenderFeatureID::PackNormalsMethod,
+			RenderFeatureID::DebugView
+		};
+		m_PsoEntry.CurrentKey = m_PsoEntry.MakeKeyFromFeatures(g_RenderFeatures);
+		m_PsoEntry.BuildPsoFunc = [this]() { return RebuildPSO(); };
+		m_PsoEntry.OnPsoUpdated = [this]() 
+			{
+				m_Binder = m_PsoEntry.Pso->CreateShaderBinder();
+				m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
+				m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "gLight", m_LightsBuffer);
+				m_Binder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbTextureIndexes", m_TextureIndexesBuffer);
+				m_Binder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
+			};
+
+		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(m_Device);
+		m_LightsBuffer = std::make_shared<DynamicUploadBuffer>(m_Device);
 		m_LightsBuffer->CreateSRV(context, 1, sizeof(Light));
 		
 		D3D12_RESOURCE_DESC buffDesc = {};
@@ -24,12 +45,12 @@ namespace EduEngine
 		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		buffDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-		m_TextureIndexesBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
+		m_TextureIndexesBuffer = std::make_shared<BufferD3D12>(m_Device, context, buffDesc, QueueId::Direct);
 
 		buffDesc.Width = sizeof(MaterialData);
-		m_MaterialBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
+		m_MaterialBuffer = std::make_shared<BufferD3D12>(m_Device, context, buffDesc, QueueId::Direct);
 
-		RebuildPSO(device, rtFormat, {});
+		m_PsoEntry.Initialize();
 	}
 
 	void DeferredPBRLightPass::Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights)
@@ -62,11 +83,11 @@ namespace EduEngine
 	void DeferredPBRLightPass::Render(DeviceContext* context, TextureD3D12* target)
 	{
 		context->GetCommandCtx()->SetRenderTargets(1, &target->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_Pso->CommitAll(context, m_Binder.get());
+		m_PsoEntry.Pso->CommitAll(context, m_Binder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 	}
 
-	void DeferredPBRLightPass::RebuildPSO(RenderDeviceD3D12* device, DXGI_FORMAT rtFormat, PsoMacros macros)
+	std::shared_ptr<PipelineStateBase> DeferredPBRLightPass::RebuildPSO()
 	{
 		ShaderResourceDesc sRes[]
 		{
@@ -79,8 +100,8 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(sRes);
 		sDesc.ResourceDesc = sRes;
 
-		auto debugView = ToWString(std::string(DebugViews[macros.DebugView]));
-		auto packNormal = std::to_wstring(macros.PackNormalMethod);
+		auto debugView = ToWString(std::string(DebugViewsStr[(int)g_RenderFeatures.DebugView]));
+		auto packNormal = std::to_wstring((int)g_RenderFeatures.PackNormalsMethod);
 
 		LPCWSTR macrosBuff[]
 		{
@@ -95,20 +116,16 @@ namespace EduEngine
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;
 
-		DXGI_FORMAT rtFormats[]{ rtFormat };
+		DXGI_FORMAT rtFormats[]{ m_RtFormat };
 
-		m_Pso = std::make_unique<PipelineState>();
-		m_Pso->SetDepthStencilState(dssOff);
-		m_Pso->SetShader(fsQuadVS);
-		m_Pso->SetShader(lightPS);
-		m_Pso->SetRTVFormats(1, rtFormats);
-		m_Pso->Build(device);
+		auto pso = std::make_shared<PipelineState>();
+		pso->SetDepthStencilState(dssOff);
+		pso->SetShader(fsQuadVS);
+		pso->SetShader(lightPS);
+		pso->SetRTVFormats(1, rtFormats);
+		pso->Build(m_Device);
 
-		m_Binder = m_Pso->CreateShaderBinder();
-		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
-		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "gLight", m_LightsBuffer);
-		m_Binder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbTextureIndexes", m_TextureIndexesBuffer);
-		m_Binder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
+		return pso;
 	}
 
 	void DeferredPBRLightPass::SetBufferIndexes(DeviceContext* context, const BuffersIndexesData& data)
