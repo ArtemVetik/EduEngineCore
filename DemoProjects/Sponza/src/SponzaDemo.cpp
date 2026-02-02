@@ -37,40 +37,26 @@ namespace EduEngine
 		m_LightPass = std::make_unique<DeferredPBRLightPass>(GetDevice(), GetMainContext(), ACCUM_BUFFER_FORMAT);
 		m_LightPass->SetMaterial(GetMainContext(), material);
 
-		ShaderResourceDesc sRes[]
-		{
-			ShaderResourceDesc("cbPerObject", SHADER_RESOURCE_TYPE_DYNAMIC),
-			ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
-		};
-
-		ShaderDesc sDesc = { };
-		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
-		sDesc.ResourceNum = _countof(sRes);
-		sDesc.ResourceDesc = sRes;
-
-		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
-
-		D3D12_DEPTH_STENCIL_DESC dssOff = {};
-		dssOff.DepthEnable = false;
-
-		BuildDrawPso();
-
-		m_PostProcPso.SetDepthStencilState(dssOff);
-		m_PostProcPso.SetShader(fsQuadVS);
-		m_PostProcPso.SetShader(postProcPS);
-		m_PostProcPso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
-		m_PostProcPso.Build(GetDevice());
-
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
+
+		m_PostProcPso.Name = "Sponza_PostProc";
+		m_PostProcPso.DependentParams = { RenderFeatureID::DebugView };
+		m_PostProcPso.BuildPsoFunc = [this]() { return BuildPostProcPso(); };
+		m_PostProcPso.OnPsoUpdated = [this]()
+			{
+				m_PostProcBinder = m_PostProcPso.Pso->CreateShaderBinder();
+				if (m_GBuffer->GetAccumBufferShared(0))
+					m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(0));
+			};
+		m_PostProcPso.Initialize();
+
+		BuildDrawPso();
 
 		m_DrawBinder = m_DrawPso.CreateShaderBinder();
 		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
 		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerObject", m_ObjBuffer);
 		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
-
-		m_PostProcBinder = m_PostProcPso.CreateShaderBinder();
 
 		OnResize();
 	}
@@ -178,7 +164,7 @@ namespace EduEngine
 		// Post process pass
 		//
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
-		m_PostProcPso.CommitAll(GetMainContext(), m_PostProcBinder.get());
+		m_PostProcPso.Pso->CommitAll(GetMainContext(), m_PostProcBinder.get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		m_PbrPrepass->RenderSky(GetDevice(), GetMainContext(), GetCamera());
@@ -322,5 +308,42 @@ namespace EduEngine
 		m_DrawPso.SetShader(drawPS);
 		m_DrawPso.SetRTVFormats(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS);
 		m_DrawPso.Build(GetDevice());
+	}
+
+	std::shared_ptr<PipelineStateBase> SponzaDemo::BuildPostProcPso()
+	{
+		ShaderResourceDesc sRes[]
+		{
+			ShaderResourceDesc("cbPerObject", SHADER_RESOURCE_TYPE_DYNAMIC),
+			ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
+		};
+
+		ShaderDesc sDesc = { };
+		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
+		sDesc.ResourceNum = _countof(sRes);
+		sDesc.ResourceDesc = sRes;
+
+		auto debugViewStr = std::to_wstring((int)g_RenderFeatures.DebugView);
+
+		LPCWSTR macrosBuff[]
+		{
+			L"DEBUG_VIEW", debugViewStr.c_str(),
+			NULL, NULL,
+		};
+
+		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", macrosBuff, sDesc);
+		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_0", macrosBuff, sDesc);
+
+		D3D12_DEPTH_STENCIL_DESC dssOff = {};
+		dssOff.DepthEnable = false;
+
+		auto pso = std::make_shared<PipelineState>();
+		pso->SetDepthStencilState(dssOff);
+		pso->SetShader(fsQuadVS);
+		pso->SetShader(postProcPS);
+		pso->SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+		pso->Build(GetDevice());
+
+		return pso;
 	}
 }

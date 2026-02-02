@@ -24,6 +24,7 @@ namespace EduEngine
 
 	private:
 		void BuildDrawPso();
+		std::shared_ptr<PipelineStateBase> BuildPostProcPso();
 
 	private:
 		std::unique_ptr<PBRPrepass> m_PbrPrepass;
@@ -34,7 +35,7 @@ namespace EduEngine
 		std::shared_ptr<Mesh> m_Mesh;
 
 		PipelineState m_DrawPso;
-		PipelineState m_PostProcPso;
+		PSOEntry m_PostProcPso;
 		std::shared_ptr<ShaderBinder> m_DrawBinder;
 		std::shared_ptr<ShaderBinder> m_PostProcBinder;
 
