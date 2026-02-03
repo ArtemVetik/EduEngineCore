@@ -47,8 +47,8 @@ namespace EduEngine
 		int GetRefCount() const { return m_RefCount; }
 		const char* GetFilePath() const { return m_FilePath; }
 
-		int GetVertexCount(uint32 meshIdx = 0);
-		int GetIndexCount(uint32 meshIdx = 0);
+		int GetVertexCount(uint32 meshIdx = 0) const;
+		int GetIndexCount(uint32 meshIdx = 0) const;
 
 		int GetMeshCount() const { return m_Scene->mNumMeshes; }
 		VertexBufferD3D12* GetVertexBuffer(uint32 meshIdx = 0) const { return m_VertexBuffers[meshIdx].get(); }

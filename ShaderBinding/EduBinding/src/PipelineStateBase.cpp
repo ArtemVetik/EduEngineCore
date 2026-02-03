@@ -50,7 +50,7 @@ namespace EduEngine::EduBinding
 		BuildPSO(device->GetD3D12Device(), m_RootSignature.GetD3D12RootSignature(), m_PSO);
 	}
 
-	void PipelineStateBase::CommitAll(DeviceContext* context, ShaderBinder* shaderBinder)
+	void PipelineStateBase::CommitPso(DeviceContext* context)
 	{
 		context->GetCommandCtx()->GetCmdList()->SetPipelineState(m_PSO.Get());
 
@@ -58,8 +58,17 @@ namespace EduEngine::EduBinding
 			context->GetCommandCtx()->GetCmdList()->SetComputeRootSignature(m_RootSignature.GetD3D12RootSignature());
 		else
 			context->GetCommandCtx()->GetCmdList()->SetGraphicsRootSignature(m_RootSignature.GetD3D12RootSignature());
+	}
 
+	void PipelineStateBase::CommitBinder(DeviceContext* context, ShaderBinder* shaderBinder)
+	{
 		shaderBinder->CommitAll(context, m_IsCompute);
+	}
+
+	void PipelineStateBase::CommitAll(DeviceContext* context, ShaderBinder* shaderBinder)
+	{
+		CommitPso(context);
+		CommitBinder(context, shaderBinder);
 	}
 
 	std::shared_ptr<ShaderBinder> PipelineStateBase::CreateShaderBinder()

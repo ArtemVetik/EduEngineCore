@@ -31,6 +31,8 @@ namespace EduEngine
 		m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
 		m_Ssao = std::make_unique<SSAO>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 
+		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
+
 		DeferredPBRLightPass::MaterialData material = {};
 		material.DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -90,6 +92,13 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
 		GetMainContext()->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
+		DeferredPBRLightPass::Light light = {};
+		CSMRendering::Light csmLight;
+		csmLight.Position = light.Position;
+		csmLight.Direction = light.Direction;
+
+		m_CSMRendering->Render(GetMainContext(), GetCamera(), &csmLight, m_Mesh.get());
+
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
@@ -122,6 +131,7 @@ namespace EduEngine
 				return -1;
 			};
 
+		m_DrawPso.CommitPso(GetMainContext());
 		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
 		{
 			struct ObjData
@@ -141,7 +151,7 @@ namespace EduEngine
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);
 
-			m_DrawPso.CommitAll(GetMainContext(), m_DrawBinder.get());
+			m_DrawPso.CommitBinder(GetMainContext(), m_DrawBinder.get());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(i)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(i)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

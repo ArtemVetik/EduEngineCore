@@ -147,12 +147,12 @@ namespace EduEngine
 
 	}
 
-	int Mesh::GetVertexCount(uint32 meshIdx)
+	int Mesh::GetVertexCount(uint32 meshIdx) const
 	{
 		return m_Scene->mMeshes[meshIdx]->mNumVertices;
 	}
 
-	int Mesh::GetIndexCount(uint32 meshIdx)
+	int Mesh::GetIndexCount(uint32 meshIdx) const
 	{
 		return m_Scene->mMeshes[meshIdx]->mNumFaces * 3;
 	}

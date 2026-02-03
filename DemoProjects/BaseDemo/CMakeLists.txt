@@ -3,9 +3,7 @@ set(LIBS_ROOT "${CMAKE_SOURCE_DIR}/Libraries")
 add_library(BaseDemo STATIC
     src/DebugRendererSystem.cpp
     src/IRenderEngine.cpp
-    src/Mesh.cpp
     src/RenderEngine.cpp
-    src/Texture.cpp
     src/Window.cpp
 )
 

@@ -8,6 +8,7 @@
 #include <GBuffer.h>
 #include <PBRPrepass.h>
 #include <DeferredPBRLightPass.h>
+#include <CSMRendering.h>
 #include <SponzaCommon.h>
 
 using namespace EduEngine::EduBinding;
@@ -31,6 +32,7 @@ namespace EduEngine
 		std::unique_ptr<DeferredPBRLightPass> m_LightPass;
 		std::unique_ptr<SSAO> m_Ssao;
 		std::unique_ptr<GBuffer> m_GBuffer;
+		std::unique_ptr<CSMRendering> m_CSMRendering;
 
 		std::shared_ptr<Mesh> m_Mesh;
 
