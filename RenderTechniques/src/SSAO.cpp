@@ -169,10 +169,10 @@ namespace EduEngine
 		ssaoData.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
 		ssaoData.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 		ssaoData.InvRenderTargetSize = XMFLOAT2(1.0f / m_Width, 1.0f / m_Height);
-		ssaoData.OcclusionRadius = 0.5f;
-		ssaoData.OcclusionFadeStart = 0.2f;
-		ssaoData.OcclusionFadeEnd = 1.0f;
-		ssaoData.SurfaceEpsilon = 0.05f;
+		ssaoData.OcclusionRadius = m_Settings.OcclusionRadius;
+		ssaoData.OcclusionFadeStart = m_Settings.OcclusionFadeStart;
+		ssaoData.OcclusionFadeEnd = m_Settings.OcclusionFadeEnd;
+		ssaoData.SurfaceEpsilon = m_Settings.SurfaceEpsilon;
 
 		m_SsaoBuffer->LoadData(context, ssaoData);
 	}
@@ -211,6 +211,11 @@ namespace EduEngine
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), false, nullptr);
 		m_BlurPsoEntry.Pso->CommitAll(context, m_BlurBinder[1].get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
+	}
+
+	void SSAO::UpdateSettings(Settings settings)
+	{
+		m_Settings = settings;
 	}
 
 	void SSAO::Resize(uint64 rtWidth, uint64 rtHeight)

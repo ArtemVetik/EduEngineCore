@@ -11,12 +11,24 @@ namespace EduEngine
 	class RENDERTECHNIQUES_API SSAO
 	{
 	public:
+		struct Settings
+		{
+			float OcclusionRadius = 0.5f;
+			float OcclusionFadeStart = 0.2f;
+			float OcclusionFadeEnd = 1.0f;
+			float SurfaceEpsilon = 0.05f;
+		};
+
+	public:
 		SSAO(RenderDeviceD3D12* device, DeviceContext* context, uint64 rtWidth, uint64 rtHeight);
 
 		void BindResources(std::shared_ptr<TextureD3D12> normalMap, std::shared_ptr<TextureD3D12> depthMap);
 
 		void Update(const Camera* camera, DeviceContext* context);
 		void Render(DeviceContext* context);
+
+		Settings GetSettings() const { return m_Settings; }
+		void UpdateSettings(Settings settings);
 
 		void Resize(uint64 rtWidth, uint64 rtHeight);
 
@@ -47,6 +59,7 @@ namespace EduEngine
 		uint64 m_Height;
 		D3D12_VIEWPORT m_Viewport;
 		D3D12_RECT m_ScissorRect;
+		Settings m_Settings = {};
 
 		RenderDeviceD3D12* m_Device;
 	};
