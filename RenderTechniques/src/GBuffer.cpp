@@ -57,11 +57,7 @@ namespace EduEngine
 			m_GBuffers[i]->CreateRTV(nullptr);
 			m_GBuffers[i]->CreateSRV(&gBuffDescSRV);
 
-			commandContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(
-				m_GBuffers[i]->GetD3D12Resource(),
-				D3D12_RESOURCE_STATE_COMMON,
-				D3D12_RESOURCE_STATE_RENDER_TARGET
-			));
+			commandContext->TransitionResource(m_GBuffers[i].get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 			wchar_t bufferName[16];
 			swprintf(bufferName, 16, L"GBuffer-%d", i);

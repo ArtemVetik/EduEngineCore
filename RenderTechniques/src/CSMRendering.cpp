@@ -9,51 +9,7 @@ namespace EduEngine
 		m_Device(device),
 		m_Settings(settings)
 	{
-		D3D12_RESOURCE_DESC texDesc;
-		ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
-		texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		texDesc.Alignment = 0;
-		texDesc.DepthOrArraySize = 1;
-		texDesc.MipLevels = 1;
-		texDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-		texDesc.SampleDesc.Count = 1;
-		texDesc.SampleDesc.Quality = 0;
-		texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-		D3D12_CLEAR_VALUE optClear = {};
-		optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		optClear.DepthStencil.Depth = 0.0f;
-		optClear.DepthStencil.Stencil = 0;
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		dsvDesc.Texture2D.MipSlice = 0;
-
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.MipLevels = 1;
-		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-		srvDesc.Texture2D.PlaneSlice = 0;
-
-		for (size_t i = 0; i < m_Settings.CascadesCount; i++)
-		{
-			texDesc.Width = m_Settings.CSMSizes[i].x;
-			texDesc.Height = m_Settings.CSMSizes[i].y;
-
-			m_ShadowMaps[i] = std::make_unique<TextureD3D12>(m_Device, texDesc, &optClear, QueueId::Direct);
-			m_ShadowMaps[i]->CreateDSV(&dsvDesc);
-
-			context->GetCommandCtx()->TransitionResource(m_ShadowMaps[i].get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		}
-
-		for (size_t i = 0; i < m_Settings.CascadesCount; i++)
-			m_ShadowMaps[i]->CreateSRV(&srvDesc, false);
+		BuildShadowMaps(context);
 
 		//
 		// Build PSO
@@ -119,6 +75,7 @@ namespace EduEngine
 		{
 			float cascadeFar = m_Settings.CSMSplits[i] * m_Settings.ShadowDistance;
 
+			// TODO: cache local bounding sphere (no need to calculate it every frame)
 			camera->CalculateLocalBoundingSphere(cascadeNear, cascadeFar, m_CascadeSpheres[i]);
 			cascadeNear = cascadeFar;
 			
@@ -173,7 +130,7 @@ namespace EduEngine
 
 			passData.ViewProj = m_ViewProj[cascadeIdx];
 			passData.LigthDirection = m_LightDirection;
-			passData.ShadowBias = XMFLOAT4(m_Settings.ShadowBias.x, m_Settings.ShadowBias.y, 0.0f, 0.0f);
+			passData.ShadowBias = XMFLOAT4(-m_Settings.ShadowBias.x, -m_Settings.ShadowBias.y, 0.0f, 0.0f);
 
 			m_PassBuffer->LoadData(context, passData);
 
@@ -209,6 +166,84 @@ namespace EduEngine
 		{
 			commandContext->TransitionResource(m_ShadowMaps[i].get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		}
+	}
+
+	void CSMRendering::UpdateSettings(DeviceContext* context, Settings newSettings)
+	{
+		bool splitsChanged = memcmp(&newSettings.CSMSplits, m_Settings.CSMSplits, sizeof(float) * MAX_CASCADES);
+		bool sizeChanged = memcmp(&newSettings.CSMSizes, m_Settings.CSMSizes, sizeof(XMFLOAT2) * MAX_CASCADES);
+
+		if (newSettings.CascadesCount != m_Settings.CascadesCount || sizeChanged)
+		{
+			VERIFY_EXPR(newSettings.CascadesCount <= MAX_CASCADES && newSettings.CascadesCount > 0,
+				"Settings.CascadesCount (", newSettings.CascadesCount,") > MAX_CASCADES (", MAX_CASCADES, ")");
+
+			for (uint32 i = 0; i < m_Settings.CascadesCount - 1; i++)
+			{
+				VERIFY_EXPR(newSettings.CSMSplits[i] <= newSettings.CSMSplits[i + 1] && newSettings.CSMSplits[i] <= 1.0f,
+					"Invalid CSMSplit (", newSettings.CSMSplits[i], ")");
+			}
+
+			newSettings.CSMSplits[newSettings.CascadesCount - 1] = 1.0f;
+			m_Settings = newSettings;
+
+			BuildShadowMaps(context);
+		}
+		else
+		{
+			m_Settings = newSettings;
+		}
+	}
+
+	void CSMRendering::BuildShadowMaps(DeviceContext* context)
+	{
+		D3D12_RESOURCE_DESC texDesc;
+		ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
+		texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		texDesc.Alignment = 0;
+		texDesc.DepthOrArraySize = 1;
+		texDesc.MipLevels = 1;
+		texDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+		texDesc.SampleDesc.Count = 1;
+		texDesc.SampleDesc.Quality = 0;
+		texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		D3D12_CLEAR_VALUE optClear = {};
+		optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		optClear.DepthStencil.Depth = 0.0f;
+		optClear.DepthStencil.Stencil = 0;
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsvDesc.Texture2D.MipSlice = 0;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+		srvDesc.Texture2D.PlaneSlice = 0;
+
+		for (size_t i = 0; i < m_Settings.CascadesCount; i++)
+		{
+			texDesc.Width = m_Settings.CSMSizes[i].x;
+			texDesc.Height = m_Settings.CSMSizes[i].y;
+
+			m_ShadowMaps[i] = std::make_unique<TextureD3D12>(m_Device, texDesc, &optClear, QueueId::Direct);
+			m_ShadowMaps[i]->CreateDSV(&dsvDesc);
+
+			context->GetCommandCtx()->TransitionResource(m_ShadowMaps[i].get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		}
+
+		for (size_t i = 0; i < m_Settings.CascadesCount; i++)
+			m_ShadowMaps[i]->CreateSRV(&srvDesc, false);
+
+		context->GetCommandCtx()->FlushResourceBarriers();
 	}
 
 	XMMATRIX CSMRendering::CalculateLightView(Light* light)

@@ -193,6 +193,40 @@ namespace EduEngine
 
 		ImGui::Begin("Editor", nullptr);
 
+		if (ImGui::CollapsingHeader("Shadow Settings"))
+		{
+			CSMRendering::Settings csmSettings = m_CSMRendering->GetSettings();
+
+			if (ImGui::DragFloat("Shadow Distance", &csmSettings.ShadowDistance, 1.0f, 0.1f, FLT_MAX, "%.3f", ImGuiSliderFlags_AlwaysClamp))
+			{
+				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
+			}
+
+			if (ImGui::SliderInt("Cascades count", (int*)&csmSettings.CascadesCount, 1, CSMRendering::MAX_CASCADES))
+			{
+				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
+				OnResize(); // TODO: it only needs to update DeferredPBRLightPass::BuffersIndexesData
+			}
+
+			for (uint32 i = 0; i < csmSettings.CascadesCount; i++)
+			{
+				float min = i == 0 ? 0.01f : csmSettings.CSMSplits[i - 1];
+				float max = i == csmSettings.CascadesCount - 1 ? 1.0f : csmSettings.CSMSplits[i + 1];
+
+				char splitLabel[16] = {};
+				sprintf(splitLabel, "Cascade%d", i);
+
+				if (ImGui::SliderFloat(splitLabel, &csmSettings.CSMSplits[i], min, max, "%.3f", ImGuiSliderFlags_AlwaysClamp))
+					m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
+			}
+
+			if (ImGui::SliderFloat("Depth Bias", &csmSettings.ShadowBias.x, 0.0f, 1.0f))
+				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
+
+			if (ImGui::SliderFloat("Normal Bias", &csmSettings.ShadowBias.y, 0.0f, 1.0f))
+				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
+		}
+
 		if (ImGui::CollapsingHeader("Debug View"))
 		{
 			static int currentView = 0;

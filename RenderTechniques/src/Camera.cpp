@@ -45,7 +45,7 @@ namespace EduEngine
 
 		float k = sqrtf(1 + (m_ScreenWidth * m_ScreenWidth) / (m_ScreenHeight * m_ScreenHeight)) * tanf(m_FovY * 0.5f);
 
-		VERIFY_EXPR(n < f, "nearValue must be less than farValue");
+		VERIFY_EXPR(n <= f, "nearValue must be not greater than farValue");
 
 		if (k * k >= (f - n) / (f + n))
 		{

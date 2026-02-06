@@ -44,6 +44,9 @@ namespace EduEngine
 		void Update(DeviceContext* context, Camera* camera, Light* light);
 		void Render(DeviceContext* context, RenderObject* objects, uint32 objectsNum);
 
+		Settings GetSettings() const { return m_Settings; }
+		void UpdateSettings(DeviceContext* context, Settings newSettings);
+
 		int GetCascadeCount() const { return m_Settings.CascadesCount; }
 		XMMATRIX GetCascadeTransform(int index) const { return m_CascadeTransforms[index]; }
 		float GetCascadeDistance(int index) const { return m_Settings.CSMSplits[index] * m_Settings.ShadowDistance; }
@@ -53,6 +56,7 @@ namespace EduEngine
 		ResourceHeapView* GetSrv(int index) const { return m_ShadowMaps[index]->GetSRVView(); }
 
 	private:
+		void BuildShadowMaps(DeviceContext* context);
 		XMMATRIX CalculateLightView(Light* light);
 		XMMATRIX CalculateCascadeProjection(XMMATRIX lightView, XMFLOAT4 boundingSphere, XMFLOAT2 csmSize);
 
