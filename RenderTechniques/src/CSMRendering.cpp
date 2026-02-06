@@ -5,13 +5,10 @@
 
 namespace EduEngine
 {
-	CSMRendering::CSMRendering(RenderDeviceD3D12* device, DeviceContext* context) :
+	CSMRendering::CSMRendering(RenderDeviceD3D12* device, DeviceContext* context, const Settings& settings) :
 		m_Device(device),
-		m_CascadeCount(_countof(CSMSizes))
+		m_Settings(settings)
 	{
-		for (int i = 0; i < m_CascadeCount; i++)
-			m_CascadeSplits[i] = CSMSplits[i];
-
 		D3D12_RESOURCE_DESC texDesc;
 		ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
 		texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -26,7 +23,7 @@ namespace EduEngine
 
 		D3D12_CLEAR_VALUE optClear = {};
 		optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		optClear.DepthStencil.Depth = 1.0f;
+		optClear.DepthStencil.Depth = 0.0f;
 		optClear.DepthStencil.Stencil = 0;
 
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -44,10 +41,10 @@ namespace EduEngine
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		srvDesc.Texture2D.PlaneSlice = 0;
 
-		for (size_t i = 0; i < m_CascadeCount; i++)
+		for (size_t i = 0; i < m_Settings.CascadesCount; i++)
 		{
-			texDesc.Width = CSMSizes[i].x;
-			texDesc.Height = CSMSizes[i].y;
+			texDesc.Width = m_Settings.CSMSizes[i].x;
+			texDesc.Height = m_Settings.CSMSizes[i].y;
 
 			m_ShadowMaps[i] = std::make_unique<TextureD3D12>(m_Device, texDesc, &optClear, QueueId::Direct);
 			m_ShadowMaps[i]->CreateDSV(&dsvDesc);
@@ -55,8 +52,8 @@ namespace EduEngine
 			context->GetCommandCtx()->TransitionResource(m_ShadowMaps[i].get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		}
 
-		for (size_t i = 0; i < m_CascadeCount; i++)
-			m_ShadowMaps[i]->CreateSRV(&srvDesc);
+		for (size_t i = 0; i < m_Settings.CascadesCount; i++)
+			m_ShadowMaps[i]->CreateSRV(&srvDesc, false);
 
 		//
 		// Build PSO
@@ -77,12 +74,18 @@ namespace EduEngine
 		};
 
 		D3D12_RASTERIZER_DESC rast = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		rast.DepthBias = 30000;
+		rast.DepthBias = -1;
 		rast.DepthBiasClamp = 0.0f;
-		rast.SlopeScaledDepthBias = 1.0f;
+		rast.SlopeScaledDepthBias = -2.5f;
+
+		D3D12_DEPTH_STENCIL_DESC dss = {};
+		dss.DepthEnable = true;
+		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
 
 		m_Pso.SetInputLayout({ inputLayout, _countof(inputLayout) });
 		m_Pso.SetRasterizerState(rast);
+		m_Pso.SetDepthStencilState(dss);
 		m_Pso.SetShader(VS);
 		m_Pso.Build(device);
 		m_Pso.SetName(L"ShadowMapPSO");
@@ -95,22 +98,40 @@ namespace EduEngine
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
 	}
 
-	void CSMRendering::Render(DeviceContext* context, Camera* camera, Light* light, const Mesh* mesh)
+	void CSMRendering::Update(DeviceContext* context, Camera* camera, Light* light)
 	{
+		//
+		// Update:
+		//	- m_CascadeTransforms
+		//	- m_CascadeSpheres
+		//	- m_CascadeSphereRad2 
+		//
+
+		XMMATRIX invCamView = XMMatrixInverse(nullptr, XMLoadFloat4x4(&camera->GetViewMatrix()));
 		XMMATRIX lightView = CalculateLightView(light);
+		XMVECTOR lightDir = XMVector3Normalize(XMLoadFloat3(&light->Direction));
+
+		XMStoreFloat3(&m_LightDirection, XMVectorNegate(lightDir));
 
 		float cascadeNear = 0.0f;
 
-		auto* commandContext = context->GetCommandCtx();
-
-		for (int i = 0; i < m_CascadeCount; i++)
+		for (int i = 0; i < m_Settings.CascadesCount; i++)
 		{
-			float cascadeFar = m_CascadeSplits[i] * ShadowDistance;
+			float cascadeFar = m_Settings.CSMSplits[i] * m_Settings.ShadowDistance;
 
-			XMMATRIX lightProj = CalculateCascadeProjection(cascadeNear, cascadeFar, camera, lightView);
-
+			camera->CalculateLocalBoundingSphere(cascadeNear, cascadeFar, m_CascadeSpheres[i]);
 			cascadeNear = cascadeFar;
+			
+			float sphereRadius = m_CascadeSpheres[i].w;
 
+			XMVECTOR worldBoundingSphere = XMVector3TransformCoord(XMLoadFloat4(&m_CascadeSpheres[i]), invCamView);
+			XMStoreFloat4(&m_CascadeSpheres[i], worldBoundingSphere);
+			m_CascadeSpheres[i].w = sphereRadius;
+
+			*(&m_CascadeSphereRad2.x + i) = sphereRadius * sphereRadius;
+
+			XMMATRIX lightProj = CalculateCascadeProjection(lightView, m_CascadeSpheres[i], m_Settings.CSMSizes[i]);
+			
 			// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
 			DirectX::XMMATRIX T(
 				0.5f, 0.0f, 0.0f, 0.0f,
@@ -120,48 +141,71 @@ namespace EduEngine
 
 			m_CascadeTransforms[i] = lightView * lightProj * T;
 
-			XMFLOAT4X4 viewProj;
-			XMStoreFloat4x4(&viewProj, XMMatrixTranspose(XMMatrixMultiply(lightView, lightProj)));
-			m_PassBuffer->LoadData(context, viewProj);
+			XMStoreFloat4x4(&m_ViewProj[i], XMMatrixTranspose(XMMatrixMultiply(lightView, lightProj)));
+		}
+	}
 
-			auto shadowTexDesc = m_ShadowMaps[i]->GetD3D12Resource()->GetDesc();
+	void CSMRendering::Render(DeviceContext* context, RenderObject* objects, uint32 objectsNum)
+	{
+		auto* commandContext = context->GetCommandCtx();
+
+		for (int cascadeIdx = 0; cascadeIdx < m_Settings.CascadesCount; cascadeIdx++)
+		{
+			auto shadowTexDesc = m_ShadowMaps[cascadeIdx]->GetD3D12Resource()->GetDesc();
 			D3D12_VIEWPORT viewport = { 0.0f, 0.0f, shadowTexDesc.Width, shadowTexDesc.Height, 0.0f, 1.0f };
 			D3D12_RECT scissorRect = { 0.0f, 0.0f, shadowTexDesc.Width, shadowTexDesc.Height };
 
 			commandContext->GetCmdList()->RSSetViewports(1, &viewport);
 			commandContext->GetCmdList()->RSSetScissorRects(1, &scissorRect);
 
-			commandContext->SetRenderTargets(0, nullptr, false, &m_ShadowMaps[i]->GetDSVView()->GetCpuHandle());
+			commandContext->SetRenderTargets(0, nullptr, false, &m_ShadowMaps[cascadeIdx]->GetDSVView()->GetCpuHandle());
 
-			commandContext->GetCmdList()->ClearDepthStencilView(m_ShadowMaps[i]->GetDSVView()->GetCpuHandle(),
-				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+			commandContext->GetCmdList()->ClearDepthStencilView(m_ShadowMaps[cascadeIdx]->GetDSVView()->GetCpuHandle(),
+				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
+
+			struct PassData
+			{
+				XMFLOAT4X4 ViewProj;
+				XMFLOAT3 LigthDirection;
+				UINT Padding;
+				XMFLOAT4 ShadowBias;
+			} passData;
+
+			passData.ViewProj = m_ViewProj[cascadeIdx];
+			passData.LigthDirection = m_LightDirection;
+			passData.ShadowBias = XMFLOAT4(m_Settings.ShadowBias.x, m_Settings.ShadowBias.y, 0.0f, 0.0f);
+
+			m_PassBuffer->LoadData(context, passData);
 
 			m_Pso.CommitPso(context);
 
-			for (uint32 i = 0; i < mesh->GetMeshCount(); i++)
+			for (uint32 obj = 0; obj < objectsNum; obj++)
 			{
-				struct ObjData
+				for (uint32 mIdx = 0; mIdx < objects[obj].Mesh->GetMeshCount(); mIdx++)
 				{
-					XMFLOAT4X4 World;
-				} objData;
+					struct ObjData
+					{
+						XMFLOAT4X4 World;
+					} objData;
 
-				XMStoreFloat4x4(&objData.World, XMMatrixTranspose(XMMatrixScaling(20, 20, 20))); // TODO: scaling
+					XMStoreFloat4x4(&objData.World, XMMatrixTranspose(objects[obj].World));
 
-				m_ObjBuffer->LoadData(context, objData);
+					m_ObjBuffer->LoadData(context, objData);
 
-				m_Pso.CommitBinder(context, m_Binder.get());
-				commandContext->GetCmdList()->IASetIndexBuffer(&mesh->GetIndexBuffer(i)->GetView());
-				commandContext->GetCmdList()->IASetVertexBuffers(0, 1, &mesh->GetVertexBuffer(i)->GetView());
-				commandContext->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				commandContext->GetCmdList()->DrawIndexedInstanced(mesh->GetIndexCount(i), 1, 0, 0, 0);
+					m_Pso.CommitBinder(context, m_Binder.get());
+					commandContext->GetCmdList()->IASetIndexBuffer(&objects[obj].Mesh->GetIndexBuffer(mIdx)->GetView());
+					commandContext->GetCmdList()->IASetVertexBuffers(0, 1, &objects[obj].Mesh->GetVertexBuffer(mIdx)->GetView());
+					commandContext->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+					commandContext->GetCmdList()->DrawIndexedInstanced(objects[obj].Mesh->GetIndexCount(mIdx), 1, 0, 0, 0);
+				}
 			}
 
-			commandContext->TransitionResource(m_ShadowMaps[i].get(), D3D12_RESOURCE_STATE_GENERIC_READ);
+			commandContext->TransitionResource(m_ShadowMaps[cascadeIdx].get(), D3D12_RESOURCE_STATE_GENERIC_READ);
 		}
 
 		commandContext->FlushResourceBarriers();
 
-		for (int i = 0; i < m_CascadeCount; i++)
+		for (int i = 0; i < m_Settings.CascadesCount; i++)
 		{
 			commandContext->TransitionResource(m_ShadowMaps[i].get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		}
@@ -173,8 +217,8 @@ namespace EduEngine
 		XMVECTOR lightDir = XMLoadFloat3(&light->Direction);
 		XMVECTOR upVector = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-		if (XMVector3NearEqual(XMLoadFloat3(&light->Direction), upVector, XMVectorReplicate(1e-4f)) ||
-			XMVector3NearEqual(XMLoadFloat3(&light->Direction), XMVectorNegate(upVector), XMVectorReplicate(1e-4f)))
+		if (XMVector3NearEqual(XMLoadFloat3(&light->Direction), upVector, g_XMEpsilon) ||
+			XMVector3NearEqual(XMLoadFloat3(&light->Direction), XMVectorNegate(upVector), g_XMEpsilon))
 		{
 			upVector = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
 		}
@@ -182,58 +226,32 @@ namespace EduEngine
 		return XMMatrixLookAtLH(lightPos, XMVectorAdd(lightPos, lightDir), upVector);
 	}
 
-	XMMATRIX CSMRendering::CalculateCascadeProjection(float nearDist, float farDist, Camera* camera, XMMATRIX lightView)
+	XMMATRIX CSMRendering::CalculateCascadeProjection(XMMATRIX lightView, XMFLOAT4 boundingSphere, XMFLOAT2 csmSize)
 	{
-		float nx1 = nearDist * tan(camera->GetFovX() / 2.0);
-		float fx1 = farDist * tan(camera->GetFovX() / 2.0);
-		float ny1 = nearDist * tan(camera->GetFovY() / 2.0);
-		float fy1 = farDist * tan(camera->GetFovY() / 2.0);
+		float sphereRadius = boundingSphere.w;
 
-		XMVECTOR fPoses[8] =
-		{
-			{ +nx1, +ny1, nearDist, 1 },
-			{ -nx1, +ny1, nearDist, 1 },
-			{ +nx1, -ny1, nearDist, 1 },
-			{ -nx1, -ny1, nearDist, 1 },
-			{ +fx1, +fy1, farDist,  1 },
-			{ -fx1, +fy1, farDist,  1 },
-			{ +fx1, -fy1, farDist,  1 },
-			{ -fx1, -fy1, farDist,  1 }
-		};
+		// Transform to light view space
+		XMVECTOR sphereCenter = XMLoadFloat4(&boundingSphere);
+		sphereCenter = XMVector3TransformCoord(sphereCenter, lightView);
+		XMStoreFloat4(&boundingSphere, sphereCenter);
 
-		for (size_t i = 0; i < 8; i++)
-		{
-			fPoses[i] = DirectX::XMVector3TransformCoord(fPoses[i], DirectX::XMMatrixInverse(nullptr, XMLoadFloat4x4(&camera->GetViewMatrix())));
-			fPoses[i] = DirectX::XMVector3TransformCoord(fPoses[i], lightView);
-		}
+		// Snap center
+		float orthoWidth = 2.0f * sphereRadius;
+		float orthoHeight = 2.0f * sphereRadius;
 
-		XMFLOAT3 minCorner;
-		XMFLOAT3 maxCorner;
+		float texelSizeX = orthoWidth / csmSize.x;
+		float texelSizeY = orthoHeight / csmSize.y;
 
-		XMStoreFloat3(&minCorner, fPoses[0]);
-		XMStoreFloat3(&maxCorner, fPoses[0]);
+		boundingSphere.x = floor(boundingSphere.x / texelSizeX) * texelSizeX;
+		boundingSphere.y = floor(boundingSphere.y / texelSizeY) * texelSizeY;
 
-		for (size_t i = 1; i < 8; i++)
-		{
-			DirectX::XMFLOAT3 cornerPos;
-			DirectX::XMStoreFloat3(&cornerPos, fPoses[i]);
+		float l = boundingSphere.x - sphereRadius;
+		float r = boundingSphere.x + sphereRadius;
+		float b = boundingSphere.y - sphereRadius;
+		float t = boundingSphere.y + sphereRadius;
+		float n = boundingSphere.z - sphereRadius - m_Settings.ShadowDistance; // TODO: calc necessary near and far distance
+		float f = boundingSphere.z + sphereRadius + m_Settings.ShadowDistance;
 
-			if (cornerPos.x < minCorner.x) minCorner.x = cornerPos.x;
-			if (cornerPos.y < minCorner.y) minCorner.y = cornerPos.y;
-			if (cornerPos.z < minCorner.z) minCorner.z = cornerPos.z;
-
-			if (cornerPos.x > maxCorner.x) maxCorner.x = cornerPos.x;
-			if (cornerPos.y > maxCorner.y) maxCorner.y = cornerPos.y;
-			if (cornerPos.z > maxCorner.z) maxCorner.z = cornerPos.z;
-		}
-
-		float l = minCorner.x;
-		float b = minCorner.y;
-		float n = minCorner.z - ShadowDistance;
-		float r = maxCorner.x;
-		float t = maxCorner.y;
-		float f = maxCorner.z + ShadowDistance;
-
-		return DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+		return DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, f, n);
 	}
 }

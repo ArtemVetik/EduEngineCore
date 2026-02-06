@@ -12,7 +12,7 @@ add_library(RenderTechniques STATIC
     src/RenderFeatures.cpp
     src/Mesh.cpp
     src/Texture.cpp
- "include/MeshData.h")
+ )
 
 target_include_directories(RenderTechniques
     PUBLIC 

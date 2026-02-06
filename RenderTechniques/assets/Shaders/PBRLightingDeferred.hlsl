@@ -15,12 +15,15 @@ struct Light
 #define PBR_TEXTURED 1
 #endif
 
+#define MAX_CASCADES 4
+
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
 SamplerState gsamLinearWrap : register(s2);
 SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
+SamplerComparisonState gsamShadow : register(s6);
 
 StructuredBuffer<Light> gLight : register(t7);
 
@@ -31,7 +34,12 @@ cbuffer cbPass : register(b1)
     uint gDirectionalLightsCount;
     float3 gCamPos;
     uint gPrefilteredMapLods;
-    uint3 gPadding1;
+    uint gCascadeCount;
+    uint2 gPadding1;
+    float4x4 gCascadeTransform[MAX_CASCADES];
+    float4 gCascadeShadowSphere[MAX_CASCADES];
+    float4 gCascadeShadowRad2;
+    float4 gCascadeDistance;
 }
 
 cbuffer cbTextureIndexes : register(b2)
@@ -44,6 +52,7 @@ cbuffer cbTextureIndexes : register(b2)
     uint gIrradianceMapIdx;
     uint gPrefilteredMapIdx;
     uint gBRDFLutIdx;
+    uint4 gShadowMapIdx;
 }
 
 cbuffer cbMaterial : register(b3)
@@ -114,6 +123,53 @@ float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
     return ggx1 * ggx2;
 }
 
+//---------------------------------------------------------------------------------------
+// PCF for shadow mapping.
+//---------------------------------------------------------------------------------------
+
+float CalcShadowFactor(float4 shadowPosH, uint mapIndex)
+{
+    Texture2D shadowMap = ResourceDescriptorHeap[gShadowMapIdx[mapIndex]];
+    
+    float depth = shadowPosH.z;
+
+    uint width, height, numMips;
+    shadowMap.GetDimensions(0, width, height, numMips);
+	
+    float dx = 1.0f / (float) width;
+    dx = 0.5 * dx;
+    
+    double percentLit = 0.0f;
+    const float2 offsets[9] =
+    {
+        float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
+        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+        float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
+    };
+	
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        percentLit += shadowMap.SampleCmpLevelZero(gsamShadow, shadowPosH.xy + offsets[i], depth).r;
+    }
+	
+    return percentLit / 9.0f;
+}
+
+uint ComputeCascadeIndex(float3 positionWS)
+{
+    float3 fromCenter0 = positionWS - gCascadeShadowSphere[0].xyz;
+    float3 fromCenter1 = positionWS - gCascadeShadowSphere[1].xyz;
+    float3 fromCenter2 = positionWS - gCascadeShadowSphere[2].xyz;
+    float3 fromCenter3 = positionWS - gCascadeShadowSphere[3].xyz;
+    float4 distances2 = float4(dot(fromCenter0, fromCenter0), dot(fromCenter1, fromCenter1), dot(fromCenter2, fromCenter2), dot(fromCenter3, fromCenter3));
+
+    float4 weights = float4(distances2 < gCascadeShadowRad2);
+    weights.yzw = saturate(weights.yzw - weights.xyz);
+
+    return 4 - dot(weights, float4(4, 3, 2, 1));
+}
+
 float4 PS(VertexOut pin) : SV_Target
 {
     Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
@@ -149,6 +205,15 @@ float4 PS(VertexOut pin) : SV_Target
 	
     float4 posW = worldSpacePosition;
     
+    uint cascadeIndex = ComputeCascadeIndex(posW.xyz);
+    
+    float shadowFactor = 1.0f;
+    
+    if (cascadeIndex < gCascadeCount)
+    {
+        float4 shadowPosH = mul(float4(posW.xyz, 1), gCascadeTransform[cascadeIndex]);
+        shadowFactor = CalcShadowFactor(shadowPosH, cascadeIndex);
+    }
     
     float3 V = normalize(gCamPos - posW.rgb);
 
@@ -178,7 +243,7 @@ float4 PS(VertexOut pin) : SV_Target
             
         // add to outgoing radiance Lo
         float NdotL = max(dot(N, L), 0.0);
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        Lo += shadowFactor * (kD * albedo / PI + specular) * radiance * NdotL;
     }
     
     float3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
@@ -195,7 +260,7 @@ float4 PS(VertexOut pin) : SV_Target
     float ssao = ssaoMap.Sample(gsamPointWrap, pin.TexC).r;
     
     float3 irradiance = irradianceMapTex.Sample(gsamLinearWrap, N).rgb;
-    float3 diffuse = irradiance * albedo;
+    float3 diffuse = 0.2f * irradiance * albedo; // TODO: temporary multiply by 0.2f
     
     float3 R = reflect(-V, N);
     float3 prefilteredColor = prefilteredMapTex.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
@@ -228,6 +293,8 @@ float4 PS(VertexOut pin) : SV_Target
     color = envBRDF.x;
 #elif DEBUGVIEW_SSAO
     color = ssao;
+#elif DEBUGVIEW_SHADOWS
+    color = shadowFactor;
 #endif
     
     return float4(color, 1.0);

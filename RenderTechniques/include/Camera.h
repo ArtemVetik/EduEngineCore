@@ -39,6 +39,8 @@ namespace EduEngine
 
 		XMMATRIX GetViewProjMatrix() const;
 
+		void CalculateLocalBoundingSphere(float nearValue, float farValue, XMFLOAT4& boundingSphere);
+
 	private:
 		void ConstructViewMatrix(XMFLOAT4X4& view, XMFLOAT3& right, XMFLOAT3& up, XMFLOAT3& look, XMFLOAT3& pos) const;
 
@@ -48,7 +50,7 @@ namespace EduEngine
 		UINT m_ScreenWidth;
 		UINT m_ScreenHeight;
 
-		float m_FovY = 55.0f * (3.14f / 180.0f);
+		float m_FovY = 60.0f * (3.14f / 180.0f);
 		float m_FovX;
 
 		XMFLOAT4X4 m_ViewMatrix;

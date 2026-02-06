@@ -275,7 +275,7 @@ namespace EduEngine::EduBinding
 		staticSamplers[6].AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 		staticSamplers[6].MipLODBias = 0.0f;
 		staticSamplers[6].MaxAnisotropy = 16;
-		staticSamplers[6].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		staticSamplers[6].ComparisonFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 		staticSamplers[6].BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
 	}
 }

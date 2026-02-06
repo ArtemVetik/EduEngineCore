@@ -31,7 +31,7 @@ namespace EduEngine
 
 	enum class DebugView : uint32
 	{
-		None, Roughness, Metallic, AO, Normal, DiffuseIBL, SpecularIBL, NdotV, Fresnel, BRDFy, BRDFx, SSAO,
+		None, Roughness, Metallic, AO, Normal, DiffuseIBL, SpecularIBL, NdotV, Fresnel, BRDFy, BRDFx, SSAO, SHADOW
 	};
 
 	inline static const char* PackNormalsMethodStr[5] =
@@ -39,11 +39,11 @@ namespace EduEngine
 		"None", "Simple", "Spherical", "Spheremap", "Stereographic"
 	};
 
-	inline static const char* DebugViewsStr[12] =
+	inline static const char* DebugViewsStr[13] =
 	{
 		"NONE", "DEBUGVIEW_ROUGHNESS", "DEBUGVIEW_METALLIC", "DEBUGVIEW_AO",
 		"DEBUGVIEW_NORMAL", "DEBUGVIEW_DIFFUSE_IBL", "DEBUGVIEW_SPECULAR_IBL",
-		"DEBUGVIEW_NDOTV", "DEBUGVIEW_FRESNEL", "DEBUGVIEW_BRDF_Y", "DEBUGVIEW_BRDF_X", "DEBUGVIEW_SSAO"
+		"DEBUGVIEW_NDOTV", "DEBUGVIEW_FRESNEL", "DEBUGVIEW_BRDF_Y", "DEBUGVIEW_BRDF_X", "DEBUGVIEW_SSAO", "DEBUGVIEW_SHADOWS",
 	};
 
 	struct RenderFeatures

@@ -33,6 +33,8 @@ namespace EduEngine
 
 		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
 
+		m_DebugRenderer = std::make_unique<DebugRendererSystem>(GetDevice());
+
 		DeferredPBRLightPass::MaterialData material = {};
 		material.DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -65,7 +67,7 @@ namespace EduEngine
 	
 	void SponzaDemo::OnUpdate(const Timer& timer)
 	{
-		FreeCameraUpdate(timer, GetCamera());
+		FreeCameraUpdate(timer, GetCamera(), 25.0f);
 
 		struct PassData
 		{
@@ -76,11 +78,10 @@ namespace EduEngine
 		
 		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		m_PassBuffer->LoadData(GetMainContext(), passData);
-
+		
 		m_Ssao->Update(GetCamera(), GetMainContext());
-
-		DeferredPBRLightPass::Light lights = {};
-		m_LightPass->Update(GetMainContext(), GetCamera(), &lights, 1);
+		m_CSMRendering->Update(GetMainContext(), GetCamera(), &m_LightData);
+		m_LightPass->Update(GetMainContext(), GetCamera(), &m_LightData, 1, m_CSMRendering.get());
 	}
 
 	void SponzaDemo::OnRender(const Timer& timer)
@@ -92,12 +93,12 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
 		GetMainContext()->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-		DeferredPBRLightPass::Light light = {};
-		CSMRendering::Light csmLight;
-		csmLight.Position = light.Position;
-		csmLight.Direction = light.Direction;
+		CSMRendering::RenderObject shadowObjects[]
+		{
+			{ m_Mesh.get(), XMMatrixScaling(5, 5, 5) },
+		};
 
-		m_CSMRendering->Render(GetMainContext(), GetCamera(), &csmLight, m_Mesh.get());
+		m_CSMRendering->Render(GetMainContext(), shadowObjects, 1);
 
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
@@ -143,7 +144,7 @@ namespace EduEngine
 				UINT AOIdx;
 			} objData;
 
-			XMStoreFloat4x4(&objData.World, XMMatrixTranspose(XMMatrixScaling(20, 20, 20)));
+			XMStoreFloat4x4(&objData.World, XMMatrixTranspose(XMMatrixScaling(5, 5, 5)));
 			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_BASE_COLOR));
 			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_NORMAL_MAP));
 			objData.MetallicRoughnessIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_METALLIC_ROUGHNESS));
@@ -178,6 +179,9 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		m_PbrPrepass->RenderSky(GetDevice(), GetMainContext(), GetCamera());
+
+		m_DebugRenderer->DrawSphere(10, { 255, 0, 255 }, XMMatrixTranslation(m_LightData.Position.x, m_LightData.Position.y, m_LightData.Position.z), 16 );
+		m_DebugRenderer->Render(GetMainContext(), GetCamera()->GetViewProjMatrix(), GetCamera()->GetPosition());
 
 		//
 		// GUI
@@ -270,6 +274,9 @@ namespace EduEngine
 			deferredLightBuffers.IrradianceMapIdx = m_PbrPrepass->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.PrefilteredMapIdx = m_PbrPrepass->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.BRDFLutIdx = m_PbrPrepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
+
+			for (uint32 i = 0; i < m_CSMRendering->GetCascadeCount(); i++)
+				deferredLightBuffers.ShadowMapIdx[i] = m_CSMRendering->GetSrv(i)->GetGpuHeapIndex();
 
 			m_LightPass->SetBufferIndexes(GetMainContext(), deferredLightBuffers);
 		}

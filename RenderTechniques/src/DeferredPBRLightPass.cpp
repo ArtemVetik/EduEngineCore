@@ -53,7 +53,7 @@ namespace EduEngine
 		m_PsoEntry.Initialize();
 	}
 
-	void DeferredPBRLightPass::Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights)
+	void DeferredPBRLightPass::Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights, CSMRendering* csmRendering)
 	{
 		struct PassData
 		{
@@ -62,7 +62,12 @@ namespace EduEngine
 			UINT DirectionalLightsCount;
 			XMFLOAT3 CamPos;
 			UINT PrefilteredMapLods;
-			XMFLOAT3 Padding;
+			UINT CascadeCount;
+			XMFLOAT2 Padding;
+			XMFLOAT4X4 CascadeTransform[CSMRendering::MAX_CASCADES];
+			XMFLOAT4 CascadeShadowSphere[CSMRendering::MAX_CASCADES];
+			XMFLOAT4 CascadeShadowRad2;
+			XMFLOAT4 CascadeDistance;
 		} passData;
 
 		XMMATRIX viewInv = XMMatrixInverse(nullptr, XMLoadFloat4x4(&camera->GetViewMatrix()));
@@ -73,9 +78,17 @@ namespace EduEngine
 		passData.DirectionalLightsCount = numLights;
 		passData.CamPos = camera->GetPosition();
 		passData.PrefilteredMapLods = PBRPrepass::PREFILTERED_MIP_LEVELS;
+		passData.CascadeCount = csmRendering->GetCascadeCount();
+		passData.CascadeShadowRad2 = csmRendering->GetCascadeRad2();
+
+		for (uint32 i = 0; i < csmRendering->GetCascadeCount(); i++)
+		{
+			XMStoreFloat4x4(&passData.CascadeTransform[i], XMMatrixTranspose(csmRendering->GetCascadeTransform(i)));
+			passData.CascadeShadowSphere[i] = csmRendering->GetCascadeBoundingSphere(i);
+			*(&passData.CascadeDistance.x + i) = csmRendering->GetCascadeDistance(i);
+		}
 
 		m_PassBuffer->LoadData(context, passData);
-
 		m_LightsBuffer->LoadData(context, lights, numLights * sizeof(Light));
 		m_LightsBuffer->CreateSRV(context, numLights, sizeof(Light));
 	}

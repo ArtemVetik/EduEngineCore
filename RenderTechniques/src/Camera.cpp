@@ -1,12 +1,14 @@
 #include "Camera.h"
 
+#include <Asserts.h>
+
 namespace EduEngine
 {
 	Camera::Camera(RenderDeviceD3D12* device, UINT width, UINT height) :
 		m_Device(device),
 		m_ViewDirty(true)
 	{
-		m_NearValue = 5.0f;
+		m_NearValue = 1.0f;
 		m_FarValue = 1000.0f;
 
 		XMVECTOR pos = XMVectorSet(0.0f, 0.0f, -150.0f, 0.0f);
@@ -32,6 +34,34 @@ namespace EduEngine
 	XMMATRIX Camera::GetViewProjMatrix() const
 	{
 		return DirectX::XMLoadFloat4x4(&m_ViewMatrix) * DirectX::XMLoadFloat4x4(&m_ProjectionMatrix);
+	}
+
+	void Camera::CalculateLocalBoundingSphere(float n, float f, XMFLOAT4& boundingSphere)
+	{
+		// https://lxjk.github.io/2017/04/15/Calculate-Minimal-Bounding-Sphere-of-Frustum.html
+
+		boundingSphere.x = 0;
+		boundingSphere.y = 0;
+
+		float k = sqrtf(1 + (m_ScreenWidth * m_ScreenWidth) / (m_ScreenHeight * m_ScreenHeight)) * tanf(m_FovY * 0.5f);
+
+		VERIFY_EXPR(n < f, "nearValue must be less than farValue");
+
+		if (k * k >= (f - n) / (f + n))
+		{
+			boundingSphere.z = f;
+			boundingSphere.w = f * k;
+		}
+		else
+		{
+			boundingSphere.z = 0.5f * (f + n) * (1 + k * k);
+			boundingSphere.w = 0.5f * sqrtf
+			(
+				(f - n) * (f - n) + 
+				2 * (f * f + n * n) * k * k +
+				((f + n) * (f + n)) * k * k * k * k
+			);
+		}
 	}
 
 	void Camera::SetProjectionMatrix(UINT newWidth, UINT newHeight)

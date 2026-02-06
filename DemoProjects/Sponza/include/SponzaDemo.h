@@ -10,6 +10,7 @@
 #include <DeferredPBRLightPass.h>
 #include <CSMRendering.h>
 #include <SponzaCommon.h>
+#include <DebugRendererSystem.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -45,6 +46,9 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 
 		DescriptorHeapAllocation m_GpuCopyDescriptors;
+		Light m_LightData = {};
+
+		std::unique_ptr<DebugRendererSystem> m_DebugRenderer;
 
 	private:
 		DXGI_FORMAT SPONZA_G_BUFFERS[SponzaGBufferId::NumBuffers]
