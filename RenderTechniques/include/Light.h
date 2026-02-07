@@ -4,7 +4,7 @@
 
 namespace EduEngine
 {
-	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) Light
+	struct RENDERTECHNIQUES_API alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) Light
 	{
 	public:
 		enum Type

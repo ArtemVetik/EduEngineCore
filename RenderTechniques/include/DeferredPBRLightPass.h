@@ -11,7 +11,7 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	class DeferredPBRLightPass
+	class RENDERTECHNIQUES_API DeferredPBRLightPass
 	{
 	public:
 		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) BuffersIndexesData

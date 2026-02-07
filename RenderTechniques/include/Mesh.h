@@ -35,7 +35,7 @@ namespace EduEngine
 		const char* TextureExt = nullptr;
 	};
 
-	class Mesh
+	class RENDERTECHNIQUES_API Mesh
 	{
 	public:
 		Mesh(RenderDeviceD3D12* device, DeviceContext* context, const char* filePath);

@@ -9,7 +9,7 @@ namespace EduEngine
 	using uint16 = std::uint16_t;
 	using uint32 = std::uint32_t;
 
-	struct Vertex
+	struct RENDERTECHNIQUES_API Vertex
 	{
 		Vertex() = default;
 		Vertex(
@@ -39,7 +39,7 @@ namespace EduEngine
 		DirectX::XMFLOAT2 TexC;
 	};
 
-	struct VertexPU
+	struct RENDERTECHNIQUES_API VertexPU
 	{
 		VertexPU() = default;
 		VertexPU(
@@ -59,7 +59,7 @@ namespace EduEngine
 		DirectX::XMFLOAT2 TexC;
 	};
 
-	struct MeshData
+	struct RENDERTECHNIQUES_API MeshData
 	{
 		std::vector<Vertex> Vertices;
 		std::vector<uint32> Indices32;

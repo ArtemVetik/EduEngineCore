@@ -1,5 +1,5 @@
 #pragma once
-
+#include "framework.h"
 #include <TextureD3D12.h>
 
 namespace EduEngine
@@ -19,7 +19,7 @@ namespace EduEngine
 		bool OnCPU = true;
 	};
 
-	class Texture
+	class RENDERTECHNIQUES_API Texture
 	{
 	public:
 		Texture();
