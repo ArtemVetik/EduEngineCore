@@ -56,15 +56,15 @@ namespace EduEngine
 		m_LightBuffer->CreateSRV(GetMainContext(), 1, sizeof(PBRLighting::Light));
 
 		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext(), false);
-		m_Prepass->GenerateTextures("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext());
+		m_Skybox = std::make_shared<Skybox>("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext(), m_Prepass.get(), false);
 
 		m_TextureIndexes = {};
 		m_TextureIndexes.AlbedoTexIdx = m_AlbedoTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.MetallicRoughnessIdx = m_MetallicRoughnessTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.AOIdx = m_AOTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.NormalMapIdx = m_NormalMapTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
-		m_TextureIndexes.IrradianceMapIdx = m_Prepass->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
-		m_TextureIndexes.PrefilteredMapIdx = m_Prepass->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.BRDFLutIdx = m_Prepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
 
 		buffDesc.Width = (sizeof(PBRLighting::TextureIndexes) + 255) & ~255; // TODO: create align function
@@ -131,7 +131,7 @@ namespace EduEngine
 
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
 
-		m_Prepass->RenderSky(GetDevice(), GetMainContext(), GetCamera());
+		m_Skybox->Render(GetMainContext(), GetCamera());
 
 		XMFLOAT3 lightEndDir =
 		{
@@ -150,7 +150,7 @@ namespace EduEngine
 
 		if (genEnvMap)
 		{
-			m_Prepass->GenerateTextures(envMapPath, GetDevice(), GetMainContext());
+			m_Skybox->RebuildSky(envMapPath, GetMainContext(), m_Prepass.get());
 		}
 	}
 
@@ -289,14 +289,14 @@ namespace EduEngine
 
 			if (ImGui::Combo("Type", &current, items, IM_ARRAYSIZE(items)))
 			{
-				if (current == 0) m_Prepass->SetSkyTex(m_Prepass->GetHDREnvCubeMap());
-				else if (current == 1) m_Prepass->SetSkyTex(m_Prepass->GetIrradianceMap());
-				else if (current == 2) m_Prepass->SetSkyTex(m_Prepass->GetPrefilteredMap());
+				if (current == 0) m_Skybox->SetSky(m_Skybox->GetHDREnvCubeMap());
+				else if (current == 1) m_Skybox->SetSky(m_Skybox->GetIrradianceMap());
+				else if (current == 2) m_Skybox->SetSky(m_Skybox->GetPrefilteredMap());
 			}
 
 			if (ImGui::SliderFloat("Lod", &lod, 0.0f, PBRPrepass::PREFILTERED_MIP_LEVELS))
 			{
-				m_Prepass->SetSkyLod(lod);
+				m_Skybox->SetLod(lod);
 			}
 		}
 

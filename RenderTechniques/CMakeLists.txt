@@ -12,7 +12,9 @@ add_library(RenderTechniques STATIC
     src/RenderFeatures.cpp
     src/Mesh.cpp
     src/Texture.cpp
- )
+    src/ReflectionProbe.cpp
+    src/Skybox.cpp
+)
 
 target_include_directories(RenderTechniques
     PUBLIC 

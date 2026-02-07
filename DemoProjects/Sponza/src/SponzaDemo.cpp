@@ -26,12 +26,14 @@ namespace EduEngine
 		m_Mesh->Load(meshDesc);
 
 		m_PbrPrepass = std::make_unique<PBRPrepass>(GetDevice(), GetMainContext(), false);
-		m_PbrPrepass->GenerateTextures("assets\\Textures\\HDR\\kloofendal_48d_partly_cloudy_puresky_4k.hdr", GetDevice(), GetMainContext());
+		m_Skybox = std::make_unique<Skybox>("assets\\Textures\\HDR\\kloofendal_48d_partly_cloudy_puresky_4k.hdr",
+			GetDevice(), GetMainContext(), m_PbrPrepass.get(), false);
 
 		m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
 		m_Ssao = std::make_unique<SSAO>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 
 		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
+		m_ReflectionProbe = std::make_unique<ReflectionProbe>(GetDevice(), GetMainContext());
 
 		m_DebugRenderer = std::make_unique<DebugRendererSystem>(GetDevice());
 
@@ -93,12 +95,14 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
 		GetMainContext()->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-		CSMRendering::RenderObject shadowObjects[]
+		RenderObject renderObjects[]
 		{
 			{ m_Mesh.get(), XMMatrixScaling(5, 5, 5) },
 		};
 
-		m_CSMRendering->Render(GetMainContext(), shadowObjects, 1);
+		m_CSMRendering->Render(GetMainContext(), renderObjects, 1);
+
+		m_ReflectionProbe->Render(GetMainContext(), renderObjects, 1);
 
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
@@ -178,7 +182,7 @@ namespace EduEngine
 		m_PostProcPso.Pso->CommitAll(GetMainContext(), m_PostProcBinder.get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
-		m_PbrPrepass->RenderSky(GetDevice(), GetMainContext(), GetCamera());
+		m_Skybox->Render(GetMainContext(), GetCamera());
 
 		m_DebugRenderer->DrawSphere(10, { 255, 0, 255 }, XMMatrixTranslation(m_LightData.Position.x, m_LightData.Position.y, m_LightData.Position.z), 16 );
 		m_DebugRenderer->Render(GetMainContext(), GetCamera()->GetViewProjMatrix(), GetCamera()->GetPosition());
@@ -322,8 +326,8 @@ namespace EduEngine
 			deferredLightBuffers.MetallicRoughAoIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(2);
 			deferredLightBuffers.DepthIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(3);
 			deferredLightBuffers.SsaoMapIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(4);
-			deferredLightBuffers.IrradianceMapIdx = m_PbrPrepass->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
-			deferredLightBuffers.PrefilteredMapIdx = m_PbrPrepass->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.BRDFLutIdx = m_PbrPrepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
 
 			for (uint32 i = 0; i < m_CSMRendering->GetCascadeCount(); i++)

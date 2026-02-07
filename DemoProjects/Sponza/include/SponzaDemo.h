@@ -7,8 +7,10 @@
 #include <SSAO.h>
 #include <GBuffer.h>
 #include <PBRPrepass.h>
+#include <Skybox.h>
 #include <DeferredPBRLightPass.h>
 #include <CSMRendering.h>
+#include <ReflectionProbe.h>
 #include <SponzaCommon.h>
 #include <DebugRendererSystem.h>
 
@@ -30,10 +32,12 @@ namespace EduEngine
 
 	private:
 		std::unique_ptr<PBRPrepass> m_PbrPrepass;
+		std::unique_ptr<Skybox> m_Skybox;
 		std::unique_ptr<DeferredPBRLightPass> m_LightPass;
 		std::unique_ptr<SSAO> m_Ssao;
 		std::unique_ptr<GBuffer> m_GBuffer;
 		std::unique_ptr<CSMRendering> m_CSMRendering;
+		std::unique_ptr<ReflectionProbe> m_ReflectionProbe;
 
 		std::shared_ptr<Mesh> m_Mesh;
 

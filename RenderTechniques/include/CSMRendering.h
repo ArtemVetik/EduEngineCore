@@ -4,24 +4,17 @@
 #include <Camera.h>
 #include <Mesh.h>
 #include <Light.h>
-#include <SimpleMath.h>
+#include <RenderObject.h>
 
-using namespace DirectX;
 using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	class CSMRendering
+	class RENDERTECHNIQUES_API CSMRendering
 	{
 	public:
 		// It should be always 4! Otherwise, everything will break
 		static const uint32 MAX_CASCADES = 4;
-
-		struct RenderObject
-		{
-			Mesh* Mesh;
-			XMMATRIX World;
-		};
 
 		struct Settings
 		{
