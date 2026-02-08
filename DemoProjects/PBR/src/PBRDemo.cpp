@@ -131,7 +131,7 @@ namespace EduEngine
 
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
 
-		m_Skybox->Render(GetMainContext(), XMLoadFloat4x4(&GetCamera()->GetViewMatrix()), XMLoadFloat4x4(&GetCamera()->GetProjectionMatrix()));
+		m_Skybox->Render(GetMainContext(), GetCamera());
 
 		XMFLOAT3 lightEndDir =
 		{

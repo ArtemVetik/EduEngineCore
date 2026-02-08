@@ -48,19 +48,20 @@ namespace EduEngine
 
 	void ReflectionProbe::Bake(DeviceContext* context, Skybox* skybox, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum)
 	{
-		XMMATRIX proj = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 100.0f, 0.1f);
-		
-		XMVECTOR center = XMLoadFloat3(&m_Center);
+		float nearValue = 0.1f;
+		float farValue = 100.0f;
 
-		XMMATRIX view[6]
+		Camera faceCamera[6]
 		{
-			XMMatrixLookToLH(center, {1,0,0}, {0,1,0}),   // +X
-			XMMatrixLookToLH(center, {-1,0,0}, {0,1,0}),  // -X
-			XMMatrixLookToLH(center, {0,1,0}, {0,0,-1}),  // +Y
-			XMMatrixLookToLH(center, {0,-1,0}, {0,0,1}),  // -Y
-			XMMatrixLookToLH(center, {0,0,1}, {0,1,0}),   // +Z
-			XMMatrixLookToLH(center, {0,0,-1}, {0,1,0}),  // -Z
+			Camera(m_Settings.TextureSize, m_Settings.TextureSize, XM_PIDIV2, nearValue, farValue, m_Center, { 1, 0, 0 }, { 0, 1, 0 }),
+			Camera(m_Settings.TextureSize, m_Settings.TextureSize, XM_PIDIV2, nearValue, farValue, m_Center, {-1, 0, 0 }, { 0, 1, 0 }),
+			Camera(m_Settings.TextureSize, m_Settings.TextureSize, XM_PIDIV2, nearValue, farValue, m_Center, { 0, 1, 0 }, { 0, 0,-1 }),
+			Camera(m_Settings.TextureSize, m_Settings.TextureSize, XM_PIDIV2, nearValue, farValue, m_Center, { 0,-1, 0 }, { 0, 0, 1 }),
+			Camera(m_Settings.TextureSize, m_Settings.TextureSize, XM_PIDIV2, nearValue, farValue, m_Center, { 0, 0, 1 }, { 0, 1, 0 }),
+			Camera(m_Settings.TextureSize, m_Settings.TextureSize, XM_PIDIV2, nearValue, farValue, m_Center, { 0, 0,-1 }, { 0, 1, 0 }),
 		};
+
+		XMMATRIX proj = XMLoadFloat4x4(&faceCamera[0].GetProjectionMatrix());
 
 		D3D12_VIEWPORT viewport = {};
 		viewport.Width = m_Settings.TextureSize;
@@ -89,8 +90,8 @@ namespace EduEngine
 				XMFLOAT4X4 ViewProj;
 			} passData;
 
-			XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(view[i] * proj));
-
+			XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(faceCamera[i].GetViewProjMatrix()));
+			
 			m_PassBuffer->LoadData(context, passData);
 			m_PSO.CommitPso(context);
 
@@ -118,7 +119,7 @@ namespace EduEngine
 				}
 			}
 
-			skybox->Render(context, view[i], proj, true);
+			skybox->Render(context, &faceCamera[i], true);
 		}
 
 		if (m_Settings.Flags & Flags::CREATE_IRRADIANCE_MAP)

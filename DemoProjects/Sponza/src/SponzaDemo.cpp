@@ -182,7 +182,7 @@ namespace EduEngine
 		m_PostProcPso.Pso->CommitAll(GetMainContext(), m_PostProcBinder.get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
-		m_Skybox->Render(GetMainContext(), XMLoadFloat4x4(&GetCamera()->GetViewMatrix()), XMLoadFloat4x4(&GetCamera()->GetProjectionMatrix()));
+		m_Skybox->Render(GetMainContext(), GetCamera());
 
 		m_DebugRenderer->DrawSphere(10, { 255, 0, 255 }, XMMatrixTranslation(m_LightData.Position.x, m_LightData.Position.y, m_LightData.Position.z), 16 );
 		m_DebugRenderer->Render(GetMainContext(), GetCamera()->GetViewProjMatrix(), GetCamera()->GetPosition());

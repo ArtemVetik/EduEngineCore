@@ -230,7 +230,7 @@ namespace EduEngine
 		m_SkyTextureGpuHeapIdx = m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex();
 	}
 
-	void Skybox::Render(DeviceContext* context, XMMATRIX view, XMMATRIX proj, bool hdr)
+	void Skybox::Render(DeviceContext* context, Camera* camera, bool hdr)
 	{
 		struct PassCB
 		{
@@ -242,8 +242,8 @@ namespace EduEngine
 		};
 
 		PassCB cb = {};
-		XMStoreFloat4x4(&cb.View, DirectX::XMMatrixTranspose(view));
-		XMStoreFloat4x4(&cb.Proj, DirectX::XMMatrixTranspose(proj));
+		XMStoreFloat4x4(&cb.View, DirectX::XMMatrixTranspose(XMLoadFloat4x4(&camera->GetViewMatrix())));
+		XMStoreFloat4x4(&cb.Proj, DirectX::XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
 		cb.Lod = m_SkyLod;
 		cb.TextureIdx = m_SkyTextureGpuHeapIdx;
 

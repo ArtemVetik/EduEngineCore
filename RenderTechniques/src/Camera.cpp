@@ -5,65 +5,45 @@
 namespace EduEngine
 {
 	Camera::Camera(UINT width, UINT height) :
-		m_ViewDirty(true)
-	{
-		m_NearValue = 1.0f;
-		m_FarValue = 1000.0f;
+		Camera(
+			width,
+			height,
+			60.0f * (3.14f / 180.0f), // fovY
+			1.0f,					  // near
+			1000.0f,				  // far
+			{ 0, 0, -150 },			  // pos
+			{ 0, 0, 1 },			  // look
+			{ 0, 1, 0}				  // up
+		)
+	{ }
 
-		XMVECTOR pos = XMVectorSet(0.0f, 0.0f, -150.0f, 0.0f);
-		XMVECTOR dir = XMVectorSet(0, 0, 1, 0);
-		XMVECTOR up = XMVectorSet(0, 1, 0, 0);
+	Camera::Camera(UINT width, UINT height, float fovY, float nearValue, float farValue, XMFLOAT3 pos, XMFLOAT3 look, XMFLOAT3 up) :
+		m_ScreenWidth(width),
+		m_ScreenHeight(height),
+		m_FovY(fovY),
+		m_NearValue(nearValue),
+		m_FarValue(farValue),
+		m_Position(pos),
+		m_Look(look),
+		m_Up(up),
+		m_ViewDirty(false)
+	{
+		XMVECTOR posV = XMLoadFloat3(&m_Position);
+		XMVECTOR lookV = XMLoadFloat3(&m_Look);
+		XMVECTOR upV = XMLoadFloat3(&m_Up);
+
+		XMStoreFloat3(&m_Right, XMVector3Cross(upV, lookV));
 
 		XMMATRIX V = XMMatrixLookToLH(
-			pos,
-			dir,
-			up);
+			posV,
+			lookV,
+			upV);
 		XMStoreFloat4x4(&m_ViewMatrix, (V));
 
-		SetProjectionMatrix(width, height);
-
-		XMStoreFloat3(&m_Look, dir);
-		XMStoreFloat3(&m_Up, up);
-		XMStoreFloat3(&m_Right, XMVector3Cross(up, dir));
-		XMStoreFloat3(&m_Position, pos);
-
-		m_RotateAround = false;
+		SetProjectionMatrix();
 	}
 
-	XMMATRIX Camera::GetViewProjMatrix() const
-	{
-		return DirectX::XMLoadFloat4x4(&m_ViewMatrix) * DirectX::XMLoadFloat4x4(&m_ProjectionMatrix);
-	}
-
-	void Camera::CalculateLocalBoundingSphere(float n, float f, XMFLOAT4& boundingSphere)
-	{
-		// https://lxjk.github.io/2017/04/15/Calculate-Minimal-Bounding-Sphere-of-Frustum.html
-
-		boundingSphere.x = 0;
-		boundingSphere.y = 0;
-
-		float k = sqrtf(1 + (m_ScreenWidth * m_ScreenWidth) / (m_ScreenHeight * m_ScreenHeight)) * tanf(m_FovY * 0.5f);
-
-		VERIFY_EXPR(n <= f, "nearValue must be not greater than farValue");
-
-		if (k * k >= (f - n) / (f + n))
-		{
-			boundingSphere.z = f;
-			boundingSphere.w = f * k;
-		}
-		else
-		{
-			boundingSphere.z = 0.5f * (f + n) * (1 + k * k);
-			boundingSphere.w = 0.5f * sqrtf
-			(
-				(f - n) * (f - n) + 
-				2 * (f * f + n * n) * k * k +
-				((f + n) * (f + n)) * k * k * k * k
-			);
-		}
-	}
-
-	void Camera::SetProjectionMatrix(UINT newWidth, UINT newHeight)
+	void Camera::UpdateViewport(UINT newWidth, UINT newHeight)
 	{
 		m_ScreenWidth = newWidth;
 		m_ScreenHeight = newHeight;
@@ -71,31 +51,19 @@ namespace EduEngine
 		SetProjectionMatrix();
 	}
 
-	void Camera::SetProjectionMatrix(float* fov, float* nearView, float* farView)
+	void Camera::UpdateFovY(float fovY)
 	{
-		if (fov) m_FovY = *fov;
-		if (nearView) m_NearValue = *nearView;
-		if (farView) m_FarValue = *farView;
+		m_FovY = fovY;
+		
+		SetProjectionMatrix();
+	}
 
-		m_FovY = std::max(m_FovY, FLT_MIN);
-		m_NearValue = std::max(m_NearValue, FLT_MIN);
-		m_FarValue = std::max(m_FarValue, m_NearValue + 0.1f);
+	void Camera::UpdateNearFar(float nearValue, float farValue)
+	{
+		m_NearValue = nearValue;
+		m_FarValue = farValue;
 
-		auto aspectRatio = ((float)m_ScreenWidth) / ((float)m_ScreenHeight);
-		if (aspectRatio == 0)
-			aspectRatio = FLT_MAX;
-
-		auto nearWindowHeight = 2.0f * m_NearValue * tanf(0.5f * m_FovY);
-		float halfWidth = 0.5f * aspectRatio * nearWindowHeight;
-		m_FovX = 2.0f * atan(halfWidth / m_NearValue);
-
-		XMMATRIX P = XMMatrixPerspectiveFovLH(
-			m_FovY,
-			aspectRatio,
-			m_FarValue,
-			m_NearValue
-		);
-		XMStoreFloat4x4(&m_ProjectionMatrix, (P));
+		SetProjectionMatrix();
 	}
 
 	void Camera::Pitch(float angle)
@@ -134,38 +102,8 @@ namespace EduEngine
 		m_ViewDirty = true;
 	}
 
-	void Camera::Update(const Timer& timer)
+	void Camera::Update()
 	{
-		if (m_RotateAround)
-		{
-			XMFLOAT3 target = { 0, 0, 0 };
-			float radius = sqrtf(m_Position.x * m_Position.x + m_Position.y * m_Position.y + m_Position.z * m_Position.z);
-
-			float theta = atan2f(m_Position.x, m_Position.z) + timer.GetDeltaTime();
-			float phi = asinf(m_Position.y / radius);
-
-			float x = target.x + radius * cosf(phi) * sinf(theta);
-			float y = target.y + radius * sinf(phi);
-			float z = target.z + radius * cosf(phi) * cosf(theta);
-
-			m_Position = XMFLOAT3(x, y, z);
-
-			XMVECTOR posVec = XMLoadFloat3(&m_Position);
-			XMVECTOR targetVec = XMLoadFloat3(&target);
-			XMVECTOR lookVec = XMVector3Normalize(XMVectorSubtract(targetVec, posVec));
-
-			XMStoreFloat3(&m_Look, lookVec);
-
-			XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-			XMVECTOR rightVec = XMVector3Normalize(XMVector3Cross(worldUp, lookVec));
-			XMStoreFloat3(&m_Right, rightVec);
-
-			XMVECTOR upVec = XMVector3Normalize(XMVector3Cross(lookVec, rightVec));
-			XMStoreFloat3(&m_Up, upVec);
-
-			m_ViewDirty = true;
-		}
-
 		if (m_ViewDirty)
 		{
 			ConstructViewMatrix(m_ViewMatrix, m_Right, m_Up, m_Look, m_Position);
@@ -182,9 +120,60 @@ namespace EduEngine
 		m_ViewDirty = true;
 	}
 
-	void Camera::SetRotateAroundMode(bool enable)
+	XMMATRIX Camera::GetViewProjMatrix() const
 	{
-		m_RotateAround = enable;
+		return DirectX::XMLoadFloat4x4(&m_ViewMatrix) * DirectX::XMLoadFloat4x4(&m_ProjectionMatrix);
+	}
+
+	void Camera::CalculateLocalBoundingSphere(float n, float f, XMFLOAT4& boundingSphere)
+	{
+		// https://lxjk.github.io/2017/04/15/Calculate-Minimal-Bounding-Sphere-of-Frustum.html
+
+		boundingSphere.x = 0;
+		boundingSphere.y = 0;
+
+		float k = sqrtf(1 + (m_ScreenWidth * m_ScreenWidth) / (m_ScreenHeight * m_ScreenHeight)) * tanf(m_FovY * 0.5f);
+
+		VERIFY_EXPR(n <= f, "nearValue must be not greater than farValue");
+
+		if (k * k >= (f - n) / (f + n))
+		{
+			boundingSphere.z = f;
+			boundingSphere.w = f * k;
+		}
+		else
+		{
+			boundingSphere.z = 0.5f * (f + n) * (1 + k * k);
+			boundingSphere.w = 0.5f * sqrtf
+			(
+				(f - n) * (f - n) +
+				2 * (f * f + n * n) * k * k +
+				((f + n) * (f + n)) * k * k * k * k
+			);
+		}
+	}
+
+	void Camera::SetProjectionMatrix()
+	{
+		m_FovY = std::max(m_FovY, FLT_MIN);
+		m_NearValue = std::max(m_NearValue, FLT_MIN);
+		m_FarValue = std::max(m_FarValue, m_NearValue + 0.1f);
+
+		auto aspectRatio = ((float)m_ScreenWidth) / ((float)m_ScreenHeight);
+		if (aspectRatio == 0)
+			aspectRatio = FLT_MAX;
+
+		auto nearWindowHeight = 2.0f * m_NearValue * tanf(0.5f * m_FovY);
+		float halfWidth = 0.5f * aspectRatio * nearWindowHeight;
+		m_FovX = 2.0f * atan(halfWidth / m_NearValue);
+
+		XMMATRIX P = XMMatrixPerspectiveFovLH(
+			m_FovY,
+			aspectRatio,
+			m_FarValue,
+			m_NearValue
+		);
+		XMStoreFloat4x4(&m_ProjectionMatrix, (P));
 	}
 
 	void Camera::ConstructViewMatrix(XMFLOAT4X4& view, XMFLOAT3& right, XMFLOAT3& up, XMFLOAT3& look, XMFLOAT3& pos) const

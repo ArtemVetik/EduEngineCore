@@ -10,7 +10,7 @@ namespace EduEngine
 	public:
 		Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, PBRPrepass* pbrPrepass);
 		
-		void Render(DeviceContext* context, XMMATRIX view, XMMATRIX proj, bool hdr = false);
+		void Render(DeviceContext* context, Camera* camera, bool hdr = false);
 
 		void RebuildSky(const char* hdrFileName, DeviceContext* context, PBRPrepass* pbrPrepass);
 

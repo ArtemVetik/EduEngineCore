@@ -52,7 +52,7 @@ namespace EduEngine
 		currentDelta.y = Lerp(currentDelta.y, targetDelta.y, timer.GetDeltaTime() * rotateLerpSpeed);
 		camera->Pitch(currentDelta.y - prevY);
 
-		camera->Update(timer);
+		camera->Update();
 	}
 
 	__forceinline void RotateAroundCenterCameraUpdate(const Timer& timer, Camera* camera)
@@ -100,6 +100,6 @@ namespace EduEngine
 		XMStoreFloat3(&upF, realUp);
 
 		camera->Setup(posF, lookF, rightF, upF);
-		camera->Update(timer);
+		camera->Update();
 	}
 }
