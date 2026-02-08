@@ -40,7 +40,7 @@ namespace EduEngine
 		probeSettings.Flags = ReflectionProbe::Flags::CREATE_IRRADIANCE_MAP | ReflectionProbe::Flags::CREATE_PREFILTERED_MAP;
 
 		m_ReflectionProbe = std::make_unique<ReflectionProbe>(GetDevice(), GetMainContext(), probeSettings);
-		m_ReflectionProbe->Render(GetMainContext(), m_Skybox.get(), m_PbrPrepass.get(), m_RenderObjects.data(), m_RenderObjects.size());
+		m_ReflectionProbe->Bake(GetMainContext(), m_Skybox.get(), m_PbrPrepass.get(), m_RenderObjects.data(), m_RenderObjects.size());
 
 		m_DebugRenderer = std::make_unique<DebugRendererSystem>(GetDevice());
 
@@ -326,8 +326,10 @@ namespace EduEngine
 			deferredLightBuffers.MetallicRoughAoIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(2);
 			deferredLightBuffers.DepthIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(3);
 			deferredLightBuffers.SsaoMapIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(4);
-			deferredLightBuffers.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
-			deferredLightBuffers.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.IrradianceMapIdx = m_ReflectionProbe->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.PrefilteredMapIdx = m_ReflectionProbe->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+			//deferredLightBuffers.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+			//deferredLightBuffers.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.BRDFLutIdx = m_PbrPrepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
 
 			for (uint32 i = 0; i < m_CSMRendering->GetCascadeCount(); i++)

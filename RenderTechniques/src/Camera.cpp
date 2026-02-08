@@ -4,8 +4,7 @@
 
 namespace EduEngine
 {
-	Camera::Camera(RenderDeviceD3D12* device, UINT width, UINT height) :
-		m_Device(device),
+	Camera::Camera(UINT width, UINT height) :
 		m_ViewDirty(true)
 	{
 		m_NearValue = 1.0f;

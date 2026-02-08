@@ -84,7 +84,7 @@ namespace EduEngine
 		m_SwapChain = std::make_unique<SwapChain>(m_Device.get(),
 			mainWindow.GetClientWidth(), mainWindow.GetClientHeight(), mainWindow.GetMainWindow());
 
-		m_Camera = std::make_unique<Camera>(m_Device.get(), mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
+		m_Camera = std::make_unique<Camera>(mainWindow.GetClientWidth(), mainWindow.GetClientHeight());
 
 		DeviceContextDesc ctxDesc = {};
 		ctxDesc.IsDeferred = false;

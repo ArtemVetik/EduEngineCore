@@ -14,7 +14,7 @@ namespace EduEngine
 	class RENDERTECHNIQUES_API Camera
 	{
 	public:
-		Camera(RenderDeviceD3D12* device, UINT width, UINT height);
+		Camera(UINT width, UINT height);
 
 		void SetProjectionMatrix(UINT newWidth, UINT newHeight);
 		void SetProjectionMatrix(float* fov = nullptr, float* nearView = nullptr, float* farView = nullptr);
@@ -45,8 +45,6 @@ namespace EduEngine
 		void ConstructViewMatrix(XMFLOAT4X4& view, XMFLOAT3& right, XMFLOAT3& up, XMFLOAT3& look, XMFLOAT3& pos) const;
 
 	private:
-		RenderDeviceD3D12* m_Device;
-
 		UINT m_ScreenWidth;
 		UINT m_ScreenHeight;
 

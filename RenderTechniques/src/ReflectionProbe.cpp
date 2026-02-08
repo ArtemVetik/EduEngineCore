@@ -5,7 +5,7 @@ namespace EduEngine
 	ReflectionProbe::ReflectionProbe(RenderDeviceD3D12* device, DeviceContext* context, Settings settings) :
 		m_Settings(settings)
 	{
-		m_Center = { 0, 10, 0 };
+		m_Center = { 0, 2.5f, 0 };
 		m_BoxSize = { 100, 100 };
 
 		InitializeTextures(device, context);
@@ -46,7 +46,7 @@ namespace EduEngine
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
 	}
 
-	void ReflectionProbe::Render(DeviceContext* context, Skybox* skybox, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum)
+	void ReflectionProbe::Bake(DeviceContext* context, Skybox* skybox, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum)
 	{
 		XMMATRIX proj = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 100.0f, 0.1f);
 		
