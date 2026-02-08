@@ -55,8 +55,8 @@ namespace EduEngine
 		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
 		m_LightBuffer->CreateSRV(GetMainContext(), 1, sizeof(PBRLighting::Light));
 
-		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext(), false);
-		m_Skybox = std::make_shared<Skybox>("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext(), m_Prepass.get(), false);
+		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
+		m_Skybox = std::make_shared<Skybox>("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext(), m_Prepass.get());
 
 		m_TextureIndexes = {};
 		m_TextureIndexes.AlbedoTexIdx = m_AlbedoTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
@@ -131,7 +131,7 @@ namespace EduEngine
 
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
 
-		m_Skybox->Render(GetMainContext(), GetCamera());
+		m_Skybox->Render(GetMainContext(), XMLoadFloat4x4(&GetCamera()->GetViewMatrix()), XMLoadFloat4x4(&GetCamera()->GetProjectionMatrix()));
 
 		XMFLOAT3 lightEndDir =
 		{
@@ -289,9 +289,9 @@ namespace EduEngine
 
 			if (ImGui::Combo("Type", &current, items, IM_ARRAYSIZE(items)))
 			{
-				if (current == 0) m_Skybox->SetSky(m_Skybox->GetHDREnvCubeMap());
-				else if (current == 1) m_Skybox->SetSky(m_Skybox->GetIrradianceMap());
-				else if (current == 2) m_Skybox->SetSky(m_Skybox->GetPrefilteredMap());
+				if (current == 0) m_Skybox->SetSky(m_Skybox->GetHDREnvCubeMap()->GetSRVView()->GetGpuHeapIndex());
+				else if (current == 1) m_Skybox->SetSky(m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex());
+				else if (current == 2) m_Skybox->SetSky(m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex());
 			}
 
 			if (ImGui::SliderFloat("Lod", &lod, 0.0f, PBRPrepass::PREFILTERED_MIP_LEVELS))

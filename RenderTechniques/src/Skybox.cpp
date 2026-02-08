@@ -4,9 +4,9 @@
 
 namespace EduEngine
 {
-	Skybox::Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, PBRPrepass* pbrPrepass, bool cpuTextureHandles) :
+	Skybox::Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, PBRPrepass* pbrPrepass) :
 		m_Device(device),
-		m_CpuTextureHandles(cpuTextureHandles),
+		m_CpuTextureHandles(false),
 		m_SkyLod(0)
 	{
 		//	TODO: Share cube buffers!
@@ -159,15 +159,7 @@ namespace EduEngine
 			m_PrefilteredMap->CreateSRV(&srvDesc, m_CpuTextureHandles);
 		}
 
-		context->GetCommandCtx()->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-		context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-		context->GetCommandCtx()->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-
 		RebuildSky(hdrFileName, context, pbrPrepass);
-
-		context->GetCommandCtx()->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		context->GetCommandCtx()->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 		//
 		// Build Skybox PSO
@@ -192,43 +184,75 @@ namespace EduEngine
 		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 
-		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ps_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		LPCWSTR macros[]
+		{
+			L"HDR_OUTPUT", L"1",
+			NULL, NULL
+		};
 
-		m_PsoSkybox.SetDepthStencilState(dss);
-		m_PsoSkybox.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
-		m_PsoSkybox.SetShader(vs_Skybox);
-		m_PsoSkybox.SetShader(ps_Skybox);
-		m_PsoSkybox.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
-		m_PsoSkybox.Build(device);
-		m_PsoSkybox.SetName(L"PSO_Skybox");
+		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto ps_SkyboxLDR = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		auto ps_SkyboxHDR = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_6", macros, sDesc);
 
 		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device);
 
-		m_PsoSkyboxBinder = m_PsoSkybox.CreateShaderBinder();
-		m_PsoSkyboxBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_SkyboxPassBuff);
-		m_PsoSkyboxBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_SkyboxPassBuff);
-		m_PsoSkyboxBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", m_HDRCubeEnvMap);
+		for (uint32 i = 0; i < 2; i++)
+		{
+			bool ldr = i == 0;
+
+			m_PsoSkybox[i].SetDepthStencilState(dss);
+			m_PsoSkybox[i].SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
+			m_PsoSkybox[i].SetShader(vs_Skybox);
+
+			if (ldr)
+			{
+				m_PsoSkybox[i].SetShader(ps_SkyboxLDR);
+				m_PsoSkybox[i].SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+			}
+			else
+			{
+				m_PsoSkybox[i].SetShader(ps_SkyboxHDR);
+				m_PsoSkybox[i].SetRTVFormat(DXGI_FORMAT_R16G16B16A16_FLOAT);
+			}
+
+			m_PsoSkybox[i].Build(device);
+
+			if (ldr)
+				m_PsoSkybox[i].SetName(L"PSO_Skybox_LDR");
+			else
+				m_PsoSkybox[i].SetName(L"PSO_Skybox_HDR");
+
+			m_PsoSkyboxBinder[i] = m_PsoSkybox[i].CreateShaderBinder();
+			m_PsoSkyboxBinder[i]->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_SkyboxPassBuff);
+			m_PsoSkyboxBinder[i]->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_SkyboxPassBuff);
+		}
+
+		m_SkyTextureGpuHeapIdx = m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex();
 	}
 
-	void Skybox::Render(DeviceContext* context, Camera* camera)
+	void Skybox::Render(DeviceContext* context, XMMATRIX view, XMMATRIX proj, bool hdr)
 	{
 		struct PassCB
 		{
 			XMFLOAT4X4 View;
 			XMFLOAT4X4 Proj;
 			float Lod;
-			XMUINT3 Padding;
+			UINT TextureIdx;
+			XMUINT2 Padding;
 		};
 
 		PassCB cb = {};
-		XMStoreFloat4x4(&cb.View, DirectX::XMMatrixTranspose(XMLoadFloat4x4(&camera->GetViewMatrix())));
-		XMStoreFloat4x4(&cb.Proj, DirectX::XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
+		XMStoreFloat4x4(&cb.View, DirectX::XMMatrixTranspose(view));
+		XMStoreFloat4x4(&cb.Proj, DirectX::XMMatrixTranspose(proj));
 		cb.Lod = m_SkyLod;
+		cb.TextureIdx = m_SkyTextureGpuHeapIdx;
 
 		m_SkyboxPassBuff->LoadData(context, cb);
 
-		m_PsoSkybox.CommitAll(context, m_PsoSkyboxBinder.get());
+		if (hdr)
+			m_PsoSkybox[1].CommitAll(context, m_PsoSkyboxBinder[0].get());
+		else
+			m_PsoSkybox[0].CommitAll(context, m_PsoSkyboxBinder[0].get());
 
 		context->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		context->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
@@ -275,18 +299,25 @@ namespace EduEngine
 		auto HDREnvMap = std::make_shared<TextureD3D12>(m_Device, texDesc, nullptr, QueueId::Direct);
 		HDREnvMap->SetName(L"PBR_HDR_Env_Map");
 		HDREnvMap->LoadData(context, data);
-		HDREnvMap->CreateSRV(&srvDesc);
+		HDREnvMap->CreateSRV(&srvDesc, false);
 
 		stbi_image_free(data);
 
-		pbrPrepass->GenerateCubemapFromHDR(m_Device, context, HDREnvMap, m_HDRCubeEnvMap, ENV_CUBEMAP_SIZE);
-		pbrPrepass->RenderIrradianceMap(context, m_HDRCubeEnvMap, m_IrradianceMap, IRRADIANCE_MAP_SIZE);
-		pbrPrepass->RenderPrefilteredMap(context, m_HDRCubeEnvMap, m_PrefilteredMap, PBRPrepass::PREFILTERED_MAP_SIZE);
+		context->GetCommandCtx()->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		context->GetCommandCtx()->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
+		pbrPrepass->GenerateCubemapFromHDR(m_Device, context, HDREnvMap->GetSRVView()->GetGpuHeapIndex(), m_HDRCubeEnvMap, ENV_CUBEMAP_SIZE);
+		pbrPrepass->RenderIrradianceMap(context, m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex(), m_IrradianceMap, IRRADIANCE_MAP_SIZE);
+		pbrPrepass->RenderPrefilteredMap(context, m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex(), m_PrefilteredMap, PBRPrepass::PREFILTERED_MAP_SIZE);
+
+		context->GetCommandCtx()->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		context->GetCommandCtx()->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 	}
 
-	void Skybox::SetSky(std::shared_ptr<TextureD3D12> skyTexture)
+	void Skybox::SetSky(UINT skyTextureGpuHeapIdx)
 	{
-		m_PsoSkyboxBinder->DryMutableResources();
-		m_PsoSkyboxBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gCubeMap", skyTexture);
+		m_SkyTextureGpuHeapIdx = skyTextureGpuHeapIdx;
 	}
 }

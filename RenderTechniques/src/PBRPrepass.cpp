@@ -8,10 +8,10 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	PBRPrepass::PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context, bool cpuHandles)
+	PBRPrepass::PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context)
 	{
-		m_PassBuffVS = std::make_shared<DynamicUploadBuffer>(device);
-		m_PassBuffPS = std::make_shared<DynamicUploadBuffer>(device);
+		m_FaceBuff = std::make_shared<DynamicUploadBuffer>(device);
+		m_PassBuff = std::make_shared<DynamicUploadBuffer>(device);
 
 		InitCube(device, context);
 
@@ -19,21 +19,15 @@ namespace EduEngine
 		//	Generate PSO
 		//
 
-		ShaderResourceDesc resDesc[]
-		{
-			ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
-		};
-
 		ShaderDesc sDesc = {};
-		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
-		sDesc.ResourceDesc = resDesc;
-		sDesc.ResourceNum = _countof(resDesc);
+		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
+		sDesc.ResourceNum = 0;
 
-		auto vs_Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ps_HDR2Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_HDR2Cube", L"ps_6_0", nullptr, sDesc);
-		auto ps_GenIrradianceMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenIrradianceMap", L"ps_6_0", nullptr, sDesc);
-		auto ps_GenPrefilteredMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenPrefilteredMap", L"ps_6_0", nullptr, sDesc);
+		auto vs_Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto ps_HDR2Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_HDR2Cube", L"ps_6_6", nullptr, sDesc);
+		auto ps_GenIrradianceMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenIrradianceMap", L"ps_6_6", nullptr, sDesc);
+		auto ps_GenPrefilteredMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenPrefilteredMap", L"ps_6_6", nullptr, sDesc);
 
 		std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout =
 		{
@@ -71,22 +65,25 @@ namespace EduEngine
 
 		m_PsoGenPrefilteredMapBinder = m_PsoGenPrefilteredMap.CreateShaderBinder();
 
-		m_PsoHDR2CubeBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
-		m_PsoGenIrrMapBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
-		m_PsoGenPrefilteredMapBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffVS);
-		m_PsoGenPrefilteredMapBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffPS);
+		m_PsoHDR2CubeBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerFace", m_FaceBuff);
+		m_PsoHDR2CubeBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuff);
+		m_PsoGenIrrMapBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerFace", m_FaceBuff);
+		m_PsoGenIrrMapBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuff);
+		m_PsoGenPrefilteredMapBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPerFace", m_FaceBuff);
+		m_PsoGenPrefilteredMapBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuff);
 
-		InitBRDF(device, context, cpuHandles);
+		InitBRDF(device, context);
 	}
 
 	void PBRPrepass::GenerateCubemapFromHDR(RenderDeviceD3D12* device,
 											DeviceContext* context,
-											std::shared_ptr<TextureD3D12> hdrTexture,
+											UINT hdrTextureGpuHeapIdx,
 											std::shared_ptr<TextureD3D12> cubeRenderTarget,
 											uint16 mapSize)
 	{
-		m_PsoHDR2CubeBinder->DryMutableResources();
-		m_PsoHDR2CubeBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvMap2D", hdrTexture);
+		PassData passCB = {};
+		passCB.TextureIdx = hdrTextureGpuHeapIdx;
+		m_PassBuff->LoadData(context, passCB);
 
 		CommandContext* cmdCtx = context->GetCommandCtx();
 
@@ -95,56 +92,42 @@ namespace EduEngine
 
 		GenerateMipMaps genMipMaps(device);
 		genMipMaps.Generate(context, cubeRenderTarget);
-
-		// Must complete barrier before next passes, as m_HDRCubeEnvMap used in the next passes
-		cmdCtx->TransitionResource(cubeRenderTarget.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 	}
 
 	void PBRPrepass::RenderIrradianceMap(DeviceContext* context,
-										 std::shared_ptr<TextureD3D12> envCubeMap,
+										 UINT envCubeMapGpuHeapIdx,
 										 std::shared_ptr<TextureD3D12> cubeRenderTarget,
 										 uint16 mapSize)
 	{
-		m_PsoGenIrrMapBinder->DryMutableResources();
-		m_PsoGenIrrMapBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvCubeMap", envCubeMap);
-		RenderCubeMap(context, m_PsoGenIrrMap, m_PsoGenIrrMapBinder.get(), cubeRenderTarget.get(), mapSize);
+		PassData passCB = {};
+		passCB.TextureIdx = envCubeMapGpuHeapIdx;
+		m_PassBuff->LoadData(context, passCB);
 
-		context->GetCommandCtx()->TransitionResource(cubeRenderTarget.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		RenderCubeMap(context, m_PsoGenIrrMap, m_PsoGenIrrMapBinder.get(), cubeRenderTarget.get(), mapSize);
 	}
 
 	void PBRPrepass::RenderPrefilteredMap(DeviceContext* context,
-										  std::shared_ptr<TextureD3D12> envCubeMap,
+										  UINT envCubeMapGpuHeapIdx,
 										  std::shared_ptr<TextureD3D12> cubeRenderTarget,
 										  uint16 mapSize)
 	{
-		m_PsoGenPrefilteredMapBinder->DryMutableResources();
-		m_PsoGenPrefilteredMapBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gEnvCubeMap", envCubeMap);
+		PassData passCB = {};
+		passCB.TextureIdx = envCubeMapGpuHeapIdx;
 
 		for (uint16 mip = 0; mip < PREFILTERED_MIP_LEVELS; mip++)
 		{
-			struct CB
-			{
-				float Roughness;
-				UINT EnvMapSize;
-				UINT EnvMapLods;
-				UINT Padding;
-			};
-
-			CB passCB = {};
 			passCB.Roughness = static_cast<float>(mip) / static_cast<float>(PREFILTERED_MIP_LEVELS - 1);
 			passCB.EnvMapSize = mapSize;
 			passCB.EnvMapLods = PREFILTERED_MIP_LEVELS;
 
-			m_PassBuffPS->LoadData(context, passCB);
+			m_PassBuff->LoadData(context, passCB);
 
 			// Generate Prefiltered Map (for each mip level)
 			RenderCubeMap(context, m_PsoGenPrefilteredMap, m_PsoGenPrefilteredMapBinder.get(), cubeRenderTarget.get(), mapSize / (1 << mip), mip);
 		}
-
-		context->GetCommandCtx()->TransitionResource(cubeRenderTarget.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
-	void PBRPrepass::InitBRDF(RenderDeviceD3D12* device, DeviceContext* context, bool cpuHandles)
+	void PBRPrepass::InitBRDF(RenderDeviceD3D12* device, DeviceContext* context)
 	{
 		//
 		// BRDF Lut
@@ -178,7 +161,7 @@ namespace EduEngine
 		m_BrdfLut = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
 		m_BrdfLut->SetName(L"PBR_BRDF_Lut");
 		m_BrdfLut->CreateRTV(&rtvDesc);
-		m_BrdfLut->CreateSRV(&srvDesc, cpuHandles);
+		m_BrdfLut->CreateSRV(&srvDesc, false);
 
 		//
 		// Init BRFG Pso
@@ -197,8 +180,8 @@ namespace EduEngine
 		dss.DepthEnable = false;
 		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
-		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ps_GenBrdfLut = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenBrdfLut", L"ps_6_0", nullptr, sDesc);
+		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto ps_GenBrdfLut = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenBrdfLut", L"ps_6_6", nullptr, sDesc);
 
 		PipelineState psoGenBrdfLut;
 		psoGenBrdfLut.SetDepthStencilState(dss);
@@ -246,7 +229,7 @@ namespace EduEngine
 		{
 			XMFLOAT4X4 MVP;
 			DirectX::XMStoreFloat4x4(&MVP, DirectX::XMMatrixTranspose(m_CubeView[depth] * m_CubeProj));
-			m_PassBuffVS->LoadData(context, MVP);
+			m_FaceBuff->LoadData(context, MVP);
 
 			auto handle = texture->GetRTVView()->GetCpuHandle(mipLevel * 6 + depth);
 			cmdCtx->SetRenderTargets(1, &handle, true, nullptr);

@@ -5,20 +5,17 @@ SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 
-Texture2D gEnvMap2D : register(t0);
-TextureCube gEnvCubeMap : register(t1);
-
-cbuffer cbPass : register(b0)
+cbuffer cbPerFace : register(b0)
 {
     float4x4 gMVP;
 }
 
-cbuffer cbPass : register(b0)
+cbuffer cbPerPass : register(b0)
 {
     float gRoughness;
     uint gEnvMapSize;
     uint gEnvMapLods;
-    uint gPadding;
+    uint gTextureIdx;
 }
 
 struct VertexIn
@@ -52,7 +49,9 @@ VertexOut VS(VertexIn vIn)
 float4 PS_HDR2Cube(VertexOut vOut) : SV_Target
 {
     float2 uv = SampleSphericalMap(normalize(vOut.PosL));
-    float3 color = gEnvMap2D.Sample(gsamPointWrap, float2(-uv.x, uv.y)).rgb;
+    
+    Texture2D envMap2D = ResourceDescriptorHeap[gTextureIdx];
+    float3 color = envMap2D.Sample(gsamPointWrap, float2(-uv.x, uv.y)).rgb;
     
     return float4(color, 1.0);
 }
@@ -70,6 +69,8 @@ float4 PS_GenIrradianceMap(VertexOut vOut) : SV_Target
     float sampleDelta = 0.025;
     int nrSamples = 0;
     
+    TextureCube envCubeMap = ResourceDescriptorHeap[gTextureIdx];
+    
     for (float phi = 0.0; phi < 2.0 * PI; phi += sampleDelta)
     {
         for (float theta = 0.0; theta < 0.5 * PI; theta += sampleDelta)
@@ -79,7 +80,7 @@ float4 PS_GenIrradianceMap(VertexOut vOut) : SV_Target
             // tangent space to world
             float3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * normal;
 
-            irradiance += gEnvCubeMap.Sample(gsamPointClamp, sampleVec).rgb * cos(theta) * sin(theta);
+            irradiance += envCubeMap.Sample(gsamPointClamp, sampleVec).rgb * cos(theta) * sin(theta);
             nrSamples++;
         }
     }
@@ -99,6 +100,8 @@ float4 PS_GenPrefilteredMap(VertexOut vOut) : SV_Target
     float totalWeight = 0.0;
     float3 prefilteredColor = 0.0;
     
+    TextureCube envCubeMap = ResourceDescriptorHeap[gTextureIdx];
+    
     for (uint i = 0u; i < SAMPLE_COUNT; ++i)
     {
         float2 Xi = Hammersley2D(i, SAMPLE_COUNT);
@@ -117,7 +120,7 @@ float4 PS_GenPrefilteredMap(VertexOut vOut) : SV_Target
             float MipBias = 1.0;
             float MipLevel = (AlphaRoughness == 0.0) ? 0.0 : clamp(0.5 * log2(OmegaS / max(OmegaP, 1e-10)) + MipBias, 0.0, gEnvMapLods - 1.0);
             
-            prefilteredColor += gEnvCubeMap.SampleLevel(gsamLinearWrap, L, MipLevel).rgb * NdotL;
+            prefilteredColor += envCubeMap.SampleLevel(gsamLinearWrap, L, MipLevel).rgb * NdotL;
             totalWeight += NdotL;
         }
     }

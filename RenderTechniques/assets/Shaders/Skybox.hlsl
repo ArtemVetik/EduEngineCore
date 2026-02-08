@@ -1,13 +1,12 @@
 SamplerState gSamLinearClamp : register(s3);
 
-TextureCube gCubeMap : register(t0);
-
 cbuffer cbPass : register(b0)
 {
     float4x4 gView;
     float4x4 gProj;
     float gLod;
-    uint3 gPadding;
+    uint gTextureCubeIdx;
+    uint2 gPadding;
 };
 
 struct VertexIn
@@ -42,10 +41,13 @@ VertexOut VS(VertexIn vIn)
 
 float4 PS(VertexOut vOut) : SV_Target
 {
-    float3 color = gCubeMap.SampleLevel(gSamLinearClamp, vOut.PosL, gLod).rgb;
+    TextureCube cubeMap = ResourceDescriptorHeap[gTextureCubeIdx];
+    float3 color = cubeMap.SampleLevel(gSamLinearClamp, vOut.PosL, gLod).rgb;
     
+#ifndef HDR_OUTPUT
     color = color / (color + 1);
     color = pow(color, 1.0 / 2.2);
+#endif
     
     return float4(color, 1);
 }

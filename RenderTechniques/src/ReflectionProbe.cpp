@@ -2,63 +2,13 @@
 
 namespace EduEngine
 {
-	ReflectionProbe::ReflectionProbe(RenderDeviceD3D12* device, DeviceContext* context)
+	ReflectionProbe::ReflectionProbe(RenderDeviceD3D12* device, DeviceContext* context, Settings settings) :
+		m_Settings(settings)
 	{
 		m_Center = { 0, 10, 0 };
 		m_BoxSize = { 100, 100 };
 
-		D3D12_RESOURCE_DESC texDesc;
-		ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
-		texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		texDesc.Width = 1024;
-		texDesc.Height = 1024;
-		texDesc.Alignment = 0;
-		texDesc.DepthOrArraySize = 6;
-		texDesc.MipLevels = 1;
-		texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-		texDesc.SampleDesc.Count = 1;
-		texDesc.SampleDesc.Quality = 0;
-		texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-		D3D12_CLEAR_VALUE optClear = {};
-		optClear.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-		optClear.DepthStencil.Depth = 0.0f;
-		optClear.DepthStencil.Stencil = 0;
-
-		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = { };
-		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-		rtvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-		rtvDesc.Texture2DArray.ArraySize = 1;
-
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Format = texDesc.Format;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-		srvDesc.TextureCube.MostDetailedMip = 0;
-		srvDesc.TextureCube.MipLevels = texDesc.MipLevels;
-		srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-
-		m_ReflectionCube = std::make_shared<TextureD3D12>(device, texDesc, &optClear, QueueId::Direct);
-		m_ReflectionCube->CreateRTV_Array(rtvDesc);
-		m_ReflectionCube->CreateSRV(&srvDesc);
-		m_ReflectionCube->SetName(L"m_ReflectionCube");
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-		dsvDesc.Texture2D.MipSlice = 0;
-
-		optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		texDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-		m_DepthBuffer = std::make_shared<TextureD3D12>(device, texDesc, &optClear, QueueId::Direct);
-		m_DepthBuffer->CreateDSV(&dsvDesc);
-
-		context->GetCommandCtx()->TransitionResource(m_ReflectionCube.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-		context->GetCommandCtx()->TransitionResource(m_DepthBuffer.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		InitializeTextures(device, context);
 
 		ShaderDesc sDesc = {};
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
@@ -96,7 +46,7 @@ namespace EduEngine
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
 	}
 
-	void ReflectionProbe::Render(DeviceContext* context, RenderObject* renderObjects, uint32 objectsNum)
+	void ReflectionProbe::Render(DeviceContext* context, Skybox* skybox, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum)
 	{
 		XMMATRIX proj = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 100.0f, 0.1f);
 		
@@ -112,20 +62,20 @@ namespace EduEngine
 			XMMatrixLookToLH(center, {0,0,-1}, {0,1,0}),  // -Z
 		};
 
+		D3D12_VIEWPORT viewport = {};
+		viewport.Width = m_Settings.TextureSize;
+		viewport.Height = m_Settings.TextureSize;
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		viewport.MinDepth = 0;
+		viewport.MaxDepth = 1;
+
+		D3D12_RECT scissorRect = { 0, 0, (int)viewport.Width, (int)viewport.Height };
+
 		CommandContext* commandContext = context->GetCommandCtx();
 
 		for (size_t i = 0; i < 6; i++)
 		{
-			D3D12_VIEWPORT viewport = {};
-			viewport.Width = 1024;
-			viewport.Height = 1024;
-			viewport.TopLeftX = 0;
-			viewport.TopLeftY = 0;
-			viewport.MinDepth = 0;
-			viewport.MaxDepth = 1;
-
-			D3D12_RECT scissorRect = { 0, 0, (int)viewport.Width, (int)viewport.Height };
-
 			commandContext->SetViewports(&viewport, 1);
 			commandContext->SetScissorRects(&scissorRect, 1);
 
@@ -167,6 +117,176 @@ namespace EduEngine
 					commandContext->GetCmdList()->DrawIndexedInstanced(renderObjects[obj].Mesh->GetIndexCount(mIdx), 1, 0, 0, 0);
 				}
 			}
+
+			skybox->Render(context, view[i], proj, true);
 		}
+
+		if (m_Settings.Flags & Flags::CREATE_IRRADIANCE_MAP)
+			pbrPrepass->RenderIrradianceMap(context, m_ReflectionCube->GetSRVView()->GetGpuHeapIndex(), m_IrradianceMap, IRRADIANCE_MAP_SIZE);
+
+		if (m_Settings.Flags & Flags::CREATE_PREFILTERED_MAP)
+			pbrPrepass->RenderPrefilteredMap(context, m_ReflectionCube->GetSRVView()->GetGpuHeapIndex(), m_PrefilteredMap, PBRPrepass::PREFILTERED_MAP_SIZE);
+	}
+
+	void ReflectionProbe::InitializeTextures(RenderDeviceD3D12* device, DeviceContext* context)
+	{
+		bool cpuTextureHandles = false;
+
+		//
+		// Reflection Cube
+		//
+		{
+			D3D12_RESOURCE_DESC texDesc;
+			ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
+			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			texDesc.Width = m_Settings.TextureSize;
+			texDesc.Height = m_Settings.TextureSize;
+			texDesc.Alignment = 0;
+			texDesc.DepthOrArraySize = 6;
+			texDesc.MipLevels = 1;
+			texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+			texDesc.SampleDesc.Count = 1;
+			texDesc.SampleDesc.Quality = 0;
+			texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+			D3D12_CLEAR_VALUE optClear = {};
+			optClear.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+			optClear.DepthStencil.Depth = 0.0f;
+			optClear.DepthStencil.Stencil = 0;
+
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = { };
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			rtvDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+			rtvDesc.Texture2DArray.ArraySize = 1;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = texDesc.Format;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = texDesc.MipLevels;
+			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+			m_ReflectionCube = std::make_shared<TextureD3D12>(device, texDesc, &optClear, QueueId::Direct);
+			m_ReflectionCube->CreateRTV_Array(rtvDesc);
+			m_ReflectionCube->CreateSRV(&srvDesc, cpuTextureHandles);
+			m_ReflectionCube->SetName(L"m_ReflectionCube");
+
+			context->GetCommandCtx()->TransitionResource(m_ReflectionCube.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
+
+		//
+		// Depth Buffer
+		//
+		{
+			D3D12_RESOURCE_DESC texDesc;
+			ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
+			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			texDesc.Width = m_Settings.TextureSize;
+			texDesc.Height = m_Settings.TextureSize;
+			texDesc.Alignment = 0;
+			texDesc.DepthOrArraySize = 6;
+			texDesc.MipLevels = 1;
+			texDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			texDesc.SampleDesc.Count = 1;
+			texDesc.SampleDesc.Quality = 0;
+			texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+			dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+			dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+			dsvDesc.Texture2D.MipSlice = 0;
+
+			D3D12_CLEAR_VALUE optClear = {};
+			optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			optClear.DepthStencil.Depth = 0.0f;
+			optClear.DepthStencil.Stencil = 0;
+
+			m_DepthBuffer = std::make_shared<TextureD3D12>(device, texDesc, &optClear, QueueId::Direct);
+			m_DepthBuffer->CreateDSV(&dsvDesc);
+
+			context->GetCommandCtx()->TransitionResource(m_DepthBuffer.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		}
+
+		//
+		// Irradiance Map
+		//
+		if (m_Settings.Flags & Flags::CREATE_IRRADIANCE_MAP)
+		{
+			D3D12_RESOURCE_DESC texDesc = {};
+			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			texDesc.Alignment = 0;
+			texDesc.MipLevels = 1;
+			texDesc.DepthOrArraySize = 6;
+			texDesc.Width = IRRADIANCE_MAP_SIZE;
+			texDesc.Height = IRRADIANCE_MAP_SIZE;
+			texDesc.SampleDesc.Count = 1;
+			texDesc.SampleDesc.Quality = 0;
+			texDesc.Format = PBRPrepass::HDR_FORMAT;
+			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = texDesc.Format;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = 1;
+			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			rtvDesc.Format = texDesc.Format;
+			rtvDesc.Texture2DArray.ArraySize = 1;
+
+			m_IrradianceMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
+			m_IrradianceMap->SetName(L"Reflection_Irradiance_Map");
+			m_IrradianceMap->CreateRTV_Array(rtvDesc);
+			m_IrradianceMap->CreateSRV(&srvDesc, cpuTextureHandles);
+
+			context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
+
+		//
+		// Prefiltered Map
+		//
+		if (m_Settings.Flags & Flags::CREATE_PREFILTERED_MAP)
+		{
+			D3D12_RESOURCE_DESC texDesc = {};
+			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			texDesc.Alignment = 0;
+			texDesc.MipLevels = PBRPrepass::PREFILTERED_MIP_LEVELS;
+			texDesc.DepthOrArraySize = 6;
+			texDesc.Width = PBRPrepass::PREFILTERED_MAP_SIZE;
+			texDesc.Height = PBRPrepass::PREFILTERED_MAP_SIZE;
+			texDesc.SampleDesc.Count = 1;
+			texDesc.SampleDesc.Quality = 0;
+			texDesc.Format = PBRPrepass::HDR_FORMAT;
+			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = texDesc.Format;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = texDesc.MipLevels;
+			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			rtvDesc.Format = texDesc.Format;
+			rtvDesc.Texture2DArray.ArraySize = 1;
+
+			m_PrefilteredMap = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
+			m_PrefilteredMap->SetName(L"Reflection_Prefiltered_Map");
+			m_PrefilteredMap->CreateRTV_Array(rtvDesc);
+			m_PrefilteredMap->CreateSRV(&srvDesc, cpuTextureHandles);
+
+			context->GetCommandCtx()->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
+
+		context->GetCommandCtx()->FlushResourceBarriers();
 	}
 }

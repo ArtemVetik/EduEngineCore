@@ -8,13 +8,13 @@ namespace EduEngine
 	class RENDERTECHNIQUES_API Skybox
 	{
 	public:
-		Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, PBRPrepass* pbrPrepass, bool cpuTextureHandles = false);
+		Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, PBRPrepass* pbrPrepass);
 		
-		void Render(DeviceContext* context, Camera* camera);
+		void Render(DeviceContext* context, XMMATRIX view, XMMATRIX proj, bool hdr = false);
 
 		void RebuildSky(const char* hdrFileName, DeviceContext* context, PBRPrepass* pbrPrepass);
 
-		void SetSky(std::shared_ptr<TextureD3D12> skyTexture);
+		void SetSky(UINT skyTextureGpuHeapIdx);
 		void SetLod(float lod) { m_SkyLod = lod; }
 
 		std::shared_ptr<TextureD3D12> GetHDREnvCubeMap() const { return m_HDRCubeEnvMap; }
@@ -26,8 +26,8 @@ namespace EduEngine
 		static constexpr uint16 IRRADIANCE_MAP_SIZE = 32;
 
 	private:
-		PipelineState m_PsoSkybox;
-		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_PsoSkyboxBinder;
+		PipelineState m_PsoSkybox[2];
+		std::shared_ptr<EduEngine::EduBinding::ShaderBinder> m_PsoSkyboxBinder[2];
 
 		std::shared_ptr<TextureD3D12> m_HDRCubeEnvMap;
 		std::shared_ptr<TextureD3D12> m_IrradianceMap;
@@ -40,6 +40,7 @@ namespace EduEngine
 
 		RenderDeviceD3D12* m_Device;
 		float m_SkyLod;
+		UINT m_SkyTextureGpuHeapIdx;
 		bool m_CpuTextureHandles;
 	};
 }

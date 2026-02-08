@@ -52,6 +52,8 @@ namespace EduEngine
 		DescriptorHeapAllocation m_GpuCopyDescriptors;
 		Light m_LightData = {};
 
+		std::vector<RenderObject> m_RenderObjects;
+
 		std::unique_ptr<DebugRendererSystem> m_DebugRenderer;
 
 	private:
