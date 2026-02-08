@@ -35,7 +35,7 @@ namespace EduEngine::EduBinding
 			case D3D_SIT_CBUFFER:                       ++currNums->CB; break;
 			case D3D_SIT_TBUFFER:                       ASSERT_FAILED("TBuffers are not supported"); break;
 			case D3D_SIT_TEXTURE:                       ++(bindDesc.Dimension == D3D_SRV_DIMENSION_BUFFER ? currNums->BuffSRV : currNums->TexSRV); break;
-			case D3D_SIT_SAMPLER:                       LOG_ERROR("Samplers are not supported"); break; // TODO: support samplers
+			case D3D_SIT_SAMPLER:						break;//LOG_ERROR("Samplers are not supported"); break; // TODO: support samplers
 			case D3D_SIT_UAV_RWTYPED:                   ++(bindDesc.Dimension == D3D_SRV_DIMENSION_BUFFER ? currNums->BuffUAV : currNums->TexUAV); break;
 			case D3D_SIT_STRUCTURED:                    ++currNums->BuffSRV; break;
 			case D3D_SIT_UAV_RWSTRUCTURED:              ++currNums->BuffUAV; break;

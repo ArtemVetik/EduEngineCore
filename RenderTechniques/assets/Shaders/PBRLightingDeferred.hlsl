@@ -139,7 +139,7 @@ float CalcShadowFactor(float4 shadowPosH, uint mapIndex)
     float dx = 1.0f / (float) width;
     dx = 0.5 * dx;
     
-    double percentLit = 0.0f;
+    float percentLit = 0.0f;
     const float2 offsets[9] =
     {
         float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
@@ -176,7 +176,7 @@ float4 PS(VertexOut pin) : SV_Target
     Texture2D normalWTex = ResourceDescriptorHeap[gNormalMapIdx];
     Texture2D metallicRoughAoTex = ResourceDescriptorHeap[gMetallicRoughAoIdx];
     
-    float3 albedo = pow(albedoTex.Sample(gsamPointWrap, pin.TexC), 2.2) * gDiffuseAlbedo;
+    float3 albedo = pow(albedoTex.Sample(gsamPointWrap, pin.TexC), 2.2).xyz * gDiffuseAlbedo.xyz;
     
     float3 metallicRoughAo = metallicRoughAoTex.Sample(gsamPointWrap, pin.TexC).rgb;
     

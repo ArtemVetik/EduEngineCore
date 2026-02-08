@@ -22,9 +22,7 @@ half3 n_decode_simple(half2 enc)
 #define kPI 3.1415926536f
 half2 n_encode_spherical(half3 n)
 {
-    return half4(
-      (half2(atan2(n.y, n.x) / kPI, n.z) + 1.0) * 0.5,
-      0, 0);
+    return (half2(atan2(n.y, n.x) / kPI, n.z) + 1.0) * 0.5;
 }
 
 half3 n_decode_spherical(half2 enc)
@@ -42,7 +40,7 @@ half3 n_decode_spherical(half2 enc)
 half2 n_encode_spheremap(half3 n)
 {
     half p = sqrt(n.z * 8 + 8);
-    return half4(n.xy / p + 0.5, 0, 0);
+    return half2(n.xy / p + 0.5);
 }
 
 half3 n_decode_spheremap(half2 enc)
@@ -65,7 +63,7 @@ half2 n_encode_stereographic(half3 n)
     half2 enc = n.xy / (n.z + 1);
     enc /= scale;
     enc = enc * 0.5 + 0.5;
-    return half4(enc, 0, 0);
+    return enc;
 }
 
 half3 n_decode_stereographic(half2 enc)

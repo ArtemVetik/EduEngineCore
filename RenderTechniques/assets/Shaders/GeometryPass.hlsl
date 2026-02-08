@@ -116,5 +116,7 @@ PSOut PS(VertexOut vOut)
         psOut.MetalRoughAo.b = 1;
     }
     
+    psOut.MetalRoughAo.a = 0;
+    
     return psOut;
 }

@@ -97,7 +97,7 @@ float OcclusionFunction(float distZ)
 	//       1.0     -------------\
 	//               |           |  \
 	//               |           |    \
-	//               |           |      \ 
+	//               |           |      \
 	//               |           |        \
 	//               |           |          \
 	//               |           |            \
