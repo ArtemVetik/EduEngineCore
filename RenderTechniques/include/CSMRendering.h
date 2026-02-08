@@ -57,7 +57,7 @@ namespace EduEngine
 		RenderDeviceD3D12* m_Device;
 		Settings m_Settings;
 
-		PipelineState m_Pso;
+		PipelineState m_Pso; // TODO: cache pso
 		std::shared_ptr<ShaderBinder> m_Binder;
 
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;

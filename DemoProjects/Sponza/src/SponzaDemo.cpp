@@ -40,7 +40,7 @@ namespace EduEngine
 		probeSettings.Flags = ReflectionProbe::Flags::CREATE_IRRADIANCE_MAP | ReflectionProbe::Flags::CREATE_PREFILTERED_MAP;
 
 		m_ReflectionProbe = std::make_unique<ReflectionProbe>(GetDevice(), GetMainContext(), probeSettings);
-		m_ReflectionProbe->Bake(GetMainContext(), m_Skybox.get(), m_PbrPrepass.get(), m_RenderObjects.data(), m_RenderObjects.size());
+		m_ReflectionProbe->Bake(GetMainContext(), m_Skybox.get(), &m_LightData, m_PbrPrepass.get(), m_RenderObjects.data(), m_RenderObjects.size());
 
 		m_DebugRenderer = std::make_unique<DebugRendererSystem>(GetDevice());
 

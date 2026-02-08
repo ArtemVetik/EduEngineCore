@@ -24,7 +24,7 @@ namespace EduEngine
 	public:
 		ReflectionProbe(RenderDeviceD3D12* device, DeviceContext* context, Settings Settings);
 
-		void Bake(DeviceContext* context, Skybox* skybox, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum);
+		void Bake(DeviceContext* context, Skybox* skybox, Light* light, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum);
 
 		std::shared_ptr<TextureD3D12> GetIrradianceMap() const { return m_IrradianceMap; }
 		std::shared_ptr<TextureD3D12> GetPrefilteredMap() const { return m_PrefilteredMap; }
@@ -37,6 +37,8 @@ namespace EduEngine
 	private:
 		PipelineState m_PSO;
 		std::shared_ptr<ShaderBinder> m_Binder;
+
+		std::unique_ptr<CSMRendering> m_CSMRendering;
 
 		std::shared_ptr<TextureD3D12> m_ReflectionCube;
 		std::shared_ptr<TextureD3D12> m_IrradianceMap;

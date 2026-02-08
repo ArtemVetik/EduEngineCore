@@ -5,7 +5,7 @@ namespace EduEngine
 	ReflectionProbe::ReflectionProbe(RenderDeviceD3D12* device, DeviceContext* context, Settings settings) :
 		m_Settings(settings)
 	{
-		m_Center = { 0, 2.5f, 0 };
+		m_Center = { 0, 15.0f, 0 };
 		m_BoxSize = { 100, 100 };
 
 		InitializeTextures(device, context);
@@ -44,9 +44,16 @@ namespace EduEngine
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbObject", m_ObjBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbObject", m_ObjBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
+		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
+
+		CSMRendering::Settings csmSettings = {};
+		csmSettings.CascadesCount = 1;
+		csmSettings.CSMSplits[0] = 1;
+
+		m_CSMRendering = std::make_unique<CSMRendering>(device, context, csmSettings);
 	}
 
-	void ReflectionProbe::Bake(DeviceContext* context, Skybox* skybox, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum)
+	void ReflectionProbe::Bake(DeviceContext* context, Skybox* skybox, Light* light, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum)
 	{
 		float nearValue = 0.1f;
 		float farValue = 100.0f;
@@ -77,6 +84,11 @@ namespace EduEngine
 
 		for (size_t i = 0; i < 6; i++)
 		{
+			context->GetCommandCtx()->FlushResourceBarriers();
+
+			m_CSMRendering->Update(context, &faceCamera[i], light);
+			m_CSMRendering->Render(context, renderObjects, objectsNum);
+			
 			commandContext->SetViewports(&viewport, 1);
 			commandContext->SetScissorRects(&scissorRect, 1);
 
@@ -88,10 +100,15 @@ namespace EduEngine
 			struct PassData
 			{
 				XMFLOAT4X4 ViewProj;
+				XMFLOAT4X4 ShadowTransform;
+				UINT ShadowmapIdx;
+				XMUINT3 Padding1;
 			} passData;
 
 			XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(faceCamera[i].GetViewProjMatrix()));
-			
+			XMStoreFloat4x4(&passData.ShadowTransform, XMMatrixTranspose(m_CSMRendering->GetCascadeTransform(0)));
+			passData.ShadowmapIdx = m_CSMRendering->GetSrv(0)->GetGpuHeapIndex();
+
 			m_PassBuffer->LoadData(context, passData);
 			m_PSO.CommitPso(context);
 
