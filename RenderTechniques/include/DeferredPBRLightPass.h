@@ -6,6 +6,7 @@
 #include <SimpleMath.h>
 #include <RenderFeatures.h>
 #include <CSMRendering.h>
+#include <ReflectionProbe.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -35,7 +36,7 @@ namespace EduEngine
 	public:
 		DeferredPBRLightPass(RenderDeviceD3D12* device, DeviceContext* context, DXGI_FORMAT rtFormat);
 
-		void Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights, CSMRendering* csmRendering);
+		void Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights, CSMRendering* csmRendering, ReflectionProbesManager* reflectionProbes);
 		void Render(DeviceContext* context, TextureD3D12* target);
 
 		void SetBufferIndexes(DeviceContext* context, const BuffersIndexesData& data);

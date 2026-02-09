@@ -1,12 +1,14 @@
 #include "ReflectionProbe.h"
 
+#include <Asserts.h>
+
 namespace EduEngine
 {
 	ReflectionProbe::ReflectionProbe(RenderDeviceD3D12* device, DeviceContext* context, Settings settings) :
 		m_Settings(settings)
 	{
 		m_Center = { 0, 15.0f, 0 };
-		m_BoxSize = { 100, 100 };
+		m_Extents = { 10, 10, 10 };
 
 		InitializeTextures(device, context);
 
@@ -31,7 +33,7 @@ namespace EduEngine
 		};
 
 		m_PSO.SetDepthStencilState(dss);
-		m_PSO.SetInputLayout({ inputLayout, _countof(inputLayout)});
+		m_PSO.SetInputLayout({ inputLayout, _countof(inputLayout) });
 		m_PSO.SetShader(VS);
 		m_PSO.SetShader(PS);
 		m_PSO.SetRTVFormat(DXGI_FORMAT_R16G16B16A16_FLOAT);
@@ -53,7 +55,13 @@ namespace EduEngine
 		m_CSMRendering = std::make_unique<CSMRendering>(device, context, csmSettings);
 	}
 
-	void ReflectionProbe::Bake(DeviceContext* context, Skybox* skybox, Light* light, PBRPrepass* pbrPrepass, RenderObject* renderObjects, uint32 objectsNum)
+	void ReflectionProbe::Bake(DeviceContext* context,
+		PBRPrepass* pbrPrepass,
+		Skybox* skybox,
+		Light* lights,
+		uint32 numLights,
+		RenderObject* renderObjects,
+		uint32 objectsNum)
 	{
 		float nearValue = 0.1f;
 		float farValue = 100.0f;
@@ -86,9 +94,9 @@ namespace EduEngine
 		{
 			context->GetCommandCtx()->FlushResourceBarriers();
 
-			m_CSMRendering->Update(context, &faceCamera[i], light);
+			m_CSMRendering->Update(context, &faceCamera[i], &lights[0]); // TODO: lights
 			m_CSMRendering->Render(context, renderObjects, objectsNum);
-			
+
 			commandContext->SetViewports(&viewport, 1);
 			commandContext->SetScissorRects(&scissorRect, 1);
 
@@ -306,5 +314,86 @@ namespace EduEngine
 		}
 
 		context->GetCommandCtx()->FlushResourceBarriers();
+	}
+
+	ReflectionProbesManager::ReflectionProbesManager(RenderDeviceD3D12* device, DeviceContext* context) :
+		m_Device(device),
+		m_Count(0)
+	{
+		m_ReflectionProbes.reserve(MAX_REFLECTION_PROBES);
+
+		D3D12_RESOURCE_DESC buffDesc = {};
+		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		buffDesc.Alignment = 0;
+		buffDesc.Height = 1;
+		buffDesc.Width = sizeof(ReflectionProbesData) * MAX_REFLECTION_PROBES;
+		buffDesc.DepthOrArraySize = 1;
+		buffDesc.MipLevels = 1;
+		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
+		buffDesc.SampleDesc.Count = 1;
+		buffDesc.SampleDesc.Quality = 0;
+		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Buffer.FirstElement = 0;
+		srvDesc.Buffer.NumElements = MAX_REFLECTION_PROBES;
+		srvDesc.Buffer.StructureByteStride = sizeof(ReflectionProbesData);
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+		m_GpuBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
+		m_GpuBuffer->CreateSRV(&srvDesc, false);
+	}
+
+	ReflectionProbesManager::~ReflectionProbesManager()
+	{
+		m_ReflectionProbes.clear();
+	}
+
+	ReflectionProbe* ReflectionProbesManager::Add(DeviceContext* context, ReflectionProbe::Settings settings, XMFLOAT3 position, XMFLOAT3 extents)
+	{
+		if (m_Count >= MAX_REFLECTION_PROBES)
+		{
+			LOG_ERROR("Max reflection probes num exceeded (", MAX_REFLECTION_PROBES, ")");
+			return nullptr;
+		}
+
+		auto newProbe = std::make_unique<ReflectionProbe>(m_Device, context, settings);
+		newProbe->SetCenter(position);
+		newProbe->SetExtents(extents);
+
+		m_ReflectionProbes.emplace_back(std::move(newProbe));
+		m_Count++;
+
+		return m_ReflectionProbes.back().get();
+	}
+
+	void ReflectionProbesManager::RemoveAt(uint32 index)
+	{
+		if (m_Count == 0)
+			return;
+
+		m_ReflectionProbes.erase(m_ReflectionProbes.begin() + index);
+		m_Count--;
+	}
+
+	void ReflectionProbesManager::RebuildBuffer(DeviceContext* context)
+	{
+		if (m_Count == 0)
+			return;
+
+		ReflectionProbesData data[MAX_REFLECTION_PROBES];
+
+		for (uint32 i = 0; i < m_Count; i++)
+		{
+			data[i].Position = m_ReflectionProbes[i]->GetCenter();
+			data[i].BoxExtents = m_ReflectionProbes[i]->GetExtents();
+			data[i].IrradianceMapIdx = m_ReflectionProbes[i]->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+			data[i].PrefilteredMapIdx = m_ReflectionProbes[i]->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+		}
+
+		UINT byteSize = sizeof(ReflectionProbesData) * m_Count;
+		m_GpuBuffer->LoadData(context, data, &byteSize);
 	}
 }

@@ -5,6 +5,7 @@ add_executable(Sponza WIN32 src/main.cpp)
 target_sources(Sponza PRIVATE
     src/SponzaDemo.cpp
     src/SponzaDemoFactory.cpp
+    src/SponzaGUI.cpp
 )
 
 target_include_directories(Sponza

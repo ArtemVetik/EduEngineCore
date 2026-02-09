@@ -9,11 +9,13 @@ namespace EduEngine
 {
 	void SponzaDemo::OnStartUp()
 	{
+		m_GUI.Init(this);
+
 		GetCamera()->Setup(
-			{ 0, 25, -100 },
-			{ 0, 0, 1 },
+			{ -30, 15, 0 },
 			{ 1, 0, 0 },
-			{ 1, 1, 0 }
+			{ 0, 0, -1 },
+			{ 0, 1, 0 }
 		);
 		
 		MeshLoadDesc meshDesc = {};
@@ -36,11 +38,32 @@ namespace EduEngine
 
 		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
 
-		ReflectionProbe::Settings probeSettings = {};
-		probeSettings.Flags = ReflectionProbe::Flags::CREATE_IRRADIANCE_MAP | ReflectionProbe::Flags::CREATE_PREFILTERED_MAP;
+		struct ProbeInitData
+		{
+			XMFLOAT3 Position;
+			XMFLOAT3 Extents;
+		};
 
-		m_ReflectionProbe = std::make_unique<ReflectionProbe>(GetDevice(), GetMainContext(), probeSettings);
-		m_ReflectionProbe->Bake(GetMainContext(), m_Skybox.get(), &m_LightData, m_PbrPrepass.get(), m_RenderObjects.data(), m_RenderObjects.size());
+		ProbeInitData probes[7]
+		{
+			{ { 0.0f, 28.0f,  1.0f }, { 60.0f, 10.0f, 10.0f } },
+			{ { 0.0f,  8.0f,  1.0f }, { 60.0f, 10.0f, 10.0f } },
+			{ { 0.0f,  8.0f,-16.0f }, { 60.0f, 10.0f,  8.0f } },
+			{ { 0.0f, 28.0f,-16.0f }, { 60.0f, 10.0f,  8.0f } },
+			{ { 0.0f,  8.0f, 19.0f }, { 60.0f, 10.0f,  8.0f } },
+			{ { 0.0f, 28.0f, 19.0f }, { 60.0f, 10.0f,  8.0f } },
+			{ { 0.0f, 45.0f,  1.0f }, { 60.0f,  8.0f, 10.0f } },
+		};
+
+		ReflectionProbe::Settings probeSettings = {};
+		m_ReflectionProbeMgr = std::make_unique<ReflectionProbesManager>(GetDevice(), GetMainContext());
+
+		for (uint32 i = 0; i < _countof(probes); i++)
+		{
+			ReflectionProbe* newProbe = m_ReflectionProbeMgr->Add(GetMainContext(), probeSettings, probes[i].Position, probes[i].Extents);
+			newProbe->Bake(GetMainContext(), m_PbrPrepass.get(), m_Skybox.get(), &m_LightData, 1, m_RenderObjects.data(), m_RenderObjects.size());
+		}
+		m_ReflectionProbeMgr->RebuildBuffer(GetMainContext());
 
 		m_DebugRenderer = std::make_unique<DebugRendererSystem>(GetDevice());
 
@@ -90,7 +113,7 @@ namespace EduEngine
 		
 		m_Ssao->Update(GetCamera(), GetMainContext());
 		m_CSMRendering->Update(GetMainContext(), GetCamera(), &m_LightData);
-		m_LightPass->Update(GetMainContext(), GetCamera(), &m_LightData, 1, m_CSMRendering.get());
+		m_LightPass->Update(GetMainContext(), GetCamera(), &m_LightData, 1, m_CSMRendering.get(), m_ReflectionProbeMgr.get());
 	}
 
 	void SponzaDemo::OnRender(const Timer& timer)
@@ -184,105 +207,10 @@ namespace EduEngine
 
 		m_Skybox->Render(GetMainContext(), GetCamera());
 
-		m_DebugRenderer->DrawSphere(10, { 255, 0, 255 }, XMMatrixTranslation(m_LightData.Position.x, m_LightData.Position.y, m_LightData.Position.z), 16 );
+		m_GUI.DebugDrawReflectionProbes();
 		m_DebugRenderer->Render(GetMainContext(), GetCamera()->GetViewProjMatrix(), GetCamera()->GetPosition());
 
-		//
-		// GUI
-		//
-
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-
-		ImGui::Begin("Editor", nullptr);
-
-		if (ImGui::CollapsingHeader("Shadow Settings"))
-		{
-			CSMRendering::Settings csmSettings = m_CSMRendering->GetSettings();
-
-			if (ImGui::DragFloat("Shadow Distance", &csmSettings.ShadowDistance, 1.0f, 0.1f, FLT_MAX, "%.3f", ImGuiSliderFlags_AlwaysClamp))
-			{
-				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
-			}
-
-			if (ImGui::SliderInt("Cascades count", (int*)&csmSettings.CascadesCount, 1, CSMRendering::MAX_CASCADES))
-			{
-				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
-				OnResize(); // TODO: it only needs to update DeferredPBRLightPass::BuffersIndexesData
-			}
-
-			for (uint32 i = 0; i < csmSettings.CascadesCount; i++)
-			{
-				float min = i == 0 ? 0.01f : csmSettings.CSMSplits[i - 1];
-				float max = i == csmSettings.CascadesCount - 1 ? 1.0f : csmSettings.CSMSplits[i + 1];
-
-				char splitLabel[16] = {};
-				sprintf(splitLabel, "Cascade%d", i);
-
-				if (ImGui::SliderFloat(splitLabel, &csmSettings.CSMSplits[i], min, max, "%.3f", ImGuiSliderFlags_AlwaysClamp))
-					m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
-			}
-
-			if (ImGui::SliderFloat("Depth Bias", &csmSettings.ShadowBias.x, 0.0f, 1.0f))
-				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
-
-			if (ImGui::SliderFloat("Normal Bias", &csmSettings.ShadowBias.y, 0.0f, 1.0f))
-				m_CSMRendering->UpdateSettings(GetMainContext(), csmSettings);
-		}
-
-		if (ImGui::CollapsingHeader("SSAO"))
-		{
-			SSAO::Settings ssaoSettings = m_Ssao->GetSettings();
-
-			if (ImGui::SliderFloat("Occlusion Radius", &ssaoSettings.OcclusionRadius, 0.0f, 1.0f))
-				m_Ssao->UpdateSettings(ssaoSettings);
-
-			if (ImGui::SliderFloat("Occlusion Fade Start", &ssaoSettings.OcclusionFadeStart, 0.0f, 1.0f))
-				m_Ssao->UpdateSettings(ssaoSettings);
-
-			if (ImGui::SliderFloat("Occlusion Fade End", &ssaoSettings.OcclusionFadeEnd, 0.0f, 1.0f))
-				m_Ssao->UpdateSettings(ssaoSettings);
-
-			if (ImGui::SliderFloat("Surface Epsilon", &ssaoSettings.SurfaceEpsilon, 0.0f, 0.1f))
-				m_Ssao->UpdateSettings(ssaoSettings);
-		}
-
-		if (ImGui::CollapsingHeader("Debug View"))
-		{
-			static int currentView = 0;
-			
-			if (ImGui::Combo("Type##DebugView", &currentView, DebugViewsStr, IM_ARRAYSIZE(DebugViewsStr)))
-			{
-				g_RenderFeatures.DebugView = (DebugView)currentView;
-				g_PsoCache.OnRenderFeaturesChanged(g_RenderFeatures, RenderFeatureID::DebugView);
-			}
-		}
-
-		if (ImGui::CollapsingHeader("Pack Normals"))
-		{
-			static int currentPackMethod = 0;
-
-			if (ImGui::Combo("Type##PackNormals", &currentPackMethod, PackNormalsMethodStr, IM_ARRAYSIZE(PackNormalsMethodStr)))
-			{
-				g_RenderFeatures.PackNormalsMethod = (PackNormalsMethod)currentPackMethod;
-				
-				SPONZA_G_BUFFERS[SponzaGBufferId::Normal] = currentPackMethod == 0 ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R16G16_FLOAT;
-				m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
-
-				BuildDrawPso();
-				g_PsoCache.OnRenderFeaturesChanged(g_RenderFeatures, RenderFeatureID::PackNormalsMethod);
-
-				OnResize();
-			}
-		}
-
-		ImGui::End();
-
-		RenderEngine::PopulateDebugImguiCommand();
-
-		ImGui::Render();
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
+		m_GUI.RenderImGUI();
 	}
 
 	void SponzaDemo::OnResize()
@@ -326,10 +254,8 @@ namespace EduEngine
 			deferredLightBuffers.MetallicRoughAoIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(2);
 			deferredLightBuffers.DepthIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(3);
 			deferredLightBuffers.SsaoMapIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(4);
-			deferredLightBuffers.IrradianceMapIdx = m_ReflectionProbe->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
-			deferredLightBuffers.PrefilteredMapIdx = m_ReflectionProbe->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
-			//deferredLightBuffers.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
-			//deferredLightBuffers.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.BRDFLutIdx = m_PbrPrepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
 
 			for (uint32 i = 0; i < m_CSMRendering->GetCascadeCount(); i++)

@@ -53,7 +53,7 @@ namespace EduEngine
 		m_PsoEntry.Initialize();
 	}
 
-	void DeferredPBRLightPass::Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights, CSMRendering* csmRendering)
+	void DeferredPBRLightPass::Update(DeviceContext* context, const Camera* camera, Light* lights, uint32 numLights, CSMRendering* csmRendering, ReflectionProbesManager* reflectionProbes)
 	{
 		struct PassData
 		{
@@ -63,7 +63,8 @@ namespace EduEngine
 			XMFLOAT3 CamPos;
 			UINT PrefilteredMapLods;
 			UINT CascadeCount;
-			XMFLOAT2 Padding;
+			UINT ReflectionProbeCount;
+			UINT ReflectionProbesBuffIdx;
 			XMFLOAT4X4 CascadeTransform[CSMRendering::MAX_CASCADES];
 			XMFLOAT4 CascadeShadowSphere[CSMRendering::MAX_CASCADES];
 			XMFLOAT4 CascadeShadowRad2;
@@ -79,6 +80,8 @@ namespace EduEngine
 		passData.CamPos = camera->GetPosition();
 		passData.PrefilteredMapLods = PBRPrepass::PREFILTERED_MIP_LEVELS;
 		passData.CascadeCount = csmRendering->GetCascadeCount();
+		passData.ReflectionProbeCount = reflectionProbes->Count();
+		passData.ReflectionProbesBuffIdx = reflectionProbes->GetGPUBuffer()->GetSRVView()->GetGpuHeapIndex();
 		passData.CascadeShadowRad2 = csmRendering->GetCascadeRad2();
 
 		for (uint32 i = 0; i < csmRendering->GetCascadeCount(); i++)

@@ -13,6 +13,7 @@
 #include <ReflectionProbe.h>
 #include <SponzaCommon.h>
 #include <DebugRendererSystem.h>
+#include <SponzaGUI.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -37,7 +38,7 @@ namespace EduEngine
 		std::unique_ptr<SSAO> m_Ssao;
 		std::unique_ptr<GBuffer> m_GBuffer;
 		std::unique_ptr<CSMRendering> m_CSMRendering;
-		std::unique_ptr<ReflectionProbe> m_ReflectionProbe;
+		std::unique_ptr<ReflectionProbesManager> m_ReflectionProbeMgr;
 
 		std::shared_ptr<Mesh> m_Mesh;
 
@@ -56,7 +57,11 @@ namespace EduEngine
 
 		std::unique_ptr<DebugRendererSystem> m_DebugRenderer;
 
+		SponzaGUI m_GUI;
+
 	private:
+		friend SponzaGUI;
+
 		DXGI_FORMAT SPONZA_G_BUFFERS[SponzaGBufferId::NumBuffers]
 		{
 			DXGI_FORMAT_R8G8B8A8_UNORM,

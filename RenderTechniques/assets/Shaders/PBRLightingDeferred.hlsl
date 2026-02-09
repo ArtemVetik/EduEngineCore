@@ -11,9 +11,13 @@ struct Light
     float SpotPower;    // spot light only
 };
 
-#ifndef PBR_TEXTURED
-#define PBR_TEXTURED 1
-#endif
+struct ReflectionProbe
+{
+    float3 Position;
+    float3 BoxExtents;
+    uint IrradianceMapIdx;
+    uint PrefilteredMapIdx;
+};
 
 #define MAX_CASCADES 4
 
@@ -35,7 +39,8 @@ cbuffer cbPass : register(b1)
     float3 gCamPos;
     uint gPrefilteredMapLods;
     uint gCascadeCount;
-    uint2 gPadding1;
+    uint gReflectionProbesCount;
+    uint gReflectionProbesBuffIdx;
     float4x4 gCascadeTransform[MAX_CASCADES];
     float4 gCascadeShadowSphere[MAX_CASCADES];
     float4 gCascadeShadowRad2;
@@ -170,6 +175,19 @@ uint ComputeCascadeIndex(float3 positionWS)
     return 4 - dot(weights, float4(4, 3, 2, 1));
 }
 
+float ComputeProbeWeight(float3 posW, ReflectionProbe p)
+{
+    float3 local = posW - p.Position;
+
+    float3 d = abs(local) / p.BoxExtents;
+    float maxAxis = max(d.x, max(d.y, d.z));
+    
+    float w = 1.0 - maxAxis;
+
+    return saturate(w);
+}
+
+
 float4 PS(VertexOut pin) : SV_Target
 {
     Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
@@ -190,6 +208,8 @@ float4 PS(VertexOut pin) : SV_Target
 #else
     half3 N = normalWTex.Sample(gsamPointWrap, pin.TexC).xyz;
 #endif
+    
+    N = normalize(N);
     
     float3 F0 = 0.04;
     F0 = lerp(F0, albedo, metallic);
@@ -246,25 +266,107 @@ float4 PS(VertexOut pin) : SV_Target
         Lo += shadowFactor * (kD * albedo / PI + specular) * radiance * NdotL;
     }
     
+    uint best0 = 0;
+    uint best1 = 0;
+    float best0Dist = 1e30;
+    float best1Dist = 1e30;
+    float3 irradianceColor = 0;
+    float3 prefilteredColor = 0;
+    
+    StructuredBuffer<ReflectionProbe> reflectionProbes = ResourceDescriptorHeap[gReflectionProbesBuffIdx];
+    
+    // Temporary garbage.
+    // The next commit will refactor this.
+    if (gReflectionProbesCount > 0)
+    {
+        for (int i = 0; i < gReflectionProbesCount; ++i)
+        {
+            ReflectionProbe probe = reflectionProbes[i];
+        
+            float3 d = abs(posW.xyz - probe.Position);
+        
+            if (!all(d <= probe.BoxExtents))
+                continue;
+        
+            float dist = length(d);
+        
+            if (dist < best0Dist)
+            {
+                best1Dist = best0Dist;
+                best1 = best0;
+                best0Dist = dist;
+                best0 = i;
+            
+            }
+            else if (dist < best1Dist)
+            {
+                best1Dist = dist;
+                best1 = i;
+            }
+        }
+    
+        float w0 = ComputeProbeWeight(posW.xyz, reflectionProbes[best0]);
+        float w1 = ComputeProbeWeight(posW.xyz, reflectionProbes[best1]);
+    
+        float sum = w0 + w1;
+    
+        if (sum < 1e-4)
+        {
+            w0 = 0;
+            w1 = 0;
+        
+            TextureCube irradianceMapTex = ResourceDescriptorHeap[gIrradianceMapIdx];
+            TextureCube prefilteredMapTex = ResourceDescriptorHeap[gPrefilteredMapIdx];
+        
+            irradianceColor = irradianceMapTex.Sample(gsamLinearWrap, N).rgb;
+            float3 R = reflect(-V, N);
+            prefilteredColor = prefilteredMapTex.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
+        }
+        else
+        {
+            w0 /= sum;
+            w1 /= sum;
+        
+            ReflectionProbe r0 = reflectionProbes[best0];
+            ReflectionProbe r1 = reflectionProbes[best1];
+        
+            TextureCube irradianceMapTex0 = ResourceDescriptorHeap[r0.IrradianceMapIdx];
+            TextureCube prefilteredMapTex0 = ResourceDescriptorHeap[r0.PrefilteredMapIdx];
+            TextureCube irradianceMapTex1 = ResourceDescriptorHeap[r1.IrradianceMapIdx];
+            TextureCube prefilteredMapTex1 = ResourceDescriptorHeap[r1.PrefilteredMapIdx];
+        
+            irradianceColor = w0 * irradianceMapTex0.Sample(gsamLinearWrap, N).rgb +
+                          w1 * irradianceMapTex1.Sample(gsamLinearWrap, N).rgb;
+        
+            float3 R = reflect(-V, N);
+            prefilteredColor = w0 * prefilteredMapTex0.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb +
+                           w1 * prefilteredMapTex1.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
+        }
+    }
+    else
+    {
+        TextureCube irradianceMapTex = ResourceDescriptorHeap[gIrradianceMapIdx];
+        TextureCube prefilteredMapTex = ResourceDescriptorHeap[gPrefilteredMapIdx];
+        
+        irradianceColor = irradianceMapTex.Sample(gsamLinearWrap, N).rgb;
+        float3 R = reflect(-V, N);
+        prefilteredColor = prefilteredMapTex.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
+    }
+    
     float3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
     
     float3 kS = F;
     float3 kD = 1.0 - kS;
     kD *= 1.0 - metallic;
     
-    TextureCube irradianceMapTex = ResourceDescriptorHeap[gIrradianceMapIdx];
-    TextureCube prefilteredMapTex = ResourceDescriptorHeap[gPrefilteredMapIdx];
     Texture2D brdfLutTex = ResourceDescriptorHeap[gBRDFLutIdx];
     Texture2D ssaoMap = ResourceDescriptorHeap[gSsaoMapIdx];
     
     float ssao = ssaoMap.Sample(gsamPointWrap, pin.TexC).r;
     
-    float3 irradiance = irradianceMapTex.Sample(gsamLinearWrap, N).rgb;
-    float3 diffuse = 0.2f * irradiance * albedo; // TODO: temporary multiply by 0.2f
+    float3 diffuse = irradianceColor * albedo;
     
     float3 R = reflect(-V, N);
-    float3 prefilteredColor = prefilteredMapTex.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
-    
     float2 envBRDF = brdfLutTex.Sample(gsamLinearClamp, float2(max(dot(N, V), 0.0), roughness)).rg;
     float3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
     float3 ambient = (kD * diffuse + specular) * ao * ssao;
