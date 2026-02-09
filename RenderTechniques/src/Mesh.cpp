@@ -183,14 +183,26 @@ namespace EduEngine
 			aiTextureType texType = TextureType(static_cast<PBR_TEXTURE_TYPE>(i));
 			aiString texPath;
 
-			if (material->GetTexture(texType, 0, &texPath) == AI_SUCCESS)
+			bool hasTexture = (material->GetTexture(texType, 0, &texPath) == AI_SUCCESS);
+
+			// TODO: Quick fix for TemporalAADemo. Rewrite this
+			if (texType == aiTextureType_BASE_COLOR && !hasTexture)
+			{
+				texType = aiTextureType_DIFFUSE;
+				hasTexture = (material->GetTexture(texType, 0, &texPath) == AI_SUCCESS);
+			}
+
+			if (hasTexture)
 			{
 				fs::path p(texPath.C_Str());
 				std::string texName = p.stem().string();
 				texName = loadDesc.TextureBasePath + texName + loadDesc.TextureExt;
 
-				m_Textures[i][meshIdx] = std::make_unique<Texture>();
-				m_Textures[i][meshIdx]->Load(ToWString(texName).c_str(), m_Device, m_Context, loadDesc.TextureLoadDesc);
+				if (fs::exists(texName))
+				{
+					m_Textures[i][meshIdx] = std::make_unique<Texture>();
+					m_Textures[i][meshIdx]->Load(ToWString(texName).c_str(), m_Device, m_Context, loadDesc.TextureLoadDesc);
+				}
 			}
 		}
 	}
