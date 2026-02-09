@@ -38,3 +38,14 @@ float3 TransformNormalToWorldSpace(float3 normalL, float4x4 world)
     
     return normalize(mul(normalL, normalTransform));
 }
+
+float4 ReconstructWorldPosFromDepth(float depth, float2 texC, float4x4 invProj, float4x4 invView)
+{
+    float4 clipSpacePosition = float4(texC * 2 - 1, depth, 1);
+    clipSpacePosition.y *= -1.0f;
+    float4 viewSpacePosition = mul(invProj, clipSpacePosition);
+    viewSpacePosition /= viewSpacePosition.w;
+    float4 worldSpacePosition = mul(invView, viewSpacePosition);
+    
+    return worldSpacePosition;
+}

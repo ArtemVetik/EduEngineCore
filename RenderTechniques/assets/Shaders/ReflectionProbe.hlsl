@@ -45,7 +45,7 @@ VertexOut VS(VertexIn vIn)
     float4 posW = mul(float4(vIn.PosL, 1.0f), gWorld);
     
     output.PosH = mul(posW, gViewProj);
-    output.ShadowPosH = mul(posW, gShadowTransform);
+    output.ShadowPosH = mul(posW, gShadowTransform).xyz;
     output.TexC = vIn.TexC;
     
     return output;

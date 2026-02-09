@@ -16,6 +16,8 @@ namespace EduEngine
 
 	void SponzaGUI::RenderImGUI()
 	{
+		ReflectionProbe* probeToBake = nullptr;
+
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
@@ -101,9 +103,7 @@ namespace EduEngine
 
 					if (ImGui::Button("Bake"))
 					{
-						rp->Bake(m_Sponza->GetMainContext(), m_Sponza->m_PbrPrepass.get(), m_Sponza->m_Skybox.get(), &m_Sponza->m_LightData, 1, m_Sponza->m_RenderObjects.data(), m_Sponza->m_RenderObjects.size());
-						m_Sponza->m_ReflectionProbeMgr->RebuildBuffer(m_Sponza->GetMainContext());
-						m_Sponza->OnResize();
+						probeToBake = rp;
 					}
 
 					if (ImGui::Button("Remove"))
@@ -152,6 +152,13 @@ namespace EduEngine
 
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_Sponza->GetMainContext()->GetCommandCtx()->GetCmdList());
+
+		if (probeToBake)
+		{
+			probeToBake->Bake(m_Sponza->GetMainContext(), m_Sponza->m_PbrPrepass.get(), m_Sponza->m_Skybox.get(), &m_Sponza->m_LightData, 1, m_Sponza->m_RenderObjects.data(), m_Sponza->m_RenderObjects.size());
+			m_Sponza->m_ReflectionProbeMgr->RebuildBuffer(m_Sponza->GetMainContext());
+			m_Sponza->OnResize();
+		}
 	}
 
 	void SponzaGUI::DebugDrawReflectionProbes()

@@ -35,7 +35,7 @@ struct VertexOutPT
     float2 TexC : TEXCOORD;
 };
 
-#include "PBRPrepassCommon.hlsl"
+#include "IBL_Lighting.hlsli"
 
 VertexOut VS(VertexIn vIn)
 {

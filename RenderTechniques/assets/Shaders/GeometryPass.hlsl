@@ -47,7 +47,7 @@ struct PSOut
     half4 MetalRoughAo : SV_TARGET2;
 };
 
-#include "PackNormals.hlsl"
+#include "PackNormals.hlsli"
 #include "CommonTransforms.hlsli"
 
 VertexOut VS(VertexIn vIn)

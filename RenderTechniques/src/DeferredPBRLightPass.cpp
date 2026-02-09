@@ -127,7 +127,7 @@ namespace EduEngine
 		};
 
 		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", macrosBuff, sDesc);
-		auto lightPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRLightingDeferred.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
+		auto lightPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBR_LightingDeferred.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;

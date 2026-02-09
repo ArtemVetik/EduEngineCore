@@ -56,12 +56,12 @@ namespace EduEngine
 	}
 
 	void ReflectionProbe::Bake(DeviceContext* context,
-		PBRPrepass* pbrPrepass,
-		Skybox* skybox,
-		Light* lights,
-		uint32 numLights,
-		RenderObject* renderObjects,
-		uint32 objectsNum)
+							   PBRPrepass* pbrPrepass,
+							   Skybox* skybox,
+							   Light* lights,
+							   uint32 numLights,
+							   RenderObject* renderObjects,
+							   uint32 objectsNum)
 	{
 		float nearValue = 0.1f;
 		float farValue = 100.0f;
