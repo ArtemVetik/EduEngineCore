@@ -6,7 +6,7 @@
 #include <BufferD3D12.h>
 #include <SSAO.h>
 #include <GBuffer.h>
-#include <PBRPrepass.h>
+#include <IBLRendering.h>
 #include <Skybox.h>
 #include <DeferredPBRLightPass.h>
 #include <CSMRendering.h>
@@ -32,7 +32,7 @@ namespace EduEngine
 		std::shared_ptr<PipelineStateBase> BuildPostProcPso();
 
 	private:
-		std::unique_ptr<PBRPrepass> m_PbrPrepass;
+		std::unique_ptr<IBLRendering> m_IBLRendering;
 		std::unique_ptr<Skybox> m_Skybox;
 		std::unique_ptr<DeferredPBRLightPass> m_LightPass;
 		std::unique_ptr<SSAO> m_Ssao;

@@ -9,7 +9,7 @@
 #include <Mesh.h>
 #include <DebugRendererSystem.h>
 #include <Camera.h>
-#include <PBRPrepass.h>
+#include <IBLRendering.h>
 #include <Skybox.h>
 
 namespace EduEngine
@@ -41,7 +41,7 @@ namespace EduEngine
 		Texture m_NormalMapTexture;
 		std::shared_ptr<Mesh> m_Mesh;
 
-		std::shared_ptr<PBRPrepass> m_Prepass;
+		std::shared_ptr<IBLRendering> m_Prepass;
 		std::shared_ptr<Skybox> m_Skybox;
 		std::shared_ptr<DebugRendererSystem> m_DebugRenderer;
 	

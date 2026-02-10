@@ -4,7 +4,7 @@
 
 namespace EduEngine
 {
-	Skybox::Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, PBRPrepass* pbrPrepass) :
+	Skybox::Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, IBLRendering* IBLRendering) :
 		m_Device(device),
 		m_CpuTextureHandles(false),
 		m_SkyLod(0)
@@ -67,7 +67,7 @@ namespace EduEngine
 			texDesc.MipLevels = mipLevels + 1;
 			texDesc.SampleDesc.Count = 1;
 			texDesc.SampleDesc.Quality = 0;
-			texDesc.Format = PBRPrepass::HDR_FORMAT;
+			texDesc.Format = IBLRendering::HDR_FORMAT;
 			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -102,7 +102,7 @@ namespace EduEngine
 			texDesc.Height = IRRADIANCE_MAP_SIZE;
 			texDesc.SampleDesc.Count = 1;
 			texDesc.SampleDesc.Quality = 0;
-			texDesc.Format = PBRPrepass::HDR_FORMAT;
+			texDesc.Format = IBLRendering::HDR_FORMAT;
 			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -131,13 +131,13 @@ namespace EduEngine
 			D3D12_RESOURCE_DESC texDesc = {};
 			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 			texDesc.Alignment = 0;
-			texDesc.MipLevels = PBRPrepass::PREFILTERED_MIP_LEVELS;
+			texDesc.MipLevels = IBLRendering::PREFILTERED_MIP_LEVELS;
 			texDesc.DepthOrArraySize = 6;
-			texDesc.Width = PBRPrepass::PREFILTERED_MAP_SIZE;
-			texDesc.Height = PBRPrepass::PREFILTERED_MAP_SIZE;
+			texDesc.Width = IBLRendering::PREFILTERED_MAP_SIZE;
+			texDesc.Height = IBLRendering::PREFILTERED_MAP_SIZE;
 			texDesc.SampleDesc.Count = 1;
 			texDesc.SampleDesc.Quality = 0;
-			texDesc.Format = PBRPrepass::HDR_FORMAT;
+			texDesc.Format = IBLRendering::HDR_FORMAT;
 			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -159,7 +159,7 @@ namespace EduEngine
 			m_PrefilteredMap->CreateSRV(&srvDesc, m_CpuTextureHandles);
 		}
 
-		RebuildSky(hdrFileName, context, pbrPrepass);
+		RebuildSky(hdrFileName, context, IBLRendering);
 
 		//
 		// Build Skybox PSO
@@ -261,7 +261,7 @@ namespace EduEngine
 		context->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
 	}
 
-	void Skybox::RebuildSky(const char* hdrFileName, DeviceContext* context, PBRPrepass* pbrPrepass)
+	void Skybox::RebuildSky(const char* hdrFileName, DeviceContext* context, IBLRendering* IBLRendering)
 	{
 		//
 		//	Load HDR Environment 2D Map
@@ -307,9 +307,9 @@ namespace EduEngine
 		context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		context->GetCommandCtx()->TransitionResource(m_PrefilteredMap.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
-		pbrPrepass->GenerateCubemapFromHDR(m_Device, context, HDREnvMap->GetSRVView()->GetGpuHeapIndex(), m_HDRCubeEnvMap, ENV_CUBEMAP_SIZE);
-		pbrPrepass->RenderIrradianceMap(context, m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex(), m_IrradianceMap, IRRADIANCE_MAP_SIZE);
-		pbrPrepass->RenderPrefilteredMap(context, m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex(), m_PrefilteredMap, PBRPrepass::PREFILTERED_MAP_SIZE);
+		IBLRendering->GenerateCubemapFromHDR(m_Device, context, HDREnvMap->GetSRVView()->GetGpuHeapIndex(), m_HDRCubeEnvMap, ENV_CUBEMAP_SIZE);
+		IBLRendering->RenderIrradianceMap(context, m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex(), m_IrradianceMap, IRRADIANCE_MAP_SIZE);
+		IBLRendering->RenderPrefilteredMap(context, m_HDRCubeEnvMap->GetSRVView()->GetGpuHeapIndex(), m_PrefilteredMap, IBLRendering::PREFILTERED_MAP_SIZE);
 
 		context->GetCommandCtx()->TransitionResource(m_HDRCubeEnvMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		context->GetCommandCtx()->TransitionResource(m_IrradianceMap.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

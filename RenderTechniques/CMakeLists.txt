@@ -3,7 +3,7 @@ set(LIBS_ROOT "${CMAKE_SOURCE_DIR}/Libraries")
 add_library(RenderTechniques STATIC
     src/Camera.cpp
     src/GenerateMipMaps.cpp
-    src/PBRPrepass.cpp
+    src/IBLRendering.cpp
     src/Timer.cpp
     src/SSAO.cpp
     src/GBuffer.cpp

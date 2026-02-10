@@ -155,7 +155,7 @@ namespace EduEngine
 
 		if (probeToBake)
 		{
-			probeToBake->Bake(m_Sponza->GetMainContext(), m_Sponza->m_PbrPrepass.get(), m_Sponza->m_Skybox.get(), &m_Sponza->m_LightData, 1, m_Sponza->m_RenderObjects.data(), m_Sponza->m_RenderObjects.size());
+			probeToBake->Bake(m_Sponza->GetMainContext(), m_Sponza->m_IBLRendering.get(), m_Sponza->m_Skybox.get(), &m_Sponza->m_LightData, 1, m_Sponza->m_RenderObjects.data(), m_Sponza->m_RenderObjects.size());
 			m_Sponza->m_ReflectionProbeMgr->RebuildBuffer(m_Sponza->GetMainContext());
 			m_Sponza->OnResize();
 		}

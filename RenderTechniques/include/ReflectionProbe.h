@@ -38,7 +38,7 @@ namespace EduEngine
 		ReflectionProbe& operator = (ReflectionProbe&&) = delete;
 
 		void Bake(DeviceContext* context,
-				  PBRPrepass* pbrPrepass,
+				  IBLRendering* iblRendering,
 				  Skybox* skybox,
 				  Light* lights,
 				  uint32 numLights,

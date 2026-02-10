@@ -1,6 +1,6 @@
 #include "DeferredPBRLightPass.h"
 
-#include <PBRPrepass.h>
+#include <IBLRendering.h>
 #include <StringUtils.h>
 
 namespace EduEngine
@@ -78,7 +78,7 @@ namespace EduEngine
 		XMStoreFloat4x4(&passData.ProjInv, projInv);
 		passData.DirectionalLightsCount = numLights;
 		passData.CamPos = camera->GetPosition();
-		passData.PrefilteredMapLods = PBRPrepass::PREFILTERED_MIP_LEVELS;
+		passData.PrefilteredMapLods = IBLRendering::PREFILTERED_MIP_LEVELS;
 		passData.CascadeCount = csmRendering->GetCascadeCount();
 		passData.ReflectionProbeCount = reflectionProbes->Count();
 		passData.ReflectionProbesBuffIdx = reflectionProbes->GetGPUBuffer()->GetSRVView()->GetGpuHeapIndex();

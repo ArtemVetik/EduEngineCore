@@ -1,4 +1,4 @@
-#include "PBRPrepass.h"
+#include "IBLRendering.h"
 #include "GenerateMipMaps.h"
 #include "Asserts.h"
 
@@ -8,7 +8,7 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	PBRPrepass::PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context)
+	IBLRendering::IBLRendering(RenderDeviceD3D12* device, DeviceContext* context)
 	{
 		m_FaceBuff = std::make_shared<DynamicUploadBuffer>(device);
 		m_PassBuff = std::make_shared<DynamicUploadBuffer>(device);
@@ -75,7 +75,7 @@ namespace EduEngine
 		InitBRDF(device, context);
 	}
 
-	void PBRPrepass::GenerateCubemapFromHDR(RenderDeviceD3D12* device,
+	void IBLRendering::GenerateCubemapFromHDR(RenderDeviceD3D12* device,
 											DeviceContext* context,
 											UINT hdrTextureGpuHeapIdx,
 											std::shared_ptr<TextureD3D12> cubeRenderTarget,
@@ -94,7 +94,7 @@ namespace EduEngine
 		genMipMaps.Generate(context, cubeRenderTarget);
 	}
 
-	void PBRPrepass::RenderIrradianceMap(DeviceContext* context,
+	void IBLRendering::RenderIrradianceMap(DeviceContext* context,
 										 UINT envCubeMapGpuHeapIdx,
 										 std::shared_ptr<TextureD3D12> cubeRenderTarget,
 										 uint16 mapSize)
@@ -106,7 +106,7 @@ namespace EduEngine
 		RenderCubeMap(context, m_PsoGenIrrMap, m_PsoGenIrrMapBinder.get(), cubeRenderTarget.get(), mapSize);
 	}
 
-	void PBRPrepass::RenderPrefilteredMap(DeviceContext* context,
+	void IBLRendering::RenderPrefilteredMap(DeviceContext* context,
 										  UINT envCubeMapGpuHeapIdx,
 										  std::shared_ptr<TextureD3D12> cubeRenderTarget,
 										  uint16 mapSize)
@@ -127,7 +127,7 @@ namespace EduEngine
 		}
 	}
 
-	void PBRPrepass::InitBRDF(RenderDeviceD3D12* device, DeviceContext* context)
+	void IBLRendering::InitBRDF(RenderDeviceD3D12* device, DeviceContext* context)
 	{
 		//
 		// BRDF Lut
@@ -221,7 +221,7 @@ namespace EduEngine
 		cmdCtx->TransitionResource(m_BrdfLut.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
-	void PBRPrepass::RenderCubeMap(DeviceContext* context, PipelineState& pso, ShaderBinder* binder, TextureD3D12* texture, uint16 size, uint16 mipLevel)
+	void IBLRendering::RenderCubeMap(DeviceContext* context, PipelineState& pso, ShaderBinder* binder, TextureD3D12* texture, uint16 size, uint16 mipLevel)
 	{
 		CommandContext* cmdCtx = context->GetCommandCtx();
 
@@ -256,7 +256,7 @@ namespace EduEngine
 		}
 	}
 
-	void PBRPrepass::InitCube(RenderDeviceD3D12* device, DeviceContext* context)
+	void IBLRendering::InitCube(RenderDeviceD3D12* device, DeviceContext* context)
 	{
 		m_CubeProj = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1.0f, 0.1f, 10.0f);
 

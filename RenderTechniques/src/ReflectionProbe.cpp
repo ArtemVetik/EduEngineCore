@@ -56,7 +56,7 @@ namespace EduEngine
 	}
 
 	void ReflectionProbe::Bake(DeviceContext* context,
-							   PBRPrepass* pbrPrepass,
+							   IBLRendering* iblRendering,
 							   Skybox* skybox,
 							   Light* lights,
 							   uint32 numLights,
@@ -148,10 +148,10 @@ namespace EduEngine
 		}
 
 		if (m_Settings.Flags & Flags::CREATE_IRRADIANCE_MAP)
-			pbrPrepass->RenderIrradianceMap(context, m_ReflectionCube->GetSRVView()->GetGpuHeapIndex(), m_IrradianceMap, IRRADIANCE_MAP_SIZE);
+			iblRendering->RenderIrradianceMap(context, m_ReflectionCube->GetSRVView()->GetGpuHeapIndex(), m_IrradianceMap, IRRADIANCE_MAP_SIZE);
 
 		if (m_Settings.Flags & Flags::CREATE_PREFILTERED_MAP)
-			pbrPrepass->RenderPrefilteredMap(context, m_ReflectionCube->GetSRVView()->GetGpuHeapIndex(), m_PrefilteredMap, PBRPrepass::PREFILTERED_MAP_SIZE);
+			iblRendering->RenderPrefilteredMap(context, m_ReflectionCube->GetSRVView()->GetGpuHeapIndex(), m_PrefilteredMap, IBLRendering::PREFILTERED_MAP_SIZE);
 	}
 
 	void ReflectionProbe::InitializeTextures(RenderDeviceD3D12* device, DeviceContext* context)
@@ -251,7 +251,7 @@ namespace EduEngine
 			texDesc.Height = IRRADIANCE_MAP_SIZE;
 			texDesc.SampleDesc.Count = 1;
 			texDesc.SampleDesc.Quality = 0;
-			texDesc.Format = PBRPrepass::HDR_FORMAT;
+			texDesc.Format = IBLRendering::HDR_FORMAT;
 			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -283,13 +283,13 @@ namespace EduEngine
 			D3D12_RESOURCE_DESC texDesc = {};
 			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 			texDesc.Alignment = 0;
-			texDesc.MipLevels = PBRPrepass::PREFILTERED_MIP_LEVELS;
+			texDesc.MipLevels = IBLRendering::PREFILTERED_MIP_LEVELS;
 			texDesc.DepthOrArraySize = 6;
-			texDesc.Width = PBRPrepass::PREFILTERED_MAP_SIZE;
-			texDesc.Height = PBRPrepass::PREFILTERED_MAP_SIZE;
+			texDesc.Width = IBLRendering::PREFILTERED_MAP_SIZE;
+			texDesc.Height = IBLRendering::PREFILTERED_MAP_SIZE;
 			texDesc.SampleDesc.Count = 1;
 			texDesc.SampleDesc.Quality = 0;
-			texDesc.Format = PBRPrepass::HDR_FORMAT;
+			texDesc.Format = IBLRendering::HDR_FORMAT;
 			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};

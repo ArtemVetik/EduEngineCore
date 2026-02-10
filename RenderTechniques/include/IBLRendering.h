@@ -10,10 +10,10 @@ using namespace EduEngine::EduBinding;
 
 namespace EduEngine
 {
-	class RENDERTECHNIQUES_API PBRPrepass
+	class RENDERTECHNIQUES_API IBLRendering
 	{
 	public:
-		PBRPrepass(RenderDeviceD3D12* device, DeviceContext* context);
+		IBLRendering(RenderDeviceD3D12* device, DeviceContext* context);
 
 		void GenerateCubemapFromHDR(RenderDeviceD3D12* device,
 									DeviceContext* context,

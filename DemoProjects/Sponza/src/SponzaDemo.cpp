@@ -29,9 +29,9 @@ namespace EduEngine
 
 		m_RenderObjects = { RenderObject{ m_Mesh.get(), XMMatrixScaling(5, 5, 5) } };
 
-		m_PbrPrepass = std::make_unique<PBRPrepass>(GetDevice(), GetMainContext());
+		m_IBLRendering = std::make_unique<IBLRendering>(GetDevice(), GetMainContext());
 		m_Skybox = std::make_unique<Skybox>("assets\\Textures\\HDR\\kloofendal_48d_partly_cloudy_puresky_4k.hdr",
-			GetDevice(), GetMainContext(), m_PbrPrepass.get());
+			GetDevice(), GetMainContext(), m_IBLRendering.get());
 
 		m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
 		m_Ssao = std::make_unique<SSAO>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
@@ -61,7 +61,7 @@ namespace EduEngine
 		for (uint32 i = 0; i < _countof(probes); i++)
 		{
 			ReflectionProbe* newProbe = m_ReflectionProbeMgr->Add(GetMainContext(), probeSettings, probes[i].Position, probes[i].Extents);
-			newProbe->Bake(GetMainContext(), m_PbrPrepass.get(), m_Skybox.get(), &m_LightData, 1, m_RenderObjects.data(), m_RenderObjects.size());
+			newProbe->Bake(GetMainContext(), m_IBLRendering.get(), m_Skybox.get(), &m_LightData, 1, m_RenderObjects.data(), m_RenderObjects.size());
 		}
 		m_ReflectionProbeMgr->RebuildBuffer(GetMainContext());
 
@@ -256,7 +256,7 @@ namespace EduEngine
 			deferredLightBuffers.SsaoMapIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(4);
 			deferredLightBuffers.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
-			deferredLightBuffers.BRDFLutIdx = m_PbrPrepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.BRDFLutIdx = m_IBLRendering->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
 
 			for (uint32 i = 0; i < m_CSMRendering->GetCascadeCount(); i++)
 				deferredLightBuffers.ShadowMapIdx[i] = m_CSMRendering->GetSrv(i)->GetGpuHeapIndex();

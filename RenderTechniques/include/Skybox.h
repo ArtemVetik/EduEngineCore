@@ -1,18 +1,18 @@
 #pragma once
 #include "framework.h"
 
-#include <PBRPrepass.h>
+#include <IBLRendering.h>
 
 namespace EduEngine
 {
 	class RENDERTECHNIQUES_API Skybox
 	{
 	public:
-		Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, PBRPrepass* pbrPrepass);
+		Skybox(const char* hdrFileName, RenderDeviceD3D12* device, DeviceContext* context, IBLRendering* IBLRendering);
 		
 		void Render(DeviceContext* context, Camera* camera, bool hdr = false);
 
-		void RebuildSky(const char* hdrFileName, DeviceContext* context, PBRPrepass* pbrPrepass);
+		void RebuildSky(const char* hdrFileName, DeviceContext* context, IBLRendering* IBLRendering);
 
 		void SetSky(UINT skyTextureGpuHeapIdx);
 		void SetLod(float lod) { m_SkyLod = lod; }

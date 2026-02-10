@@ -55,7 +55,7 @@ namespace EduEngine
 		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
 		m_LightBuffer->CreateSRV(GetMainContext(), 1, sizeof(PBRLighting::Light));
 
-		m_Prepass = std::make_shared<PBRPrepass>(GetDevice(), GetMainContext());
+		m_Prepass = std::make_shared<IBLRendering>(GetDevice(), GetMainContext());
 		m_Skybox = std::make_shared<Skybox>("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext(), m_Prepass.get());
 
 		m_TextureIndexes = {};
@@ -97,7 +97,7 @@ namespace EduEngine
 		XMStoreFloat4x4(&passConstants.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		passConstants.CamPos = GetCamera()->GetPosition();
 		passConstants.DirectionalLightsCount = 1;
-		passConstants.PrefilteredMapLods = PBRPrepass::PREFILTERED_MIP_LEVELS;
+		passConstants.PrefilteredMapLods = IBLRendering::PREFILTERED_MIP_LEVELS;
 
 		m_ObjBuffer->LoadData(GetMainContext(), objConstants);
 		m_PassBuffer->LoadData(GetMainContext(), passConstants);
@@ -294,7 +294,7 @@ namespace EduEngine
 				else if (current == 2) m_Skybox->SetSky(m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex());
 			}
 
-			if (ImGui::SliderFloat("Lod", &lod, 0.0f, PBRPrepass::PREFILTERED_MIP_LEVELS))
+			if (ImGui::SliderFloat("Lod", &lod, 0.0f, IBLRendering::PREFILTERED_MIP_LEVELS))
 			{
 				m_Skybox->SetLod(lod);
 			}
