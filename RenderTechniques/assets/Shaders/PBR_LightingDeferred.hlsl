@@ -184,7 +184,7 @@ float4 PS(VertexOut pin) : SV_Target
 #elif DEBUGVIEW_AO
     color = ao;
 #elif DEBUGVIEW_NORMAL
-    color = N;
+    color = N * 0.5f + 0.5f;
 #elif DEBUGVIEW_DIFFUSE_IBL
     color = kD * diffuse;
 #elif DEBUGVIEW_SPECULAR_IBL
