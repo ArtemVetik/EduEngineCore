@@ -64,7 +64,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
     
     float4 shadowAttenuation;
     shadowAttenuation.x = shadowMap.SampleCmpLevelZero(gsamShadow, pIn.ShadowPosH.xy + float2(-dx, -dx), pIn.ShadowPosH.z);;
-    shadowAttenuation.y = shadowMap.SampleCmpLevelZero(gsamShadow, pIn.ShadowPosH.xy + float2( dx,  dx), pIn.ShadowPosH.z);;
+    shadowAttenuation.y = shadowMap.SampleCmpLevelZero(gsamShadow, pIn.ShadowPosH.xy + float2(-dx,  dx), pIn.ShadowPosH.z);;
     shadowAttenuation.z = shadowMap.SampleCmpLevelZero(gsamShadow, pIn.ShadowPosH.xy + float2( dx, -dx), pIn.ShadowPosH.z);;
     shadowAttenuation.w = shadowMap.SampleCmpLevelZero(gsamShadow, pIn.ShadowPosH.xy + float2( dx,  dx), pIn.ShadowPosH.z);;
     float shadowFactor = dot(shadowAttenuation, float(0.25));

@@ -52,7 +52,7 @@ struct VertexOut
     float2 TexC : TEXCOORD;
 };
 
-#include "PackNormals.hlsl"
+#include "PackNormals.hlsli"
 
 VertexOut VS(uint vertexId : SV_VertexID)
 {

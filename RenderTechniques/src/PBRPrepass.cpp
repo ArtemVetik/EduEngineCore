@@ -181,7 +181,7 @@ namespace EduEngine
 		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
 		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto ps_GenBrdfLut = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBRPrepass.hlsl", L"PS_GenBrdfLut", L"ps_6_6", nullptr, sDesc);
+		auto ps_GenBrdfLut = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_GenBrdfLut", L"ps_6_6", nullptr, sDesc);
 
 		PipelineState psoGenBrdfLut;
 		psoGenBrdfLut.SetDepthStencilState(dss);
