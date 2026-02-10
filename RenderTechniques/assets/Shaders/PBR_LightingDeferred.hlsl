@@ -1,19 +1,7 @@
-struct Light
-{
-    int Type;
-    float Strength;
-    float2 Padding;
-    float3 Color;
-    float FalloffStart; // point/spot light only
-    float3 Direction;   // directional/spot light only
-    float FalloffEnd;   // point/spot light only
-    float3 Position;    // point light only
-    float SpotPower;    // spot light only
-};
-
 #include "PackNormals.hlsli"
 #include "CommonTransforms.hlsli"
 #include "PBR_Lighting.hlsli"
+#include "Lighting.hlsli"
 #include "Shadows.hlsli"
 #include "ReflectionProbe.hlsli"
 

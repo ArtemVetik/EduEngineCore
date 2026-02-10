@@ -41,12 +41,15 @@ namespace EduEngine
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(device);
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(device);
+		m_LightsBuffer = std::make_shared<DynamicUploadBuffer>(device);
+		m_LightsBuffer->CreateSRV(context, 1, sizeof(Light));
 
 		m_Binder = m_PSO.CreateShaderBinder();
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbObject", m_ObjBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbObject", m_ObjBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
+		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "gLights", m_LightsBuffer);
 
 		CSMRendering::Settings csmSettings = {};
 		csmSettings.CascadesCount = 1;
@@ -64,7 +67,7 @@ namespace EduEngine
 							   uint32 objectsNum)
 	{
 		float nearValue = 0.1f;
-		float farValue = 100.0f;
+		float farValue = 300.0f;
 
 		Camera faceCamera[6]
 		{
@@ -90,6 +93,9 @@ namespace EduEngine
 
 		CommandContext* commandContext = context->GetCommandCtx();
 
+		m_LightsBuffer->LoadData(context, lights, numLights * sizeof(Light));
+		m_LightsBuffer->CreateSRV(context, numLights, sizeof(Light));
+
 		for (size_t i = 0; i < 6; i++)
 		{
 			context->GetCommandCtx()->FlushResourceBarriers();
@@ -110,12 +116,14 @@ namespace EduEngine
 				XMFLOAT4X4 ViewProj;
 				XMFLOAT4X4 ShadowTransform;
 				UINT ShadowmapIdx;
-				XMUINT3 Padding1;
+				UINT DirectionalLightCount;
+				XMUINT2 Padding;
 			} passData;
 
 			XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(faceCamera[i].GetViewProjMatrix()));
 			XMStoreFloat4x4(&passData.ShadowTransform, XMMatrixTranspose(m_CSMRendering->GetCascadeTransform(0)));
 			passData.ShadowmapIdx = m_CSMRendering->GetSrv(0)->GetGpuHeapIndex();
+			passData.DirectionalLightCount = numLights;
 
 			m_PassBuffer->LoadData(context, passData);
 			m_PSO.CommitPso(context);
@@ -128,11 +136,18 @@ namespace EduEngine
 					{
 						XMFLOAT4X4 World;
 						UINT AlbedoTexIdx;
-						XMUINT3 Padding;
+						UINT NormalMapIdx;
+						XMUINT2 Padding;
 					} objData;
 
 					XMStoreFloat4x4(&objData.World, XMMatrixTranspose(renderObjects[obj].World));
 					objData.AlbedoTexIdx = renderObjects[obj].Mesh->GetTexture(mIdx)->GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+
+					auto normalMapTex = renderObjects[obj].Mesh->GetTexture(mIdx, PBR_TEXTURE_NORMAL_MAP);
+					if (normalMapTex)
+						objData.NormalMapIdx = normalMapTex->GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
+					else
+						objData.NormalMapIdx = -1;
 
 					m_ObjBuffer->LoadData(context, objData);
 
@@ -318,7 +333,8 @@ namespace EduEngine
 
 	ReflectionProbesManager::ReflectionProbesManager(RenderDeviceD3D12* device, DeviceContext* context) :
 		m_Device(device),
-		m_Count(0)
+		m_Count(0),
+		m_Active(true)
 	{
 		m_ReflectionProbes.reserve(MAX_REFLECTION_PROBES);
 

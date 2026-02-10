@@ -15,6 +15,7 @@ namespace EduEngine::EduBinding
 
 		void Build(RenderDeviceD3D12* pDevice, D3D12_STATIC_SAMPLER_DESC* staticSamplers = nullptr, uint32 numStaticSamplers = 0);
 		void CommitPso(DeviceContext* context);
+		// TODO: redundant API calls when commit all. Make it possible to commit only a specific resource.
 		void CommitBinder(DeviceContext* context, ShaderBinder* shaderBinder);
 		void CommitAll(DeviceContext* context, ShaderBinder* shaderBinder);
 

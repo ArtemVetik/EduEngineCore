@@ -72,6 +72,7 @@ namespace EduEngine
 
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
+		std::shared_ptr<DynamicUploadBuffer> m_LightsBuffer;
 
 		XMFLOAT3 m_Center;
 		XMFLOAT3 m_Extents;
@@ -94,11 +95,13 @@ namespace EduEngine
 		void RemoveAt(uint32 index);
 
 		void RebuildBuffer(DeviceContext* context);
+		void SetActive(bool active) { m_Active = active; }
 
 		ReflectionProbe* GetReflectionProbe(uint32 index) const { return m_ReflectionProbes[index].get(); }
 		std::shared_ptr<BufferD3D12> GetGPUBuffer() const { return m_GpuBuffer; }
 		
-		uint32 Count() const { return m_Count; }
+		bool IsActive() const { return m_Active; }
+		uint32 Count() const { return m_Count * m_Active; }
 
 	public:
 		static constexpr uint32 MAX_REFLECTION_PROBES = 16;
@@ -109,5 +112,6 @@ namespace EduEngine
 
 		std::shared_ptr<BufferD3D12> m_GpuBuffer;
 		RenderDeviceD3D12* m_Device;
+		bool m_Active;
 	};
 }

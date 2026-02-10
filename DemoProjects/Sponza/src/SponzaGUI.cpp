@@ -77,6 +77,10 @@ namespace EduEngine
 
 		if (ImGui::CollapsingHeader("Reflection Probes"))
 		{
+			bool active = m_Sponza->m_ReflectionProbeMgr->IsActive();
+			if (ImGui::Checkbox("Enabled", &active))
+				m_Sponza->m_ReflectionProbeMgr->SetActive(active);
+
 			if (ImGui::Button("Add New"))
 			{
 				ReflectionProbe::Settings probeSettings = {};
@@ -88,6 +92,7 @@ namespace EduEngine
 			for (uint32 i = 0; i < m_Sponza->m_ReflectionProbeMgr->Count(); i++)
 			{
 				ImGui::PushID(i);
+				ImGui::Indent();
 
 				if (m_ActiveReflections[i] = ImGui::CollapsingHeader("Probe"))
 				{
@@ -113,6 +118,7 @@ namespace EduEngine
 					}
 				}
 
+				ImGui::Unindent();
 				ImGui::PopID();
 			}
 		}
