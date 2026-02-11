@@ -11,6 +11,7 @@
 #include <DeferredPBRLightPass.h>
 #include <CSMRendering.h>
 #include <ReflectionProbe.h>
+#include <ScreenSpaceReflection.h>
 #include <SponzaCommon.h>
 #include <DebugRendererSystem.h>
 #include <SponzaGUI.h>
@@ -39,6 +40,7 @@ namespace EduEngine
 		std::unique_ptr<GBuffer> m_GBuffer;
 		std::unique_ptr<CSMRendering> m_CSMRendering;
 		std::unique_ptr<ReflectionProbesManager> m_ReflectionProbeMgr;
+		std::unique_ptr<ScreenSpaceReflection> m_SSR;
 
 		std::shared_ptr<Mesh> m_Mesh;
 
@@ -51,6 +53,7 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 
 		DescriptorHeapAllocation m_GpuCopyDescriptors;
+		DescriptorHeapAllocation m_GpuCopyDescriptorsSSR;
 		Light m_LightData = {};
 
 		std::vector<RenderObject> m_RenderObjects;

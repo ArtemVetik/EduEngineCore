@@ -37,6 +37,7 @@ namespace EduEngine
 		float GetFar() const { return m_FarValue; }
 		float GetFovY() const { return m_FovY; }
 		float GetFovX() const { return m_FovX; }
+		XMUINT2 GetViewportSize() const { return { m_ScreenWidth, m_ScreenHeight }; }
 
 		XMMATRIX GetViewProjMatrix() const;
 

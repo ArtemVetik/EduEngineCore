@@ -64,6 +64,14 @@ namespace EduEngine
 			m_GBuffers[i]->SetName(bufferName);
 		}
 
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		uavDesc.Texture2D.MipSlice = 0;
+		uavDesc.Texture2D.PlaneSlice = 0;
+		uavDesc.Format = m_AccumBuffFormat;
+
+		resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		resourceDesc.Format = m_AccumBuffFormat;
 		clearVal.Format = m_AccumBuffFormat;
 		gBuffDescSRV.Format = m_AccumBuffFormat;
@@ -72,6 +80,7 @@ namespace EduEngine
 		{
 			m_AccumBuffer[i] = std::make_shared<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
 			m_AccumBuffer[i]->CreateSRV(&gBuffDescSRV);
+			m_AccumBuffer[i]->CreateUAV(&uavDesc);
 			m_AccumBuffer[i]->CreateRTV(nullptr);
 			
 			wchar_t bufferName[32];

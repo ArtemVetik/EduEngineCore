@@ -33,10 +33,11 @@ namespace EduEngine
 		m_Skybox = std::make_unique<Skybox>("assets\\Textures\\HDR\\kloofendal_48d_partly_cloudy_puresky_4k.hdr",
 			GetDevice(), GetMainContext(), m_IBLRendering.get());
 
-		m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 1, ACCUM_BUFFER_FORMAT);
+		m_GBuffer = std::make_unique<GBuffer>(SponzaGBufferId::NumBuffers, SPONZA_G_BUFFERS, 2, ACCUM_BUFFER_FORMAT);
 		m_Ssao = std::make_unique<SSAO>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 
 		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
+		m_SSR = std::make_unique<ScreenSpaceReflection>(GetDevice(), GetMainContext());
 
 		struct ProbeInitData
 		{
@@ -96,7 +97,7 @@ namespace EduEngine
 		m_PostProcPso.OnPsoUpdated = [this]()
 			{
 				m_PostProcBinder = m_PostProcPso.Pso->CreateShaderBinder();
-				if (m_GBuffer->GetAccumBufferShared(0))
+				if (m_GBuffer->GetAccumBufferShared(1))
 					m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(0));
 			};
 		m_PostProcPso.Initialize();
@@ -183,6 +184,7 @@ namespace EduEngine
 				UINT NormalMapIdx;
 				UINT MetallicRoughnessIdx;
 				UINT AOIdx;
+				UINT SSRMask = 0; // TODO: Temporary workaround for SSR
 			} objData;
 
 			XMStoreFloat4x4(&objData.World, XMMatrixTranspose(XMMatrixScaling(5, 5, 5)));
@@ -190,6 +192,7 @@ namespace EduEngine
 			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_NORMAL_MAP));
 			objData.MetallicRoughnessIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_METALLIC_ROUGHNESS));
 			objData.AOIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_AMBIENT_OCCLUSION));
+			objData.SSRMask = i == 8; // TODO: Temporary workaround for SSR
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);
 
@@ -211,6 +214,8 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
 		m_LightPass->Render(GetMainContext(), m_GBuffer->GetAccumBuffer(0));
+
+		m_SSR->Render(GetMainContext(), GetCamera());
 
 		//
 		// Post process pass
@@ -240,7 +245,7 @@ namespace EduEngine
 			m_Ssao->BindResources(m_GBuffer->GetGBufferShared(SponzaGBufferId::Normal), GetSwapChain()->GetDepthStencilTextureShared());
 
 			m_PostProcBinder->DryMutableResources();
-			m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(0));
+			m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(1));
 		}
 
 		if (m_LightPass)
@@ -276,6 +281,35 @@ namespace EduEngine
 				deferredLightBuffers.ShadowMapIdx[i] = m_CSMRendering->GetSrv(i)->GetGpuHeapIndex();
 
 			m_LightPass->SetBufferIndexes(GetMainContext(), deferredLightBuffers);
+		}
+
+		if (m_SSR)
+		{
+			m_GpuCopyDescriptorsSSR = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5));
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(0),
+				m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(1),
+				m_GBuffer->GetGBuffer(SponzaGBufferId::Normal)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(2),
+				m_GBuffer->GetGBuffer(SponzaGBufferId::MetalRoughAo)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(3),
+				GetSwapChain()->GetDepthStencilTextureShared()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(4),
+				m_GBuffer->GetAccumBuffer(1)->GetUAVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			ScreenSpaceReflection::TextureIndexes texIndexes = {};
+			texIndexes.AlbedoTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(0);
+			texIndexes.NormalTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(1);
+			texIndexes.MaskTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(2);
+			texIndexes.DepthTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(3);
+			texIndexes.OutTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(4);
+
+			m_SSR->Setup(texIndexes);
 		}
 	}
 

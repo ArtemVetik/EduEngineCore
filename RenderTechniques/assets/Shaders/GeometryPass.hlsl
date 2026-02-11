@@ -13,6 +13,7 @@ cbuffer cbPerObject : register(b0)
     uint gNormalMapIdx;
     uint gMetallicRoughnessIdx;
     uint gAOIdx;
+    uint gSSRMask;
 }
 
 cbuffer cbPass : register(b1)
@@ -116,7 +117,7 @@ PSOut PS(VertexOut vOut)
         psOut.MetalRoughAo.b = 1;
     }
     
-    psOut.MetalRoughAo.a = 0;
+    psOut.MetalRoughAo.a = gSSRMask;
     
     return psOut;
 }

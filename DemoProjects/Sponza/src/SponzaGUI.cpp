@@ -75,6 +75,17 @@ namespace EduEngine
 				m_Sponza->m_Ssao->UpdateSettings(ssaoSettings);
 		}
 
+		if (ImGui::CollapsingHeader("SSR"))
+		{
+			ScreenSpaceReflection::Settings ssrSettings = m_Sponza->m_SSR->GetSettings();
+
+			if (ImGui::SliderInt("Max Iterations", (int*)&ssrSettings.MaxIterations, 1, 4096))
+				m_Sponza->m_SSR->UpdateSettings(ssrSettings);
+
+			if (ImGui::SliderFloat("Depth Thickness", &ssrSettings.DepthThickness, 0.0f, 0.5f))
+				m_Sponza->m_SSR->UpdateSettings(ssrSettings);
+		}
+
 		if (ImGui::CollapsingHeader("Reflection Probes"))
 		{
 			bool active = m_Sponza->m_ReflectionProbeMgr->IsActive();

@@ -14,6 +14,7 @@ add_library(RenderTechniques STATIC
     src/Texture.cpp
     src/ReflectionProbe.cpp
     src/Skybox.cpp
+    src/ScreenSpaceReflection.cpp
 )
 
 target_include_directories(RenderTechniques
