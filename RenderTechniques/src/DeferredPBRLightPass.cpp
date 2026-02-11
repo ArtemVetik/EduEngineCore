@@ -74,8 +74,8 @@ namespace EduEngine
 		XMMATRIX viewInv = XMMatrixInverse(nullptr, XMLoadFloat4x4(&camera->GetViewMatrix()));
 		XMMATRIX projInv = XMMatrixInverse(nullptr, XMLoadFloat4x4(&camera->GetProjectionMatrix()));
 
-		XMStoreFloat4x4(&passData.ViewInv, viewInv);
-		XMStoreFloat4x4(&passData.ProjInv, projInv);
+		XMStoreFloat4x4(&passData.ViewInv, XMMatrixTranspose(viewInv));
+		XMStoreFloat4x4(&passData.ProjInv, XMMatrixTranspose(projInv));
 		passData.DirectionalLightsCount = numLights;
 		passData.CamPos = camera->GetPosition();
 		passData.PrefilteredMapLods = IBLRendering::PREFILTERED_MIP_LEVELS;

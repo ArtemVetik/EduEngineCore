@@ -43,9 +43,9 @@ float4 ReconstructWorldPosFromDepth(float depth, float2 texC, float4x4 invProj, 
 {
     float4 clipSpacePosition = float4(texC * 2 - 1, depth, 1);
     clipSpacePosition.y *= -1.0f;
-    float4 viewSpacePosition = mul(invProj, clipSpacePosition);
+    float4 viewSpacePosition = mul(clipSpacePosition, invProj);
     viewSpacePosition /= viewSpacePosition.w;
-    float4 worldSpacePosition = mul(invView, viewSpacePosition);
+    float4 worldSpacePosition = mul(viewSpacePosition, invView);
     
     return worldSpacePosition;
 }
