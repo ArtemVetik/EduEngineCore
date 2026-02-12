@@ -37,7 +37,7 @@ namespace EduEngine
 		void Render(DeviceContext* context, const Camera* camera);
 		void Resize(UINT width, UINT height);
 
-		std::shared_ptr<TextureD3D12> GetSSRTextureShared() const;
+		TextureD3D12* GetSSRTexture() const;
 		Settings GetSettings() const { return m_Settings; }
 
 	private:
@@ -54,7 +54,6 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_BlurPassBuffer;
 		std::shared_ptr<BufferD3D12> m_ConstantsBuffer;
 		
-		DescriptorHeapAllocation m_GpuHandles;
 		std::shared_ptr<TextureD3D12> m_ReflectionTex[2];
 
 		TextureIndexes m_TexIndexes = {};

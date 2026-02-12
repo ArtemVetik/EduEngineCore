@@ -7,6 +7,12 @@ using namespace DirectX::PackedVector;
 
 namespace EduEngine
 {
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) PostProcData
+	{
+		UINT SceneTextureIdx;
+		UINT SSRTextureIdx;
+	};
+
 	void SponzaDemo::OnStartUp()
 	{
 		m_GUI.Init(this);
@@ -91,16 +97,28 @@ namespace EduEngine
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 
+		D3D12_RESOURCE_DESC buffDesc = {};
+		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		buffDesc.Alignment = 0;
+		buffDesc.Height = 1;
+		buffDesc.Width = sizeof(PostProcData);
+		buffDesc.DepthOrArraySize = 1;
+		buffDesc.MipLevels = 1;
+		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
+		buffDesc.SampleDesc.Count = 1;
+		buffDesc.SampleDesc.Quality = 0;
+		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+		m_PostProcBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, QueueId::Direct);
+
 		m_PostProcPso.Name = "Sponza_PostProc";
 		m_PostProcPso.DependentParams = { RenderFeatureID::DebugView };
 		m_PostProcPso.BuildPsoFunc = [this]() { return BuildPostProcPso(); };
 		m_PostProcPso.OnPsoUpdated = [this]()
 			{
 				m_PostProcBinder = m_PostProcPso.Pso->CreateShaderBinder();
-				if (m_GBuffer->GetAccumBufferShared(0))
-					m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(0));
-
-				m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSSRTex", m_SSR->GetSSRTextureShared());
+				m_PostProcBinder->BindResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PostProcBuffer);
+				m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PostProcBuffer);
 			};
 		m_PostProcPso.Initialize();
 
@@ -128,7 +146,7 @@ namespace EduEngine
 		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		m_PassBuffer->LoadData(GetMainContext(), passData);
 		
-		m_Ssao->Update(GetCamera(), GetMainContext());
+		m_Ssao->Update(GetMainContext(), GetCamera());
 		m_CSMRendering->Update(GetMainContext(), GetCamera(), &m_LightData);
 		m_LightPass->Update(GetMainContext(), GetCamera(), &m_LightData, 1, m_CSMRendering.get(), m_ReflectionProbeMgr.get());
 	}
@@ -236,73 +254,51 @@ namespace EduEngine
 
 	void SponzaDemo::OnResize()
 	{
+		m_DepthGPUHandle = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1));
+		GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_DepthGPUHandle.GetCpuHandle(),
+			GetSwapChain()->GetDepthStencilTextureShared()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		bool updatePostProc = false;
+
 		if (m_GBuffer)
 		{
 			m_GBuffer->Resize(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
+			updatePostProc = true;
 		}
 
 		if (m_SSR)
 		{
 			m_SSR->Resize(GetViewport().Width, GetViewport().Height);
 
-			m_GpuCopyDescriptorsSSR = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5));
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(0),
-				m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(1),
-				m_GBuffer->GetGBuffer(SponzaGBufferId::Normal)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(2),
-				m_GBuffer->GetGBuffer(SponzaGBufferId::MetalRoughAo)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptorsSSR.GetCpuHandle(3),
-				GetSwapChain()->GetDepthStencilTextureShared()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
+			// Update indexes, since we create new GBuffer textures in new GPU places
 			ScreenSpaceReflection::TextureIndexes texIndexes = {};
-			texIndexes.ColorTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(0);
-			texIndexes.NormalTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(1);
-			texIndexes.MaskTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(2);
-			texIndexes.DepthTexIdx = m_GpuCopyDescriptorsSSR.GetGpuHeapIndex(3);
+			texIndexes.ColorTexIdx = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();
+			texIndexes.NormalTexIdx = m_GBuffer->GetGBuffer(SponzaGBufferId::Normal)->GetSRVView()->GetGpuHeapIndex();
+			texIndexes.MaskTexIdx = m_GBuffer->GetGBuffer(SponzaGBufferId::MetalRoughAo)->GetSRVView()->GetGpuHeapIndex();
+			texIndexes.DepthTexIdx = m_DepthGPUHandle.GetGpuHeapIndex(0);
 
 			m_SSR->UpdateIndexes(GetMainContext(), texIndexes);
+			updatePostProc = true;
 		}
 
 		if (m_Ssao)
 		{
 			m_Ssao->Resize(GetViewport().Width, GetViewport().Height);
-			m_Ssao->BindResources(m_GBuffer->GetGBufferShared(SponzaGBufferId::Normal), GetSwapChain()->GetDepthStencilTextureShared());
-
-			m_PostProcBinder->DryMutableResources();
-			m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSceneTex", m_GBuffer->GetAccumBufferShared(0));
-			m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSSRTex", m_SSR->GetSSRTextureShared());
+			m_Ssao->BindResources(
+				GetMainContext(),
+				m_GBuffer->GetGBuffer(SponzaGBufferId::Normal)->GetSRVView()->GetGpuHeapIndex(), 
+				m_DepthGPUHandle.GetGpuHeapIndex(0)
+			);
 		}
 
 		if (m_LightPass)
 		{
-			m_GpuCopyDescriptors = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5));
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(0),
-				m_GBuffer->GetGBuffer(SponzaGBufferId::Albedo)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(1),
-				m_GBuffer->GetGBuffer(SponzaGBufferId::Normal)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(2),
-				m_GBuffer->GetGBuffer(SponzaGBufferId::MetalRoughAo)->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(3),
-				GetSwapChain()->GetDepthStencilTextureShared()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuCopyDescriptors.GetCpuHandle(4),
-				m_Ssao->GetSSAOMap()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
 			DeferredPBRLightPass::BuffersIndexesData deferredLightBuffers = {};
-			deferredLightBuffers.AlbedoIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(0);
-			deferredLightBuffers.NormalIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(1);
-			deferredLightBuffers.MetallicRoughAoIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(2);
-			deferredLightBuffers.DepthIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(3);
-			deferredLightBuffers.SsaoMapIdx = m_GpuCopyDescriptors.GetGpuHeapIndex(4);
+			deferredLightBuffers.AlbedoIdx = m_GBuffer->GetGBuffer(SponzaGBufferId::Albedo)->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.NormalIdx = m_GBuffer->GetGBuffer(SponzaGBufferId::Normal)->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.MetallicRoughAoIdx = m_GBuffer->GetGBuffer(SponzaGBufferId::MetalRoughAo)->GetSRVView()->GetGpuHeapIndex();
+			deferredLightBuffers.DepthIdx = m_DepthGPUHandle.GetGpuHeapIndex();
+			deferredLightBuffers.SsaoMapIdx = m_Ssao->GetSSAOMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 			deferredLightBuffers.BRDFLutIdx = m_IBLRendering->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
@@ -311,6 +307,14 @@ namespace EduEngine
 				deferredLightBuffers.ShadowMapIdx[i] = m_CSMRendering->GetSrv(i)->GetGpuHeapIndex();
 
 			m_LightPass->SetBufferIndexes(GetMainContext(), deferredLightBuffers);
+		}
+
+		if (updatePostProc)
+		{
+			PostProcData data = { };
+			data.SceneTextureIdx = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();
+			data.SSRTextureIdx = m_SSR->GetSSRTexture()->GetSRVView()->GetGpuHeapIndex();
+			m_PostProcBuffer->LoadData(GetMainContext(), &data);
 		}
 	}
 
@@ -361,16 +365,9 @@ namespace EduEngine
 
 	std::shared_ptr<PipelineStateBase> SponzaDemo::BuildPostProcPso()
 	{
-		ShaderResourceDesc sRes[]
-		{
-			ShaderResourceDesc("cbPerObject", SHADER_RESOURCE_TYPE_DYNAMIC),
-			ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
-		};
-
 		ShaderDesc sDesc = { };
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
-		sDesc.ResourceNum = _countof(sRes);
-		sDesc.ResourceDesc = sRes;
+		sDesc.ResourceNum = 0;
 
 		auto debugViewStr = std::to_wstring((int)g_RenderFeatures.DebugView);
 
@@ -380,8 +377,8 @@ namespace EduEngine
 			NULL, NULL,
 		};
 
-		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", macrosBuff, sDesc);
-		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_0", macrosBuff, sDesc);
+		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", macrosBuff, sDesc);
+		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;

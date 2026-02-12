@@ -55,7 +55,7 @@ namespace EduEngine
 
 			m_GBuffers[i] = std::make_shared<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
 			m_GBuffers[i]->CreateRTV(nullptr);
-			m_GBuffers[i]->CreateSRV(&gBuffDescSRV);
+			m_GBuffers[i]->CreateSRV(&gBuffDescSRV, false);
 
 			commandContext->TransitionResource(m_GBuffers[i].get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -63,13 +63,6 @@ namespace EduEngine
 			swprintf(bufferName, 16, L"GBuffer-%d", i);
 			m_GBuffers[i]->SetName(bufferName);
 		}
-
-
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		uavDesc.Texture2D.MipSlice = 0;
-		uavDesc.Texture2D.PlaneSlice = 0;
-		uavDesc.Format = m_AccumBuffFormat;
 
 		resourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		resourceDesc.Format = m_AccumBuffFormat;
@@ -79,8 +72,7 @@ namespace EduEngine
 		for (int i = 0; i < m_accumCount; i++)
 		{
 			m_AccumBuffer[i] = std::make_shared<TextureD3D12>(device, resourceDesc, &clearVal, QueueId::Direct);
-			m_AccumBuffer[i]->CreateSRV(&gBuffDescSRV);
-			m_AccumBuffer[i]->CreateUAV(&uavDesc);
+			m_AccumBuffer[i]->CreateSRV(&gBuffDescSRV, false);
 			m_AccumBuffer[i]->CreateRTV(nullptr);
 			
 			wchar_t bufferName[32];
@@ -100,11 +92,6 @@ namespace EduEngine
 		return m_GBuffers[index].get();
 	}
 
-	std::shared_ptr<TextureD3D12> GBuffer::GetGBufferShared(int index) const
-	{
-		return m_GBuffers[index];
-	}
-
 	D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::GetGBufferRTVView(int index) const
 	{
 		return m_GBuffers[index]->GetRTVView()->GetCpuHandle();
@@ -118,11 +105,6 @@ namespace EduEngine
 	TextureD3D12* GBuffer::GetAccumBuffer(int index) const
 	{
 		return m_AccumBuffer[index].get();
-	}
-
-	std::shared_ptr<TextureD3D12> GBuffer::GetAccumBufferShared(int index) const
-	{
-		return m_AccumBuffer[index];
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GBuffer::GetAccumBuffRTVView(int index) const

@@ -51,9 +51,9 @@ namespace EduEngine
 
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
+		std::shared_ptr<BufferD3D12> m_PostProcBuffer;
 
-		DescriptorHeapAllocation m_GpuCopyDescriptors;
-		DescriptorHeapAllocation m_GpuCopyDescriptorsSSR;
+		DescriptorHeapAllocation m_DepthGPUHandle;
 		Light m_LightData = {};
 
 		std::vector<RenderObject> m_RenderObjects;

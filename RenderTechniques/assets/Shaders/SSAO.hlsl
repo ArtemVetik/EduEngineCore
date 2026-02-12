@@ -1,19 +1,18 @@
-Texture2D gNormalMap : register(t0);
-Texture2D gDepthMap : register(t1);
-Texture2D gRandomVecMap : register(t2);
-Texture2D gInputMap : register(t3);
-
 SamplerState gsamPointClamp : register(s0);
 SamplerState gsamLinearClamp : register(s1);
 SamplerState gsamDepthMap : register(s2);
 SamplerState gsamLinearWrap : register(s3);
 
-cbuffer cbSsao : register(b0)
+cbuffer cbPass : register(b0)
 {
     float4x4 gView;
     float4x4 gProj;
     float4x4 gInvProj;
     float4x4 gProjTex;
+};
+
+cbuffer cbConstants : register(b1)
+{
     float4 gOffsetVectors[14];
     float4 gBlurWeights[3];
     float2 gInvRenderTargetSize;
@@ -21,9 +20,15 @@ cbuffer cbSsao : register(b0)
     float gOcclusionFadeStart;
     float gOcclusionFadeEnd;
     float gSurfaceEpsilon;
-};
+    
+    uint gNormalTexIdx;
+    uint gDepthTexIdx;
+    uint gRandVectorMapIdx;
+    uint gSsaoTex0Idx;
+    uint gSsaoTex1Idx;
+}
 
-cbuffer cbConstants : register(b1)
+cbuffer cbBlurPass : register(b2)
 {
     bool gHorizontalBlur;
 }
@@ -66,19 +71,16 @@ VertexOut VS(uint vertexId : SV_VertexID)
     return output;
 }
 
-half3 SampleNormal(float2 texC)
+half3 SampleNormal(Texture2D normalMap, float2 texC)
 {
 #if PACK_NORMALS > 0
-    half2 nEnc = gNormalMap.SampleLevel(gsamPointClamp, texC, 0.0f).xy;
+    half2 nEnc = normalMap.SampleLevel(gsamPointClamp, texC, 0.0f).xy;
     half3 n = normal_decode(nEnc);
 #else
-    half3 n = gNormalMap.SampleLevel(gsamPointClamp, texC, 0.0f).xyz;
+    half3 n = normalMap.SampleLevel(gsamPointClamp, texC, 0.0f).xyz;
 #endif
     
-#if WORLD_SPACE_NORMALS
     n = mul(n, (float3x3)gView);
-#endif
-    
     return n;
 }
 
@@ -132,9 +134,13 @@ float4 PS_SSAO(VertexOut pin) : SV_Target
 	// q -- a random offset from p.
 	// r -- a potential occluder that might occlude p.
 
+    Texture2D normalTex = ResourceDescriptorHeap[gNormalTexIdx];
+    Texture2D depthTex = ResourceDescriptorHeap[gDepthTexIdx];
+    Texture2D randVectorMap = ResourceDescriptorHeap[gRandVectorMapIdx];
+    
 	// Get viewspace normal and z-coord of this pixel.  
-    half3 n = SampleNormal(pin.TexC);
-    float pz = gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
+    half3 n = SampleNormal(normalTex, pin.TexC);
+    float pz = depthTex.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
     pz = NdcDepthToViewDepth(pz);
 
     
@@ -147,7 +153,7 @@ float4 PS_SSAO(VertexOut pin) : SV_Target
     float3 p = (pz / pin.PosV.z) * pin.PosV;
 	
 	// Extract random vector and map from [0,1] --> [-1, +1].
-    float3 randVec = 2.0f * gRandomVecMap.SampleLevel(gsamLinearWrap, 4.0f * pin.TexC, 0.0f).rgb - 1.0f;
+    float3 randVec = 2.0f * randVectorMap.SampleLevel(gsamLinearWrap, 4.0f * pin.TexC, 0.0f).rgb - 1.0f;
 
     float occlusionSum = 0.0f;
 	
@@ -173,7 +179,7 @@ float4 PS_SSAO(VertexOut pin) : SV_Target
 		// the depth of q, as q is just an arbitrary point near p and might
 		// occupy empty space).  To find the nearest depth we look it up in the depthmap.
 
-        float rz = gDepthMap.SampleLevel(gsamDepthMap, projQ.xy, 0.0f).r;
+        float rz = depthTex.SampleLevel(gsamDepthMap, projQ.xy, 0.0f).r;
         rz = NdcDepthToViewDepth(rz);
 
 		// Reconstruct full view space position r = (rx,ry,rz).  We know r
@@ -212,8 +218,6 @@ float4 PS_SSAO(VertexOut pin) : SV_Target
 
 float4 PS_Blur(VertexOut pin) : SV_Target
 {
-    //return gInputMap.Sample(gsamPointClamp, pin.TexC);
-    
     // unpack into float array.
     float blurWeights[12] =
     {
@@ -223,23 +227,29 @@ float4 PS_Blur(VertexOut pin) : SV_Target
     };
 
     float2 texOffset;
+    Texture2D inputMap;
+    
     if (gHorizontalBlur)
     {
         texOffset = float2(gInvRenderTargetSize.x, 0.0f);
+        inputMap = ResourceDescriptorHeap[gSsaoTex0Idx];
     }
     else
     {
         texOffset = float2(0.0f, gInvRenderTargetSize.y);
+        inputMap = ResourceDescriptorHeap[gSsaoTex1Idx];
     }
 
+    Texture2D depthTex = ResourceDescriptorHeap[gDepthTexIdx];
+    Texture2D normalTex = ResourceDescriptorHeap[gNormalTexIdx];
+    
 	// The center value always contributes to the sum.
-    float4 color = blurWeights[gBlurRadius] * gInputMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0);
+    float4 color = blurWeights[gBlurRadius] * inputMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0);
     float totalWeight = blurWeights[gBlurRadius];
 	 
-    half3 centerNormal = SampleNormal(pin.TexC);
+    half3 centerNormal = SampleNormal(normalTex, pin.TexC);
 
-    float centerDepth = NdcDepthToViewDepth(
-        gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r);
+    float centerDepth = NdcDepthToViewDepth(depthTex.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r);
 
     for (float i = -gBlurRadius; i <= gBlurRadius; ++i)
     {
@@ -249,10 +259,9 @@ float4 PS_Blur(VertexOut pin) : SV_Target
 
         float2 tex = pin.TexC + i * texOffset;
 
-        half3 neighborNormal = SampleNormal(tex);
+        half3 neighborNormal = SampleNormal(normalTex, tex);
 
-        float neighborDepth = NdcDepthToViewDepth(
-            gDepthMap.SampleLevel(gsamDepthMap, tex, 0.0f).r);
+        float neighborDepth = NdcDepthToViewDepth(depthTex.SampleLevel(gsamDepthMap, tex, 0.0f).r);
 
 		//
 		// If the center value and neighbor values differ too much (either in 
@@ -266,7 +275,7 @@ float4 PS_Blur(VertexOut pin) : SV_Target
             float weight = blurWeights[i + gBlurRadius];
 
 			// Add neighbor pixel to blur.
-            color += weight * gInputMap.SampleLevel(
+            color += weight * inputMap.SampleLevel(
                 gsamPointClamp, tex, 0.0);
 		
             totalWeight += weight;

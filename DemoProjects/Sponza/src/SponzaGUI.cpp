@@ -63,16 +63,16 @@ namespace EduEngine
 			SSAO::Settings ssaoSettings = m_Sponza->m_Ssao->GetSettings();
 
 			if (ImGui::SliderFloat("Occlusion Radius", &ssaoSettings.OcclusionRadius, 0.0f, 1.0f))
-				m_Sponza->m_Ssao->UpdateSettings(ssaoSettings);
+				m_Sponza->m_Ssao->UpdateSettings(m_Sponza->GetMainContext(), ssaoSettings);
 
 			if (ImGui::SliderFloat("Occlusion Fade Start", &ssaoSettings.OcclusionFadeStart, 0.0f, 1.0f))
-				m_Sponza->m_Ssao->UpdateSettings(ssaoSettings);
+				m_Sponza->m_Ssao->UpdateSettings(m_Sponza->GetMainContext(), ssaoSettings);
 
 			if (ImGui::SliderFloat("Occlusion Fade End", &ssaoSettings.OcclusionFadeEnd, 0.0f, 1.0f))
-				m_Sponza->m_Ssao->UpdateSettings(ssaoSettings);
+				m_Sponza->m_Ssao->UpdateSettings(m_Sponza->GetMainContext(), ssaoSettings);
 
 			if (ImGui::SliderFloat("Surface Epsilon", &ssaoSettings.SurfaceEpsilon, 0.0f, 0.1f))
-				m_Sponza->m_Ssao->UpdateSettings(ssaoSettings);
+				m_Sponza->m_Ssao->UpdateSettings(m_Sponza->GetMainContext(), ssaoSettings);
 		}
 
 		if (ImGui::CollapsingHeader("SSR"))

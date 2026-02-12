@@ -198,33 +198,21 @@ namespace EduEngine
 		for (uint32 i = 0; i < 2; i++)
 		{
 			m_ReflectionTex[i] = std::make_shared<TextureD3D12>(m_Device, texDesc, nullptr, QueueId::Direct);
-			m_ReflectionTex[i]->CreateSRV(&srvDesc); // TODO: create GPU handles, not CPU (make bindless)
-			m_ReflectionTex[i]->CreateUAV(&uavDesc);
+			m_ReflectionTex[i]->CreateSRV(&srvDesc, false);
+			m_ReflectionTex[i]->CreateUAV(&uavDesc, false);
 
 			wchar_t bufferName[16];
 			swprintf(bufferName, 16, L"m_SSRTex-%d", i);
 			m_ReflectionTex[i]->SetName(bufferName);
 		}
-
-		m_GpuHandles = std::move(m_Device->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2));
-
-		m_Device->GetD3D12Device()->CopyDescriptorsSimple(1,
-			m_GpuHandles.GetCpuHandle(0),
-			m_ReflectionTex[0]->GetSRVView()->GetCpuHandle(),
-			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		m_Device->GetD3D12Device()->CopyDescriptorsSimple(1,
-			m_GpuHandles.GetCpuHandle(1),
-			m_ReflectionTex[1]->GetSRVView()->GetCpuHandle(),
-			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
 
-	std::shared_ptr<TextureD3D12> ScreenSpaceReflection::GetSSRTextureShared() const
+	TextureD3D12* ScreenSpaceReflection::GetSSRTexture() const
 	{
 		if (m_Settings.BlurEnabled)
-			return m_ReflectionTex[1];
+			return m_ReflectionTex[1].get();
 		else
-			return m_ReflectionTex[0];
+			return m_ReflectionTex[0].get();
 	}
 
 	std::shared_ptr<PipelineStateBase> ScreenSpaceReflection::BuildPso(bool blurPso)
@@ -268,8 +256,8 @@ namespace EduEngine
 		data.NormalTexIdx = m_TexIndexes.NormalTexIdx;
 		data.MaskTexIdx = m_TexIndexes.MaskTexIdx;
 		data.DepthTexIdx = m_TexIndexes.DepthTexIdx;
-		data.SSRTexIdx0 = m_GpuHandles.GetGpuHeapIndex(0);
-		data.SSRTexIdx1 = m_GpuHandles.GetGpuHeapIndex(1);
+		data.SSRTexIdx0 = m_ReflectionTex[0]->GetSRVView()->GetGpuHeapIndex();
+		data.SSRTexIdx1 = m_ReflectionTex[1]->GetSRVView()->GetGpuHeapIndex();
 		data.MaxIterations = m_Settings.MaxIterations;
 		data.DepthThickness = m_Settings.DepthThickness;
 		data.BlurWeights[0] = XMFLOAT4(&weights[0]);

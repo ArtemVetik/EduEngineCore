@@ -3,6 +3,7 @@
 #include <TextureD3D12.h>
 #include <PipelineState.h>
 #include <RenderFeatures.h>
+#include <BufferD3D12.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -22,19 +23,19 @@ namespace EduEngine
 	public:
 		SSAO(RenderDeviceD3D12* device, DeviceContext* context, uint64 rtWidth, uint64 rtHeight);
 
-		void BindResources(std::shared_ptr<TextureD3D12> normalMap, std::shared_ptr<TextureD3D12> depthMap);
+		void BindResources(DeviceContext* context, UINT normalTextureGpuIdx, UINT depthTextureGpuIdx);
+		void UpdateSettings(DeviceContext* context, Settings settings);
 
-		void Update(const Camera* camera, DeviceContext* context);
+		void Update(DeviceContext* context, const Camera* camera);
 		void Render(DeviceContext* context);
-
-		Settings GetSettings() const { return m_Settings; }
-		void UpdateSettings(Settings settings);
 
 		void Resize(uint64 rtWidth, uint64 rtHeight);
 
+		Settings GetSettings() const { return m_Settings; }
 		std::shared_ptr<TextureD3D12> GetSSAOMap() const { return m_SsaoTexture[0]; }
 
 	private:
+		void UpdateConstantsBuffer(DeviceContext* context);
 		std::shared_ptr<PipelineState> BuildPSO(bool blurPso);
 		std::vector<float> CalcGaussWeights(float sigma);
 
@@ -46,19 +47,21 @@ namespace EduEngine
 		PSOEntry m_BlurPsoEntry = {};
 
 		std::shared_ptr<ShaderBinder> m_SsaoBinder;
-		std::shared_ptr<ShaderBinder> m_BlurBinder[2];
+		std::shared_ptr<ShaderBinder> m_BlurBinder;
 
 		std::shared_ptr<TextureD3D12> m_SsaoTexture[2];
 		std::shared_ptr<TextureD3D12> m_RandVectorMap;
 
-		std::shared_ptr<DynamicUploadBuffer> m_SsaoBuffer;
-		std::shared_ptr<DynamicUploadBuffer> m_ConstantsBuffer;
+		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
+		std::shared_ptr<DynamicUploadBuffer> m_BlurPassBuffer;
+		std::shared_ptr<BufferD3D12> m_ConstantsBuffer;
 
 		XMFLOAT4 m_Offsets[14];
-		uint64 m_Width;
-		uint64 m_Height;
-		D3D12_VIEWPORT m_Viewport;
-		D3D12_RECT m_ScissorRect;
+		UINT m_NormalTexIdx = -1;
+		UINT m_DepthTexIdx = -1;
+
+		D3D12_VIEWPORT m_Viewport = {};
+		D3D12_RECT m_ScissorRect = {};
 		Settings m_Settings = {};
 
 		RenderDeviceD3D12* m_Device;
