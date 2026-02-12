@@ -80,10 +80,16 @@ namespace EduEngine
 			ScreenSpaceReflection::Settings ssrSettings = m_Sponza->m_SSR->GetSettings();
 
 			if (ImGui::SliderInt("Max Iterations", (int*)&ssrSettings.MaxIterations, 1, 4096))
-				m_Sponza->m_SSR->UpdateSettings(ssrSettings);
+				m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
 
-			if (ImGui::SliderFloat("Depth Thickness", &ssrSettings.DepthThickness, 0.0f, 0.5f))
-				m_Sponza->m_SSR->UpdateSettings(ssrSettings);
+			if (ImGui::SliderFloat("Depth Thickness", &ssrSettings.DepthThickness, 0.0f, 0.01f, "%.4f"))
+				m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+
+			if (ImGui::Checkbox("Blur Enabled", &ssrSettings.BlurEnabled))
+			{
+				m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+				m_Sponza->OnResize();
+			}
 		}
 
 		if (ImGui::CollapsingHeader("Reflection Probes"))

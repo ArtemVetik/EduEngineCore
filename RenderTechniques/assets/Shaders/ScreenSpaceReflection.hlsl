@@ -1,22 +1,40 @@
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
 
+static const int gBlurRadius = 5;
+
 cbuffer cbPass : register(b0)
 {
     float4x4 gView;
     float4x4 gProj;
     float4x4 gInvProj;
+}
+
+cbuffer cbConstants : register(b1)
+{
     uint2 gScreenSize;
-    uint gAlbedoTexIdx;
+    uint gInputColorTexIdx;
     uint gNormalTexIdx;
+    
     uint gMaskTexIdx;
     uint gDepthTexIdx;
-    uint gOutTexIdx;
+    uint gSSRTexIdx0;
+    uint gSSRTexIdx1;
+    
     uint gMaxIterations;
     float gDepthThickness;
+    uint2 gPadding;
+    
+    float4 gBlurWeights[3];
+}
+
+cbuffer cbBlurPass : register(b2)
+{
+    uint gHorizontalBlur;
 }
 
 #include "CommonTransforms.hlsli"
+#include "PackNormals.hlsli"
 
 void ComputePosAndReflection(uint2 tid, float3 normalVS, Texture2D<float4> depthTex, out float3 outSamplePosInTS, out float3 outReflDirInTS, out float outMaxDistance)
 {
@@ -130,26 +148,31 @@ float4 ComputeReflectedColor(Texture2D<float4> albedoTex, float intensity, float
 }
 
 [numthreads(32, 32, 1)]
-void CS(uint2 tid : SV_DispatchThreadID)
+void CS_Main(uint2 tid : SV_DispatchThreadID)
 {
     if (tid.x >= gScreenSize.x || tid.y >= gScreenSize.y)
         return;
     
     float4 finalColor = 0;
 
-    Texture2D<float4> albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
-    Texture2D<float4> normalTex = ResourceDescriptorHeap[gNormalTexIdx];
+    Texture2D<float4> albedoTex = ResourceDescriptorHeap[gInputColorTexIdx];
     Texture2D<float4> maskTex = ResourceDescriptorHeap[gMaskTexIdx];
     Texture2D<float4> depthTex = ResourceDescriptorHeap[gDepthTexIdx];
-    RWTexture2D<float4> outTex = ResourceDescriptorHeap[gOutTexIdx];
+    RWTexture2D<float4> outTex = ResourceDescriptorHeap[gSSRTexIdx0];
     
     float2 texC = (float2(tid) + 0.5) / gScreenSize;
     
+#if PACK_NORMALS > 0
+    Texture2D<float2> normalTex = ResourceDescriptorHeap[gNormalTexIdx];
+    float2 normalPacked = normalTex.Sample(gsamPointWrap, texC).xy;
+    float3 normalInWS = normal_decode(normalPacked);
+#else
+    Texture2D<float4> normalTex = ResourceDescriptorHeap[gNormalTexIdx];
     float3 normalInWS = normalTex.Sample(gsamPointWrap, texC).xyz;
-    float reflectionMask = maskTex.Sample(gsamPointWrap, texC).w;
-    float4 color = albedoTex.Sample(gsamPointWrap, texC);
-    
+#endif
     normalInWS = normalize(normalInWS);
+    
+    float reflectionMask = maskTex.Sample(gsamPointWrap, texC).w;
     
     float3 normalVS = mul(float4(normalInWS, 0.0f), gView).xyz;
     normalVS = normalize(normalVS);
@@ -173,7 +196,97 @@ void CS(uint2 tid : SV_DispatchThreadID)
         reflectionColor = ComputeReflectedColor(albedoTex, intensity, intersection, skyColor);
     }
     
-    finalColor = color + reflectionColor;
+    outTex[tid] = reflectionColor;
+}
+
+//
+// Blur Pass
+//
+
+float NdcDepthToViewDepth(float z_ndc)
+{
+    // z_ndc = A + B/viewZ, where gProj[2,2]=A and gProj[3,2]=B.
+    float viewZ = gProj[3][2] / (z_ndc - gProj[2][2]);
+    return viewZ;
+}
+
+float3 SampleNormal(uint3 tid)
+{
+#if PACK_NORMALS > 0
+    Texture2D<float2> normalTex = ResourceDescriptorHeap[gNormalTexIdx];
+    float2 normalPacked = normalTex.Load(tid).xy;
+    float3 n = normal_decode(normalPacked);
+#else
+    Texture2D<float4> normalTex = ResourceDescriptorHeap[gNormalTexIdx];
+    float3 n = normalTex.Load(tid).xyz;
+#endif
     
-    outTex[tid] = finalColor;
+    n = mul(n, (float3x3)gView);
+    return n;
+}
+
+[numthreads(8, 8, 1)]
+void CS_Blur(uint3 tid : SV_DispatchThreadID)
+{
+    if (tid.x >= gScreenSize.x || tid.y >= gScreenSize.y)
+        return;
+    
+    float blurWeights[12] =
+    {
+        gBlurWeights[0].x, gBlurWeights[0].y, gBlurWeights[0].z, gBlurWeights[0].w,
+        gBlurWeights[1].x, gBlurWeights[1].y, gBlurWeights[1].z, gBlurWeights[1].w,
+        gBlurWeights[2].x, gBlurWeights[2].y, gBlurWeights[2].z, gBlurWeights[2].w,
+    };
+    
+    uint3 pixelOffset = gHorizontalBlur ? uint3(1, 0, 0) : uint3(0, 1, 0);
+    uint inputTexId = gHorizontalBlur ? gSSRTexIdx0 : gSSRTexIdx1;
+    uint outTexId = gHorizontalBlur ? gSSRTexIdx1 : gSSRTexIdx0;
+    
+    Texture2D<float4> inputTex = ResourceDescriptorHeap[inputTexId];
+    Texture2D<float4> depthTex = ResourceDescriptorHeap[gDepthTexIdx];
+    RWTexture2D<float4> outTex = ResourceDescriptorHeap[outTexId];
+    
+    float4 color = blurWeights[gBlurRadius] * inputTex.Load(tid);
+    float totalWeight = blurWeights[gBlurRadius];
+    
+    float3 centerNormal = SampleNormal(tid);
+    
+    float centerDepth = NdcDepthToViewDepth(depthTex.Load(tid).r);
+
+    for (int i = -gBlurRadius; i <= gBlurRadius; ++i)
+    {
+		// We already added in the center weight.
+        if (i == 0)
+            continue;
+        
+        uint3 tid2 = tid + i * pixelOffset;
+
+        if (tid2.x < 0 || tid2.y < 0 ||
+            tid2.x >= gScreenSize.x ||
+            tid2.y >= gScreenSize.y)
+            continue;
+        
+        half3 neighborNormal = SampleNormal(tid2);
+
+        float neighborDepth = NdcDepthToViewDepth(depthTex.Load(tid2).r);
+
+		//
+		// If the center value and neighbor values differ too much (either in 
+		// normal or depth), then we assume we are sampling across a discontinuity.
+		// We discard such samples from the blur.
+		//
+	
+        if (dot(neighborNormal, centerNormal) >= 0.8f &&
+		    abs(neighborDepth - centerDepth) <= 0.2f)
+        {
+            float weight = blurWeights[i + gBlurRadius];
+            
+            color += weight * inputTex.Load(tid2);
+		
+            totalWeight += weight;
+        }
+    }
+
+	// Compensate for discarded samples by making total weights sum to 1.
+    outTex[tid.xy] = color / totalWeight;
 }

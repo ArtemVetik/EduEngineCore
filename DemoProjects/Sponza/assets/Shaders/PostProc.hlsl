@@ -1,4 +1,5 @@
 Texture2D gSceneTex : register(t0);
+Texture2D gSSRTex : register(t1);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -17,10 +18,15 @@ float4 PS(VertexOut vOut) : SV_Target
 {
     float3 color = gSceneTex.Sample(gsamPointClamp, vOut.TexC).xyz;
     
-#if !defined(DEBUG_VIEW) || DEBUG_VIEW == 0
+#if defined(DEBUG_VIEW) && DEBUG_VIEW > 0
+    return float4(color, 1);
+#endif
+    
+    float3 ssrColor = gSSRTex.Sample(gsamPointClamp, vOut.TexC).xyz;
+    color += ssrColor;
+    
     color = color / (color + 1);
     color = pow(color, 1.0 / 2.2);
-#endif
     
     return float4(color, 1);
 }
