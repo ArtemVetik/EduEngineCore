@@ -50,7 +50,7 @@ void ComputePosAndReflection(uint2 tid, float3 normalVS, Texture2D<float4> depth
     float3 vCamToSampleInVS = normalize(samplePosInVS.xyz);
     float4 vReflectionInVS = float4(reflect(vCamToSampleInVS, normalVS), 0);
     
-    float4 vReflectionEndPosInVS = samplePosInVS + vReflectionInVS * 1000;
+    float4 vReflectionEndPosInVS = samplePosInVS + vReflectionInVS;
     vReflectionEndPosInVS /= (vReflectionEndPosInVS.z < 0 ? vReflectionEndPosInVS.z : 1);
     float4 vReflectionEndPosInCS = mul(float4(vReflectionEndPosInVS.xyz, 1), gProj);
     vReflectionEndPosInCS /= vReflectionEndPosInCS.w;
@@ -108,25 +108,30 @@ float FindIntersection_Linear(Texture2D<float4> depthTex, float3 samplePosInTS, 
         depth2 = depthTex.Sample(gsamPointClamp, rayPosInTS2.xy).x;
         depth1 = depthTex.Sample(gsamPointClamp, rayPosInTS1.xy).x;
         depth0 = depthTex.Sample(gsamPointClamp, rayPosInTS0.xy).x;
-
+        
+        bool hit = false;
         {
             float thickness = depth3 - rayPosInTS3.z;
             hitIndex = (thickness >= 0 && thickness < gDepthThickness) ? (i + 3) : hitIndex;
+            hit = thickness >= 0;
         }
         {
             float thickness = depth2 - rayPosInTS2.z;
             hitIndex = (thickness >= 0 && thickness < gDepthThickness) ? (i + 2) : hitIndex;
+            hit = thickness >= 0;
         }
         {
             float thickness = depth1 - rayPosInTS1.z;
             hitIndex = (thickness >= 0 && thickness < gDepthThickness) ? (i + 1) : hitIndex;
+            hit = thickness >= 0;
         }
         {
             float thickness = depth0 - rayPosInTS0.z;
             hitIndex = (thickness >= 0 && thickness < gDepthThickness) ? (i + 0) : hitIndex;
+            hit = thickness >= 0;
         }
 
-        if (hitIndex != -1)
+        if (hitIndex != -1 || hit)
             break;
 
         rayPosInTS = rayPosInTS3 + vRayDirInTS;
