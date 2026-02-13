@@ -77,23 +77,38 @@ namespace EduEngine
 
 		if (ImGui::CollapsingHeader("SSR"))
 		{
+			ImGui::PushID("SSR");
+
 			ScreenSpaceReflection::Settings ssrSettings = m_Sponza->m_SSR->GetSettings();
 
-			if (ImGui::SliderInt("Max Iterations", (int*)&ssrSettings.MaxIterations, 1, 4096))
-				m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+			if (ImGui::Checkbox("Enabled", &m_Sponza->m_SSREnabled))
+				m_Sponza->UpdatePostProcData();
 
-			if (ImGui::SliderFloat("Depth Thickness", &ssrSettings.DepthThickness, 0.0f, 0.01f, "%.4f"))
-				m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+			if (ImGui::SliderFloat("Intensity", &m_Sponza->m_SSRIntensity, 0.0f, 2.0f))
+				m_Sponza->UpdatePostProcData();
 
-			if (ImGui::Checkbox("Blur Enabled", &ssrSettings.BlurEnabled))
+			if (m_Sponza->m_SSREnabled)
 			{
-				m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
-				m_Sponza->OnResize();
+				if (ImGui::SliderInt("Max Iterations", (int*)&ssrSettings.MaxIterations, 1, 4096))
+					m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+
+				if (ImGui::SliderFloat("Depth Thickness", &ssrSettings.DepthThickness, 0.0f, 0.01f, "%.4f"))
+					m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+
+				if (ImGui::Checkbox("Blur Enabled", &ssrSettings.BlurEnabled))
+				{
+					m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+					m_Sponza->OnResize();
+				}
 			}
+
+			ImGui::PopID();
 		}
 
 		if (ImGui::CollapsingHeader("Reflection Probes"))
 		{
+			ImGui::PushID("ReflectionProbes");
+
 			bool active = m_Sponza->m_ReflectionProbeMgr->IsActive();
 			if (ImGui::Checkbox("Enabled", &active))
 				m_Sponza->m_ReflectionProbeMgr->SetActive(active);
@@ -138,6 +153,8 @@ namespace EduEngine
 				ImGui::Unindent();
 				ImGui::PopID();
 			}
+
+			ImGui::PopID();
 		}
 
 		if (ImGui::CollapsingHeader("Debug View"))

@@ -29,6 +29,7 @@ namespace EduEngine
 		void OnResize() override;
 
 	private:
+		void UpdatePostProcData();
 		void BuildDrawPso();
 		std::shared_ptr<PipelineStateBase> BuildPostProcPso();
 
@@ -61,6 +62,8 @@ namespace EduEngine
 		std::unique_ptr<DebugRendererSystem> m_DebugRenderer;
 
 		SponzaGUI m_GUI;
+		float m_SSRIntensity = 1.0f;
+		bool m_SSREnabled = false;
 
 	private:
 		friend SponzaGUI;

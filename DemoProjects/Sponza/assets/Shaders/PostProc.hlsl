@@ -9,6 +9,7 @@ cbuffer cbPass : register(b0)
 {
     uint gSceneTextureIdx;
     uint gSSRTextureIdx;
+    float gSSRIntensity;
 }
 
 struct VertexOut
@@ -26,9 +27,12 @@ float4 PS(VertexOut vOut) : SV_Target
     return float4(color, 1);
 #endif
     
-    Texture2D ssrTex = ResourceDescriptorHeap[gSSRTextureIdx];
-    float3 ssrColor = ssrTex.Sample(gsamPointClamp, vOut.TexC).xyz;
-    color += ssrColor;
+    if (gSSRTextureIdx != -1)
+    {
+        Texture2D ssrTex = ResourceDescriptorHeap[gSSRTextureIdx];
+        float3 ssrColor = ssrTex.Sample(gsamPointClamp, vOut.TexC).xyz;
+        color += ssrColor * gSSRIntensity;
+    }
     
     color = color / (color + 1);
     color = pow(color, 1.0 / 2.2);

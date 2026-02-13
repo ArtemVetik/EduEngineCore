@@ -11,6 +11,7 @@ namespace EduEngine
 	{
 		UINT SceneTextureIdx;
 		UINT SSRTextureIdx;
+		float SSRIntensity = 1.0f;
 	};
 
 	void SponzaDemo::OnStartUp()
@@ -311,11 +312,17 @@ namespace EduEngine
 
 		if (updatePostProc)
 		{
-			PostProcData data = { };
-			data.SceneTextureIdx = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();
-			data.SSRTextureIdx = m_SSR->GetSSRTexture()->GetSRVView()->GetGpuHeapIndex();
-			m_PostProcBuffer->LoadData(GetMainContext(), &data);
+			UpdatePostProcData();
 		}
+	}
+
+	void SponzaDemo::UpdatePostProcData()
+	{
+		PostProcData data = { };
+		data.SceneTextureIdx = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();
+		data.SSRTextureIdx = m_SSREnabled ? m_SSR->GetSSRTexture()->GetSRVView()->GetGpuHeapIndex() : (UINT)-1;
+		data.SSRIntensity = m_SSRIntensity;
+		m_PostProcBuffer->LoadData(GetMainContext(), &data);
 	}
 
 	void SponzaDemo::BuildDrawPso()
