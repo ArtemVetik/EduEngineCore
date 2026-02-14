@@ -17,12 +17,37 @@ namespace EduEngine
 	void SponzaGUI::RenderImGUI()
 	{
 		ReflectionProbe* probeToBake = nullptr;
+		bool bakeAllProbes = false;
 
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
 		ImGui::Begin("Editor", nullptr);
+
+		if (ImGui::CollapsingHeader("Light Settings"))
+		{
+			static float yaw = -0.5f;
+			static float pitch = -1.2f;
+
+			bool updateLight = false;
+
+			if (ImGui::DragFloat("Yaw", &yaw, 0.01f))
+				updateLight = true;
+
+			if (ImGui::DragFloat("Pitch", &pitch, 0.01f, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f))
+				updateLight = true;
+
+			if (updateLight)
+			{
+				XMFLOAT3 dir;
+				dir.x = cosf(pitch) * cosf(yaw);
+				dir.y = sinf(pitch);
+				dir.z = cosf(pitch) * sinf(yaw);
+
+				m_Sponza->m_LightData.Direction = dir;
+			}
+		}
 
 		if (ImGui::CollapsingHeader("Shadow Settings"))
 		{
@@ -137,6 +162,9 @@ namespace EduEngine
 			if (ImGui::Checkbox("Enabled", &active))
 				m_Sponza->m_ReflectionProbeMgr->SetActive(active);
 
+			if (ImGui::Button("Bake All"))
+				bakeAllProbes = true;
+
 			if (ImGui::Button("Add New"))
 			{
 				ReflectionProbe::Settings probeSettings = {};
@@ -220,6 +248,18 @@ namespace EduEngine
 		if (probeToBake)
 		{
 			probeToBake->Bake(m_Sponza->GetMainContext(), m_Sponza->m_IBLRendering.get(), m_Sponza->m_Skybox.get(), &m_Sponza->m_LightData, 1, m_Sponza->m_RenderObjects.data(), m_Sponza->m_RenderObjects.size());
+			m_Sponza->m_ReflectionProbeMgr->RebuildBuffer(m_Sponza->GetMainContext());
+			m_Sponza->OnResize();
+		}
+
+		if (bakeAllProbes)
+		{
+			for (uint32 i = 0; i < m_Sponza->m_ReflectionProbeMgr->Count(); i++)
+			{
+				m_Sponza->m_ReflectionProbeMgr->GetReflectionProbe(i)->Bake(
+					m_Sponza->GetMainContext(), m_Sponza->m_IBLRendering.get(), m_Sponza->m_Skybox.get(), &m_Sponza->m_LightData, 1, m_Sponza->m_RenderObjects.data(), m_Sponza->m_RenderObjects.size()
+				);
+			}
 			m_Sponza->m_ReflectionProbeMgr->RebuildBuffer(m_Sponza->GetMainContext());
 			m_Sponza->OnResize();
 		}
