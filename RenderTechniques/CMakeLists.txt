@@ -16,6 +16,7 @@ add_library(RenderTechniques STATIC
     src/Skybox.cpp
     src/ScreenSpaceReflection.cpp
     src/VolumetricLight.cpp
+    src/Bloom.cpp
 )
 
 target_include_directories(RenderTechniques

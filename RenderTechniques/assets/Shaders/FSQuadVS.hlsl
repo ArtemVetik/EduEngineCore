@@ -1,4 +1,3 @@
-// TODO: Move this shader to BaseDemo
 
 static const float2 pos[3] =
 {

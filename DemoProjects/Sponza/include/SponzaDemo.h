@@ -13,6 +13,7 @@
 #include <ReflectionProbe.h>
 #include <ScreenSpaceReflection.h>
 #include <VolumetricLight.h>
+#include <Bloom.h>
 #include <SponzaCommon.h>
 #include <DebugRendererSystem.h>
 #include <SponzaGUI.h>
@@ -44,6 +45,7 @@ namespace EduEngine
 		std::unique_ptr<ReflectionProbesManager> m_ReflectionProbeMgr;
 		std::unique_ptr<ScreenSpaceReflection> m_SSR;
 		std::unique_ptr<VolumetricLight> m_VolumetricLight;
+		std::unique_ptr<Bloom> m_Bloom;
 
 		std::shared_ptr<Mesh> m_Mesh;
 

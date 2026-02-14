@@ -209,6 +209,27 @@ namespace EduEngine
 			ImGui::PopID();
 		}
 
+		if (ImGui::CollapsingHeader("Bloom"))
+		{
+			ImGui::PushID("Bloom");
+
+			Bloom::Settings settings = m_Sponza->m_Bloom->GetSettings();
+
+			if (ImGui::SliderFloat("Threshold", (float*)&settings.Threshold, 0.1f, 5.0f))
+				m_Sponza->m_Bloom->UpdateSettings(m_Sponza->GetMainContext(), settings);
+
+			if (ImGui::SliderFloat("Intensity", (float*)&settings.Intensity, 0.1f, 2.0f))
+				m_Sponza->m_Bloom->UpdateSettings(m_Sponza->GetMainContext(), settings);
+
+			if (ImGui::SliderFloat("Scatter", (float*)&settings.Scatter, 0.0f, 1.0f))
+				m_Sponza->m_Bloom->UpdateSettings(m_Sponza->GetMainContext(), settings);
+
+			if (ImGui::ColorEdit3("Tint", (float*)&settings.Tint))
+				m_Sponza->m_Bloom->UpdateSettings(m_Sponza->GetMainContext(), settings);
+
+			ImGui::PopID();
+		}
+
 		if (ImGui::CollapsingHeader("Debug View"))
 		{
 			static int currentView = 0;

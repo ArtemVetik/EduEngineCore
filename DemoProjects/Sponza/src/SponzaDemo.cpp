@@ -11,6 +11,7 @@ namespace EduEngine
 	{
 		UINT SceneTextureIdx;
 		UINT SSRTextureIdx;
+		UINT BloomTextureIdx;
 		UINT VolumetricLightTextureIdx;
 		float SSRIntensity = 1.0f;
 	};
@@ -47,6 +48,7 @@ namespace EduEngine
 		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
 		m_SSR = std::make_unique<ScreenSpaceReflection>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 		m_VolumetricLight = std::make_unique<VolumetricLight>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
+		m_Bloom = std::make_unique<Bloom>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 
 		struct ProbeInitData
 		{
@@ -239,13 +241,18 @@ namespace EduEngine
 		m_LightPass->Render(GetMainContext(), m_GBuffer->GetAccumBuffer(0));
 
 		m_SSR->Render(GetMainContext(), GetCamera());
-		
+
 		if (m_VolumetricLightEnabled)
 			m_VolumetricLight->Render(GetMainContext(), GetCamera(), m_CSMRendering.get(), &m_LightData, m_DepthGPUHandle.GetGpuHeapIndex(0));
 
+		m_Bloom->Render(GetMainContext(), m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex());
+		
 		//
 		// Post process pass
 		//
+		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
+		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
+
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
 		m_PostProcPso.Pso->CommitAll(GetMainContext(), m_PostProcBinder.get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
@@ -292,6 +299,11 @@ namespace EduEngine
 			m_VolumetricLight->Resize(GetViewport().Width, GetViewport().Height);
 		}
 
+		if (m_Bloom)
+		{
+			m_Bloom->Resize(GetMainContext(), GetViewport().Width, GetViewport().Height);
+		}
+
 		if (m_Ssao)
 		{
 			m_Ssao->Resize(GetViewport().Width, GetViewport().Height);
@@ -331,6 +343,7 @@ namespace EduEngine
 		PostProcData data = { };
 		data.SceneTextureIdx = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();
 		data.SSRTextureIdx = m_SSREnabled ? m_SSR->GetSSRTexture()->GetSRVView()->GetGpuHeapIndex() : (UINT)-1;
+		data.BloomTextureIdx = m_Bloom->GetBloomTextureIdx();
 		data.VolumetricLightTextureIdx = m_VolumetricLightEnabled ? m_VolumetricLight->GetTexture()->GetSRVView()->GetGpuHeapIndex() : (UINT)-1;
 		data.SSRIntensity = m_SSRIntensity;
 
