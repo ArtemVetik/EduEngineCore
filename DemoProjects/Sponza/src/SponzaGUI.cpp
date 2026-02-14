@@ -58,6 +58,30 @@ namespace EduEngine
 				m_Sponza->m_CSMRendering->UpdateSettings(m_Sponza->GetMainContext(), csmSettings);
 		}
 
+		if (ImGui::CollapsingHeader("Volumetric Light"))
+		{
+			ImGui::PushID("VolumetricLight");
+
+			if (ImGui::Checkbox("Enabled", &m_Sponza->m_VolumetricLightEnabled))
+				m_Sponza->UpdatePostProcData();
+
+			VolumetricLight::Settings settings = m_Sponza->m_VolumetricLight->GetSettings();
+
+			if (ImGui::SliderInt("Num Steps", (int*)&settings.NumSteps, 5, 200))
+				m_Sponza->m_VolumetricLight->UpdateSettings(settings);
+
+			if (ImGui::SliderFloat("Density", &settings.Density, 0.0f, 2.0f))
+				m_Sponza->m_VolumetricLight->UpdateSettings(settings);
+
+			if (ImGui::SliderFloat("Absorption", &settings.Absorption, 0.001f, 0.2f, "%.4f"))
+				m_Sponza->m_VolumetricLight->UpdateSettings(settings);
+
+			if (ImGui::SliderFloat("Intensity", &settings.Intensity, 0.0f, 2.0f))
+				m_Sponza->m_VolumetricLight->UpdateSettings(settings);
+
+			ImGui::PopID();
+		}
+
 		if (ImGui::CollapsingHeader("SSAO"))
 		{
 			SSAO::Settings ssaoSettings = m_Sponza->m_Ssao->GetSettings();

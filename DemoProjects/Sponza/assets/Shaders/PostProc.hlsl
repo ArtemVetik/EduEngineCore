@@ -9,6 +9,7 @@ cbuffer cbPass : register(b0)
 {
     uint gSceneTextureIdx;
     uint gSSRTextureIdx;
+    uint gVolumetricLightTextureIdx;
     float gSSRIntensity;
 }
 
@@ -32,6 +33,13 @@ float4 PS(VertexOut vOut) : SV_Target
         Texture2D ssrTex = ResourceDescriptorHeap[gSSRTextureIdx];
         float3 ssrColor = ssrTex.Sample(gsamPointClamp, vOut.TexC).xyz;
         color += ssrColor * gSSRIntensity;
+    }
+    
+    if (gVolumetricLightTextureIdx != -1)
+    {
+        Texture2D volumLightTex = ResourceDescriptorHeap[gVolumetricLightTextureIdx];
+        float volumLight = volumLightTex.Sample(gsamPointClamp, vOut.TexC).r;
+        color += volumLight;
     }
     
     color = color / (color + 1);

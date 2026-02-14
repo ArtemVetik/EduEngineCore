@@ -15,6 +15,7 @@ add_library(RenderTechniques STATIC
     src/ReflectionProbe.cpp
     src/Skybox.cpp
     src/ScreenSpaceReflection.cpp
+    src/VolumetricLight.cpp
 )
 
 target_include_directories(RenderTechniques

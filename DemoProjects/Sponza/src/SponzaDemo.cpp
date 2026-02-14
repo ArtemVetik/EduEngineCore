@@ -11,6 +11,7 @@ namespace EduEngine
 	{
 		UINT SceneTextureIdx;
 		UINT SSRTextureIdx;
+		UINT VolumetricLightTextureIdx;
 		float SSRIntensity = 1.0f;
 	};
 
@@ -45,6 +46,7 @@ namespace EduEngine
 
 		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
 		m_SSR = std::make_unique<ScreenSpaceReflection>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
+		m_VolumetricLight = std::make_unique<VolumetricLight>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 
 		struct ProbeInitData
 		{
@@ -237,6 +239,9 @@ namespace EduEngine
 		m_LightPass->Render(GetMainContext(), m_GBuffer->GetAccumBuffer(0));
 
 		m_SSR->Render(GetMainContext(), GetCamera());
+		
+		if (m_VolumetricLightEnabled)
+			m_VolumetricLight->Render(GetMainContext(), GetCamera(), m_CSMRendering.get(), &m_LightData, m_DepthGPUHandle.GetGpuHeapIndex(0));
 
 		//
 		// Post process pass
@@ -282,6 +287,11 @@ namespace EduEngine
 			updatePostProc = true;
 		}
 
+		if (m_VolumetricLight)
+		{
+			m_VolumetricLight->Resize(GetViewport().Width, GetViewport().Height);
+		}
+
 		if (m_Ssao)
 		{
 			m_Ssao->Resize(GetViewport().Width, GetViewport().Height);
@@ -321,7 +331,9 @@ namespace EduEngine
 		PostProcData data = { };
 		data.SceneTextureIdx = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();
 		data.SSRTextureIdx = m_SSREnabled ? m_SSR->GetSSRTexture()->GetSRVView()->GetGpuHeapIndex() : (UINT)-1;
+		data.VolumetricLightTextureIdx = m_VolumetricLightEnabled ? m_VolumetricLight->GetTexture()->GetSRVView()->GetGpuHeapIndex() : (UINT)-1;
 		data.SSRIntensity = m_SSRIntensity;
+
 		m_PostProcBuffer->LoadData(GetMainContext(), &data);
 	}
 
