@@ -212,7 +212,7 @@ namespace EduEngine
 		m_SsaoPsoEntry.Pso->CommitAll(context, m_SsaoBinder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 		
-		bool horizontalBlur = true;
+		UINT horizontalBlur = 1;
 		m_BlurPassBuffer->LoadData(context, horizontalBlur);
 
 		context->GetCommandCtx()->TransitionResource(m_SsaoTexture[1].get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -223,7 +223,7 @@ namespace EduEngine
 		m_BlurPsoEntry.Pso->CommitAll(context, m_BlurBinder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
-		horizontalBlur = false;
+		horizontalBlur = 0;
 		m_BlurPassBuffer->LoadData(context, horizontalBlur);
 
 		context->GetCommandCtx()->TransitionResource(m_SsaoTexture[0].get(), D3D12_RESOURCE_STATE_RENDER_TARGET);

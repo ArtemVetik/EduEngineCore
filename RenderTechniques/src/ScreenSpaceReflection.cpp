@@ -141,13 +141,13 @@ namespace EduEngine
 		// Blur pass
 		//
 
-		bool horizontal = true;
+		UINT horizontal = 1;
 		m_BlurPassBuffer->LoadData(context, horizontal);
 
 		m_BlurPso.Pso->CommitAll(context, m_BlurBinder.get());
 		context->GetCommandCtx()->GetCmdList()->Dispatch(ceilf(camera->GetViewportSize().x / 8.0f), ceilf(camera->GetViewportSize().y / 8.0f), 1);
 		
-		horizontal = false;
+		horizontal = 0;
 		m_BlurPassBuffer->LoadData(context, horizontal);
 
 		m_BlurPso.Pso->CommitBinder(context, m_BlurBinder.get());
