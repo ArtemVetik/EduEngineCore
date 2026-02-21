@@ -41,7 +41,7 @@ namespace EduEngine
 		if (mipCount == 0) mipCount = resMipCount;
 		if (depth == 0) depth = resDepth;
 
-		DescriptorHeapAllocation allocation = std::move(Allocate(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, mipCount * depth, true));
+		DescriptorHeapAllocation allocation = std::move(Allocate(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, mipCount * depth, onCpu));
 
 		for (uint8 mip = 0; mip < mipCount; mip++)
 		{

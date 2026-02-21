@@ -8,10 +8,31 @@
 
 namespace EduEngine
 {
+	const char* Models[]
+	{
+		"assets\\Models\\DamagedHelmet.gltf",
+		"assets\\Models\\BarramundiFish.gltf",
+		"assets\\Models\\BoomBox.gltf",
+	};
+
+	const char* Textures[]
+	{
+		"assets\\Textures\\DamagedHelmet\\",
+		"assets\\Textures\\BarramundiFish\\",
+		"assets\\Textures\\BoomBox\\",
+	};
+
 	void PBRDemo::OnStartUp()
 	{
-		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), "assets\\Models\\DamagedHelmet.gltf");
-		m_Mesh->Load();
+		MeshLoadDesc meshDesc = {};
+		meshDesc.Flags = MESH_LOAD_FLAG_LOAD_TEXTURES;
+		meshDesc.TextureLoadDesc.Flags = TextureLoadDesc::CREATE_SRV;
+		meshDesc.TextureLoadDesc.OnCPU = false;
+		meshDesc.TextureBasePath = Textures[0];
+		meshDesc.TextureExt = ".dds";
+
+		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), Models[0]);
+		m_Mesh->Load(meshDesc);
 
 		m_MeshScale = 50.0f;
 		m_MeshRotation = { 0, 90.0, 0.0 };
@@ -21,15 +42,6 @@ namespace EduEngine
 		XMFLOAT3 camUp = { 0, 1, 0 };
 		XMFLOAT3 camRight = { 0, 0, -1 };
 		GetCamera()->Setup(camPos, camDir, camRight, camUp);
-
-		TextureLoadDesc loadDesc = {};
-		loadDesc.Flags = TextureLoadDesc::CREATE_SRV;
-		loadDesc.OnCPU = false;
-
-		m_AlbedoTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_albedo.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex Albedo");
-		m_MetallicRoughnessTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_metalRoughness.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex MetalRough");
-		m_AOTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_AO.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex AO");
-		m_NormalMapTexture.Load(L"assets\\Textures\\DamagedHelmet\\Default_normal.dds", GetDevice(), GetMainContext(), loadDesc, L"Tex NormalMap");
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
@@ -59,10 +71,6 @@ namespace EduEngine
 		m_Skybox = std::make_shared<Skybox>("assets\\Textures\\HDR\\shanghai_bund_4k.hdr", GetDevice(), GetMainContext(), m_Prepass.get());
 
 		m_TextureIndexes = {};
-		m_TextureIndexes.AlbedoTexIdx = m_AlbedoTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
-		m_TextureIndexes.MetallicRoughnessIdx = m_MetallicRoughnessTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
-		m_TextureIndexes.AOIdx = m_AOTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
-		m_TextureIndexes.NormalMapIdx = m_NormalMapTexture.GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.BRDFLutIdx = m_Prepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
@@ -71,8 +79,6 @@ namespace EduEngine
 		m_TextureIdxBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &m_TextureIndexes, QueueId::Direct);
 		m_TextureIdxBuffer->SetName(L"TextureIndexes");
 
-		m_PBRTextured = true;
-		
 		BuildPBRPass();
 
 		m_DebugRenderer = std::make_shared<DebugRendererSystem>(GetDevice());
@@ -123,13 +129,36 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(GetSwapChain()->CurrentBackBufferView(), clear, 0, nullptr);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(GetSwapChain()->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
-		m_ColorPass->GetPipelineState().CommitAll(GetMainContext(), m_Binder.get());
+		auto GetTexIdx = [&](Texture* texture) -> UINT
+			{
+				if (texture)
+					return texture->GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
 
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &(m_Mesh->GetVertexBuffer()->GetView()));
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&(m_Mesh->GetIndexBuffer()->GetView()));
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				return -1;
+			};
 
-		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexBuffer()->GetLength(), 1, 0, 0, 0);
+		m_ColorPass->GetPipelineState().CommitPso(GetMainContext());
+		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
+		{
+			PBRLighting::ObjectConstants objData;
+
+			objData.World = (SimpleMath::Matrix::CreateScale(m_MeshScale) *
+				SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(m_MeshRotation.x)) *
+				SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_MeshRotation.y)) *
+				SimpleMath::Matrix::CreateRotationZ(XMConvertToRadians(m_MeshRotation.z))).Transpose();
+
+			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_BASE_COLOR));
+			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_NORMAL_MAP));
+			objData.ORMTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_ORM));
+
+			m_ObjBuffer->LoadData(GetMainContext(), objData);
+
+			m_ColorPass->GetPipelineState().CommitBinder(GetMainContext(), m_Binder.get());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(i)->GetView());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(i)->GetView());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(i), 1, 0, 0, 0);
+		}
 
 		m_Skybox->Render(GetMainContext(), GetCamera());
 
@@ -160,21 +189,6 @@ namespace EduEngine
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		struct PBRTexLoad
-		{
-			const char* Name;
-			UINT* Idx;
-			Texture* PBRTex = nullptr;
-		};
-
-		PBRTexLoad pbrTexLoad[]
-		{
-			{ "Albedo: ", &m_TextureIndexes.AlbedoTexIdx, &m_AlbedoTexture},
-			{ "MetalRough: ", &m_TextureIndexes.MetallicRoughnessIdx, &m_MetallicRoughnessTexture},
-			{ "AO: ", &m_TextureIndexes.AOIdx, &m_AOTexture },
-			{ "NormalMap: ", &m_TextureIndexes.NormalMapIdx, &m_NormalMapTexture },
-		};
-
 		genEnvMap = false;
 
 		ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
@@ -184,14 +198,24 @@ namespace EduEngine
 			ImGuiWindowFlags_NoMove |
 			ImGuiWindowFlags_NoResize);
 
-		if (ImGui::Checkbox("PBR Textured", &m_PBRTextured))
+		static int currentModel = 0;
+		const char* modelsStr[] = { "DamagedHelmet", "BarramundiFish", "BoomBox" };
+
+		if (ImGui::Combo("Model", &currentModel, modelsStr, IM_ARRAYSIZE(modelsStr)))
 		{
-			BuildPBRPass();
+			MeshLoadDesc meshDesc = {};
+			meshDesc.Flags = MESH_LOAD_FLAG_LOAD_TEXTURES;
+			meshDesc.TextureLoadDesc.Flags = TextureLoadDesc::CREATE_SRV;
+			meshDesc.TextureLoadDesc.OnCPU = false;
+			meshDesc.TextureBasePath = Textures[currentModel];
+			meshDesc.TextureExt = ".dds";
+
+			m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), Models[currentModel]);
+			m_Mesh->Load(meshDesc);
 		}
 
 		if (ImGui::CollapsingHeader("Light Settings"))
 		{
-
 			ImGui::DragFloat3("Position", (float*)&m_LightConstants.Position);
 			if (ImGui::SliderFloat3("Direction", (float*)&m_LightConstants.Direction, -1.0f, 1.0f))
 			{
@@ -206,72 +230,8 @@ namespace EduEngine
 
 		if (ImGui::CollapsingHeader("Mesh Settings"))
 		{
-			if (ImGui::Button("Load Model"))
-			{
-				char selectedFile[MAX_PATH];
-				memset(selectedFile, 0, sizeof(char) * MAX_PATH);
-				if (FileUtils::OpenFile("Models\0*.fbx;*.obj;*.gltf;\0", selectedFile))
-				{
-					m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), selectedFile);
-					m_Mesh->Load();
-				}
-			}
-
 			ImGui::DragFloat("Scale", &m_MeshScale);
 			ImGui::DragFloat3("Rotation", (float*)&m_MeshRotation, 1.0f, -180.0, 180.0);
-		}
-
-		if (m_PBRTextured)
-		{
-			if (ImGui::CollapsingHeader("PBR Textures"))
-			{
-				if (ImGui::ColorEdit4("Diffuse Albedo", (float*)&m_MaterialConstants.DiffuseAlbedo))
-				{
-					m_MaterialBuffer->LoadData(GetMainContext(), & m_MaterialConstants);
-				}
-
-				ImVec2 previewSize(128, 128);
-
-				for (uint8 i = 0; i < _countof(pbrTexLoad); i++)
-				{
-					ImGui::Text(pbrTexLoad[i].Name);
-					ImGui::SameLine();
-					if (ImGui::Button(("Load##" + std::to_string(i)).c_str()))
-					{
-						wchar_t selectedFileW[MAX_PATH];
-						memset(selectedFileW, 0, sizeof(wchar_t) * MAX_PATH);
-						if (FileUtils::OpenFileW(L"Models\0*.dds\0", selectedFileW))
-						{
-							TextureLoadDesc loadDesc = {};
-							loadDesc.Flags = TextureLoadDesc::CREATE_SRV;
-							loadDesc.OnCPU = false;
-
-							auto tex = pbrTexLoad[i].PBRTex;
-							tex->Load(selectedFileW, GetDevice(), GetMainContext(), loadDesc);
-							*pbrTexLoad[i].Idx = tex->GetD3D12Texture()->GetSRVView()->GetGpuHeapIndex();
-							m_TextureIdxBuffer->LoadData(GetMainContext(), &m_TextureIndexes);
-						}
-					}
-					if (pbrTexLoad[i].PBRTex->GetGPUPtr())
-						ImGui::Image((ImTextureID)(intptr_t)pbrTexLoad[i].PBRTex->GetGPUPtr(), previewSize);
-
-					ImGui::Separator();
-				}
-			}
-		}
-		else
-		{
-			if (ImGui::CollapsingHeader("PBR Settings"))
-			{
-
-				if (ImGui::ColorEdit4("Diffuse Albedo", (float*)&m_MaterialConstants.DiffuseAlbedo) ||
-					ImGui::SliderFloat("Roughness", &m_MaterialConstants.Roughness, 0.0f, 1.0f) ||
-					ImGui::SliderFloat("Metallic", &m_MaterialConstants.Metallic, 0.0f, 1.0f) ||
-					ImGui::SliderFloat("AO", &m_MaterialConstants.AO, 0.0f, 1.0f))
-				{
-					m_MaterialBuffer->LoadData(GetMainContext(), &m_MaterialConstants);
-				}
-			}
 		}
 
 		if (ImGui::CollapsingHeader("Environment"))
@@ -333,7 +293,6 @@ namespace EduEngine
 	{
 		LPCWSTR macros[]
 		{
-			L"PBR_TEXTURED", (m_PBRTextured ? L"1" : L"0"),
 			debugView, L"1",
 			NULL, NULL,
 		};
@@ -348,6 +307,7 @@ namespace EduEngine
 		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
+		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerObject", m_ObjBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerPass", m_PassBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerPass", m_PassBuffer);
 	}

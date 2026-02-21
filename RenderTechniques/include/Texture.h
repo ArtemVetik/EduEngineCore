@@ -22,7 +22,8 @@ namespace EduEngine
 	class RENDERTECHNIQUES_API Texture
 	{
 	public:
-		Texture();
+		Texture(RenderDeviceD3D12* device, std::shared_ptr<TextureD3D12> texture, const TextureLoadDesc& loadDesc = {});
+		Texture(RenderDeviceD3D12* device, const TextureLoadDesc& loadDesc = {});
 		~Texture();
 
 		Texture(const Texture&) = delete;
@@ -34,18 +35,19 @@ namespace EduEngine
 		void* GetGPUPtr();
 
 		void Load(const wchar_t* filePath,
-				  RenderDeviceD3D12* device,
 				  DeviceContext* context,
-				  const TextureLoadDesc& loadDesc = {},
-				  wchar_t* name = nullptr);
+				  const wchar_t* name = nullptr);
 		
 		std::shared_ptr<TextureD3D12>& GetD3D12Texture() { return m_Texture; }
+
+	private:
+		void SetupTexture();
 
 	private:
 		RenderDeviceD3D12* m_Device;
 		std::shared_ptr<TextureD3D12> m_Texture;
 
-		TextureLoadDesc m_LoadDesc;
+		const TextureLoadDesc m_LoadDesc;
 		DescriptorHeapAllocation m_GpuAllocation;
 	};
 }

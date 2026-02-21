@@ -14,6 +14,10 @@ namespace EduEngine
 		struct ObjectConstants
 		{
 			XMFLOAT4X4 World;
+
+			UINT AlbedoTexIdx;
+			UINT NormalMapIdx;
+			UINT ORMTexIdx;
 		};
 
 		struct PassConstants
@@ -27,11 +31,6 @@ namespace EduEngine
 
 		struct TextureIndexes
 		{
-			UINT AlbedoTexIdx;
-			UINT MetallicRoughnessIdx;
-			UINT AOIdx;
-			UINT NormalMapIdx;
-
 			UINT IrradianceMapIdx;
 			UINT PrefilteredMapIdx;
 			UINT BRDFLutIdx;
@@ -41,10 +40,6 @@ namespace EduEngine
 		struct MaterialConstants
 		{
 			XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-			float Roughness = 0;
-			float Metallic = 0;
-			float AO = 1;
-			UINT Padding = 0;
 		};
 
 		struct Light
@@ -84,6 +79,7 @@ namespace EduEngine
 			};
 
 			EduEngine::EduBinding::ShaderResourceDesc psVars[]{
+				EduEngine::EduBinding::ShaderResourceDesc("cbPerObject", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),
 				EduEngine::EduBinding::ShaderResourceDesc("cbPerPass", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),
 				EduEngine::EduBinding::ShaderResourceDesc("cbMaterial", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_MUTABLE),
 				EduEngine::EduBinding::ShaderResourceDesc("gLight", EduEngine::EduBinding::SHADER_RESOURCE_TYPE_DYNAMIC),

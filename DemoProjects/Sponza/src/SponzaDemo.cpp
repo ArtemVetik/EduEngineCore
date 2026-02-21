@@ -215,8 +215,8 @@ namespace EduEngine
 			XMStoreFloat4x4(&objData.World, XMMatrixTranspose(XMMatrixScaling(5, 5, 5)));
 			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_BASE_COLOR));
 			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_NORMAL_MAP));
-			objData.MetallicRoughnessIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_METALLIC_ROUGHNESS));
-			objData.AOIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_AMBIENT_OCCLUSION));
+			objData.MetallicRoughnessIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_ORM));
+			objData.AOIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_ORM));
 			objData.SSRMask = i == 8; // TODO: Temporary workaround for SSR
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);

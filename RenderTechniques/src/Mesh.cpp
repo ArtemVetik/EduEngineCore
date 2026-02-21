@@ -13,7 +13,7 @@ namespace EduEngine
 		m_Scene(nullptr),
 		m_RefCount(0)
 	{
-
+		m_ORMTextureGen = std::make_unique<ORMTextureGenerator>(device);
 	}
 
 	Mesh::~Mesh()
@@ -178,44 +178,75 @@ namespace EduEngine
 		aiMesh* mesh = m_Scene->mMeshes[meshIdx];
 		aiMaterial* material = m_Scene->mMaterials[mesh->mMaterialIndex];
 
-		for (uint32 i = 0; i < PBR_TEXTURE_NUM; i++)
-		{
-			aiTextureType texType = TextureType(static_cast<PBR_TEXTURE_TYPE>(i));
-			aiString texPath;
-
-			bool hasTexture = (material->GetTexture(texType, 0, &texPath) == AI_SUCCESS);
-
-			// TODO: Quick fix for TemporalAADemo. Rewrite this
-			if (texType == aiTextureType_BASE_COLOR && !hasTexture)
-			{
-				texType = aiTextureType_DIFFUSE;
-				hasTexture = (material->GetTexture(texType, 0, &texPath) == AI_SUCCESS);
-			}
-
-			if (hasTexture)
+		auto CreateTexture = [&](aiString texPath, PBR_TEXTURE_TYPE type)
 			{
 				fs::path p(texPath.C_Str());
 				std::string texName = p.stem().string();
 				texName = loadDesc.TextureBasePath + texName + loadDesc.TextureExt;
-
 				if (fs::exists(texName))
 				{
-					m_Textures[i][meshIdx] = std::make_unique<Texture>();
-					m_Textures[i][meshIdx]->Load(ToWString(texName).c_str(), m_Device, m_Context, loadDesc.TextureLoadDesc);
+					m_Textures[type][meshIdx] = std::make_unique<Texture>(m_Device, loadDesc.TextureLoadDesc);
+					m_Textures[type][meshIdx]->Load(ToWString(texName).c_str(), m_Context);
 				}
+			};
+
+		// Base Color
+		{
+			aiString texPath;
+
+			if (material->GetTexture(aiTextureType_BASE_COLOR, 0, &texPath) == AI_SUCCESS ||
+				material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS)
+			{
+				CreateTexture(texPath, PBR_TEXTURE_BASE_COLOR);
 			}
 		}
-	}
-
-	aiTextureType Mesh::TextureType(PBR_TEXTURE_TYPE type) const
-	{
-		switch (type)
+		
+		// Normal Map
 		{
-		case EduEngine::PBR_TEXTURE_BASE_COLOR: return aiTextureType_BASE_COLOR;
-		case EduEngine::PBR_TEXTURE_NORMAL_MAP: return aiTextureType_NORMALS;
-		case EduEngine::PBR_TEXTURE_METALLIC_ROUGHNESS: return aiTextureType_METALNESS; // TODO: compare metallic & roughness texture paths
-		case EduEngine::PBR_TEXTURE_AMBIENT_OCCLUSION: return aiTextureType_AMBIENT_OCCLUSION;
-		default: ASSERT_FAILED("Invalid PBR_TEXTURE_TYPE: ", type);
+			aiString texPath;
+
+			if (material->GetTexture(aiTextureType_NORMALS, 0, &texPath) == AI_SUCCESS)
+			{
+				CreateTexture(texPath, PBR_TEXTURE_NORMAL_MAP);
+			}
+		}
+
+		// Metallic Roughness & Ambient Occlusion
+		{
+			aiString metalnessTexPath;
+			aiString roughnessTexPath;
+			aiString aoTexPath;
+
+			material->GetTexture(aiTextureType_METALNESS, 0, &metalnessTexPath);
+			material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &roughnessTexPath);
+			material->GetTexture(aiTextureType_LIGHTMAP, 0, &aoTexPath);
+
+			if (metalnessTexPath == roughnessTexPath && metalnessTexPath == aoTexPath)
+			{
+				CreateTexture(metalnessTexPath, PBR_TEXTURE_ORM);
+			}
+			else if (metalnessTexPath == roughnessTexPath)
+			{
+				fs::path metalRoughPath(metalnessTexPath.C_Str());
+				fs::path aoPath(aoTexPath.C_Str());
+
+				std::string metalTexName = metalRoughPath.stem().string();
+				metalTexName = loadDesc.TextureBasePath + metalTexName + loadDesc.TextureExt;
+
+				std::string aoTexName = aoPath.stem().string();
+				aoTexName = loadDesc.TextureBasePath + aoTexName + loadDesc.TextureExt;
+
+				auto metalRoughTex = TextureD3D12(m_Device, m_Context, ToWString(metalTexName).c_str(), QueueId::Direct);
+				auto aoTex = TextureD3D12(m_Device, m_Context, ToWString(aoTexName).c_str(), QueueId::Direct);
+
+				auto outOrm = m_ORMTextureGen->Generate(m_Context, &metalRoughTex, &aoTex);
+				m_Textures[PBR_TEXTURE_ORM][meshIdx] = std::make_unique<Texture>(m_Device, std::move(outOrm), loadDesc.TextureLoadDesc);
+			}
+			else
+			{
+				// TODO: if assert failed, extend ORMTextureLoader for this case
+				ASSERT_FAILED("Unexpected texture combination");
+			}
 		}
 	}
 }

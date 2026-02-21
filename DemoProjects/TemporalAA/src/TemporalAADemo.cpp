@@ -44,8 +44,8 @@ namespace EduEngine
 		TextureLoadDesc texLoadDesc = {};
 		texLoadDesc.Flags = TextureLoadDesc::CREATE_SRV;
 
-		Texture skyTex;
-		skyTex.Load(L"assets\\Textures\\cubemap.dds", GetDevice(), GetMainContext(), texLoadDesc);
+		Texture skyTex(GetDevice(), texLoadDesc);
+		skyTex.Load(L"assets\\Textures\\cubemap.dds", GetMainContext());
 
 		ShaderResourceDesc sRes[]
 		{
@@ -113,8 +113,8 @@ namespace EduEngine
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
-		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ps_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SkyboxTAA.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto ps_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SkyboxTAA.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
 
 		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;

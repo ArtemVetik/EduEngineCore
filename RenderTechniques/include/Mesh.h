@@ -5,6 +5,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include <ORMTextureGenerator.h>
 #include <BufferD3D12.h>
 #include <Texture.h>
 
@@ -22,8 +23,7 @@ namespace EduEngine
 	{
 		PBR_TEXTURE_BASE_COLOR = 0,
 		PBR_TEXTURE_NORMAL_MAP = 1,
-		PBR_TEXTURE_METALLIC_ROUGHNESS = 2,
-		PBR_TEXTURE_AMBIENT_OCCLUSION = 3,
+		PBR_TEXTURE_ORM = 2,
 		PBR_TEXTURE_NUM = 4,
 	};
 
@@ -64,7 +64,6 @@ namespace EduEngine
 
 	private:
 		void LoadPBRTextures(uint32 meshIdx, const MeshLoadDesc& loadDesc);
-		aiTextureType TextureType(PBR_TEXTURE_TYPE type) const;
 
 	private:
 		RenderDeviceD3D12* m_Device;
@@ -77,6 +76,7 @@ namespace EduEngine
 		std::vector<std::shared_ptr<VertexBufferD3D12>> m_VertexBuffers;
 		std::vector<std::shared_ptr<IndexBufferD3D12>> m_IndexBuffers;
 
+		std::unique_ptr<ORMTextureGenerator> m_ORMTextureGen;
 		const char* m_FilePath;
 		int m_RefCount;
 	};

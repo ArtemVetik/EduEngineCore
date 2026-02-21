@@ -17,6 +17,7 @@ add_library(RenderTechniques STATIC
     src/ScreenSpaceReflection.cpp
     src/VolumetricLight.cpp
     src/Bloom.cpp
+    src/ORMTextureGenerator.cpp
 )
 
 target_include_directories(RenderTechniques

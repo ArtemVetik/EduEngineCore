@@ -36,6 +36,7 @@ namespace EduEngine
 		bool CheckAnyState(D3D12_RESOURCE_STATES states) const { return (m_UsageState & states) != 0; }
 
 		ID3D12Resource* GetD3D12Resource() const { return m_d3d12Resource.Get(); }
+		QueueMask GetQueueMask() const { return m_QueueMask; }
 
 		void SetName(LPCWSTR name) { m_d3d12Resource->SetName(name); }
 

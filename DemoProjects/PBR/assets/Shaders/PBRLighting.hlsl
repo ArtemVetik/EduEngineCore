@@ -27,6 +27,10 @@ StructuredBuffer<Light> gLight : register(t7);
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
+    
+    uint gAlbedoTexIdx;
+    uint gNormalMapIdx;
+    uint gORMTexIdx;
 };
 
 cbuffer cbPerPass : register(b1)
@@ -40,11 +44,6 @@ cbuffer cbPerPass : register(b1)
 
 cbuffer cbTextureIndexes : register(b2)
 {
-    uint gAlbedoTexIdx;
-    uint gMetallicRoughnessIdx;
-    uint gAOIdx;
-    uint gNormalMapIdx;
-    
     uint gIrradianceMapIdx;
     uint gPrefilteredMapIdx;
     uint gBRDFLutIdx;
@@ -54,10 +53,6 @@ cbuffer cbTextureIndexes : register(b2)
 cbuffer cbMaterial : register(b3)
 {
     float4 gDiffuseAlbedo;
-    float gRoughnessF;
-    float gMetallicF;
-    float gAOF;
-    uint gPadding3;
 }
 
 struct VertexIn
@@ -180,29 +175,32 @@ float4 PS(VertexOut pin) : SV_Target
 {
     pin.NormalW = normalize(pin.NormalW);
     
-#if PBR_TEXTURED
-    Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
-    Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessIdx];
-    Texture2D aoTex = ResourceDescriptorHeap[gAOIdx];
-    Texture2D normalMapTex = ResourceDescriptorHeap[gNormalMapIdx];
+    float3 albedo = float3(0.0, 0.0, 0);
     
-    float3 albedo = pow(albedoTex.Sample(gsamLinearWrap, pin.TexC), 2.2) * gDiffuseAlbedo;
+    if (gAlbedoTexIdx != -1)
+    {
+        Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
+        albedo = pow(albedoTex.Sample(gsamLinearWrap, pin.TexC), 2.2) * gDiffuseAlbedo;
+    }
     
-    float2 metallicRoughness = metallicRoughnessTex.Sample(gsamLinearWrap, pin.TexC).gb;
-    float ao = aoTex.Sample(gsamLinearWrap, pin.TexC).r;
-    
-    float roughness = metallicRoughness.r;
-    float metallic = metallicRoughness.g;
-    
-    float3 normalMapSample = normalMapTex.Sample(gsamAnisotropicWrap, pin.TexC).xyz;
-    float3 N = NormalSampleToWorldSpace(normalMapSample, pin.NormalW, pin.TangentW);
-#else
-    float3 albedo = gDiffuseAlbedo;
-    float roughness = gRoughnessF;
-    float metallic = gMetallicF;
-    float ao = gAOF;
     float3 N = pin.NormalW;
-#endif
+    if (gNormalMapIdx != -1)
+    {
+        Texture2D normalMapTex = ResourceDescriptorHeap[gNormalMapIdx];
+        float3 normalMapSample = normalMapTex.Sample(gsamAnisotropicWrap, pin.TexC).xyz;
+        N = NormalSampleToWorldSpace(normalMapSample, pin.NormalW, pin.TangentW);
+    }
+    
+    float3 orm = float3(1.0f, 0.0, 0.0);
+    if (gORMTexIdx != -1)
+    {
+        Texture2D ormTex = ResourceDescriptorHeap[gORMTexIdx];
+        orm = ormTex.Sample(gsamLinearWrap, pin.TexC).rgb;
+    }
+    
+    float ao = orm.r;
+    float roughness = orm.g;
+    float metallic = orm.b;
     
     float3 F0 = 0.04;
     F0 = lerp(F0, albedo, metallic);
