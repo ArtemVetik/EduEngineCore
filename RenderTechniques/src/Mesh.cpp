@@ -57,6 +57,8 @@ namespace EduEngine
 		m_VertexBuffers.resize(m_Scene->mNumMeshes);
 		m_IndexBuffers.resize(m_Scene->mNumMeshes);
 
+		LoadMaterials(loadDesc);
+
 		for (uint32 i = 0; i < m_Scene->mNumMeshes; i++)
 		{
 			aiMesh* mesh = m_Scene->mMeshes[i];
@@ -169,6 +171,52 @@ namespace EduEngine
 
 		center = (aabb.mMin + aabb.mMax) * 0.5f;
 		radius = ((aabb.mMax - aabb.mMin) * 0.5f).Length();
+	}
+
+	void Mesh::LoadMaterials(const MeshLoadDesc& loadDesc)
+	{
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		desc.Alignment = 0;
+		desc.Width = sizeof(Material) * m_Scene->mNumMaterials;
+		desc.Height = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_UNKNOWN;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		srvDesc.Buffer.FirstElement = 0;
+		srvDesc.Buffer.NumElements = m_Scene->mNumMaterials;
+		srvDesc.Buffer.StructureByteStride = sizeof(Material);
+		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
+		m_Materials = std::make_shared<BufferD3D12>(m_Device, m_Context, desc, QueueId::Direct);
+		m_Materials->SetName(L"MeshMaterialsBuffer");
+
+		std::vector<Material> materials(m_Scene->mNumMaterials);
+		
+		for (uint32 i = 0; i < m_Scene->mNumMaterials; i++)
+		{
+			Material data = {};
+			aiMaterial* material = m_Scene->mMaterials[i];
+
+			aiColor4D baseColor;
+			if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS)
+			{
+				data.BaseColorFactor = baseColor;
+				materials[i] = data;
+			}
+		}
+
+		m_Materials->LoadData(m_Context, materials.data());
+		m_Materials->CreateSRV(&srvDesc, loadDesc.Flags & MESH_LOAD_FLAG_CPU_MATERIALS_SRV);
 	}
 
 	void Mesh::LoadPBRTextures(uint32 meshIdx, const MeshLoadDesc& loadDesc)

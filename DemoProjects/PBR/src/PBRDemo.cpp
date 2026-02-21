@@ -13,6 +13,7 @@ namespace EduEngine
 		"assets\\Models\\DamagedHelmet.gltf",
 		"assets\\Models\\BarramundiFish.gltf",
 		"assets\\Models\\BoomBox.gltf",
+		"assets\\Models\\TransmissionTest.gltf",
 	};
 
 	const char* Textures[]
@@ -20,6 +21,7 @@ namespace EduEngine
 		"assets\\Textures\\DamagedHelmet\\",
 		"assets\\Textures\\BarramundiFish\\",
 		"assets\\Textures\\BoomBox\\",
+		"assets\\Textures\\TransmissionTest\\",
 	};
 
 	void PBRDemo::OnStartUp()
@@ -46,22 +48,6 @@ namespace EduEngine
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 
-		D3D12_RESOURCE_DESC buffDesc = {};
-		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		buffDesc.Alignment = 0;
-		buffDesc.Height = 1;
-		buffDesc.Width = (sizeof(PBRLighting::MaterialConstants) + 255) & ~255; // TODO: create align function
-		buffDesc.DepthOrArraySize = 1;
-		buffDesc.MipLevels = 1;
-		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
-		buffDesc.SampleDesc.Count = 1;
-		buffDesc.SampleDesc.Quality = 0;
-		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-		m_MaterialConstants = { };
-		m_MaterialBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &m_MaterialConstants, QueueId::Direct);
-		m_MaterialBuffer->SetName(L"Buffer Material");
-
 		m_LightConstants = {};
 		m_LightBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
 		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
@@ -74,8 +60,20 @@ namespace EduEngine
 		m_TextureIndexes.IrradianceMapIdx = m_Skybox->GetIrradianceMap()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.PrefilteredMapIdx = m_Skybox->GetPrefilteredMap()->GetSRVView()->GetGpuHeapIndex();
 		m_TextureIndexes.BRDFLutIdx = m_Prepass->GetBrdfLut()->GetSRVView()->GetGpuHeapIndex();
+		m_TextureIndexes.MaterialBufferIdx = m_Mesh->GetMaterials()->GetSRVView()->GetGpuHeapIndex();
 
+		D3D12_RESOURCE_DESC buffDesc = {};
+		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		buffDesc.Alignment = 0;
+		buffDesc.Height = 1;
 		buffDesc.Width = (sizeof(PBRLighting::TextureIndexes) + 255) & ~255; // TODO: create align function
+		buffDesc.DepthOrArraySize = 1;
+		buffDesc.MipLevels = 1;
+		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
+		buffDesc.SampleDesc.Count = 1;
+		buffDesc.SampleDesc.Quality = 0;
+		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
 		m_TextureIdxBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, &m_TextureIndexes, QueueId::Direct);
 		m_TextureIdxBuffer->SetName(L"TextureIndexes");
 
@@ -93,19 +91,12 @@ namespace EduEngine
 			m_ColorPass->GetPipelineState().DebugPrint();
 #endif
 
-		PBRLighting::ObjectConstants objConstants;
-		objConstants.World = (SimpleMath::Matrix::CreateScale(m_MeshScale) *
-			SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(m_MeshRotation.x)) *
-			SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_MeshRotation.y)) *
-			SimpleMath::Matrix::CreateRotationZ(XMConvertToRadians(m_MeshRotation.z))).Transpose();
-
 		PBRLighting::PassConstants passConstants;
 		XMStoreFloat4x4(&passConstants.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		passConstants.CamPos = GetCamera()->GetPosition();
 		passConstants.DirectionalLightsCount = 1;
 		passConstants.PrefilteredMapLods = IBLRendering::PREFILTERED_MIP_LEVELS;
 
-		m_ObjBuffer->LoadData(GetMainContext(), objConstants);
 		m_PassBuffer->LoadData(GetMainContext(), passConstants);
 
 		m_LightBuffer->LoadData(GetMainContext(), m_LightConstants);
@@ -150,6 +141,7 @@ namespace EduEngine
 			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_BASE_COLOR));
 			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_NORMAL_MAP));
 			objData.ORMTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_ORM));
+			objData.ObjMaterialIdx = m_Mesh->GetMaterialIndex(i);
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);
 
@@ -199,9 +191,8 @@ namespace EduEngine
 			ImGuiWindowFlags_NoResize);
 
 		static int currentModel = 0;
-		const char* modelsStr[] = { "DamagedHelmet", "BarramundiFish", "BoomBox" };
 
-		if (ImGui::Combo("Model", &currentModel, modelsStr, IM_ARRAYSIZE(modelsStr)))
+		if (ImGui::Combo("Model", &currentModel, Models, IM_ARRAYSIZE(Models)))
 		{
 			MeshLoadDesc meshDesc = {};
 			meshDesc.Flags = MESH_LOAD_FLAG_LOAD_TEXTURES;
@@ -212,6 +203,12 @@ namespace EduEngine
 
 			m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), Models[currentModel]);
 			m_Mesh->Load(meshDesc);
+
+			m_TextureIndexes.MaterialBufferIdx = m_Mesh->GetMaterials()->GetSRVView()->GetGpuHeapIndex();
+			m_TextureIdxBuffer->LoadData(GetMainContext(), &m_TextureIndexes);
+
+			m_Binder->DryMutableResources();
+			m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbTextureIndexes", m_TextureIdxBuffer);
 		}
 
 		if (ImGui::CollapsingHeader("Light Settings"))
@@ -304,7 +301,6 @@ namespace EduEngine
 		m_Binder = m_ColorPass->GetPipelineState().CreateShaderBinder();
 
 		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbTextureIndexes", m_TextureIdxBuffer);
-		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbMaterial", m_MaterialBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_VERTEX, "cbPerObject", m_ObjBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbPerObject", m_ObjBuffer);

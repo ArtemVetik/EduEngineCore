@@ -18,6 +18,7 @@ namespace EduEngine
 			UINT AlbedoTexIdx;
 			UINT NormalMapIdx;
 			UINT ORMTexIdx;
+			UINT ObjMaterialIdx;
 		};
 
 		struct PassConstants
@@ -34,12 +35,7 @@ namespace EduEngine
 			UINT IrradianceMapIdx;
 			UINT PrefilteredMapIdx;
 			UINT BRDFLutIdx;
-			UINT Padding2;
-		};
-
-		struct MaterialConstants
-		{
-			XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+			UINT MaterialBufferIdx;
 		};
 
 		struct Light

@@ -11,9 +11,10 @@ struct Light
     float SpotPower;    // spot light only
 };
 
-#ifndef PBR_TEXTURED
-#define PBR_TEXTURED 1
-#endif
+struct Material
+{
+    float4 BaseColorFactor;
+};
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -31,6 +32,7 @@ cbuffer cbPerObject : register(b0)
     uint gAlbedoTexIdx;
     uint gNormalMapIdx;
     uint gORMTexIdx;
+    uint gObjMaterialIdx;
 };
 
 cbuffer cbPerPass : register(b1)
@@ -47,12 +49,7 @@ cbuffer cbTextureIndexes : register(b2)
     uint gIrradianceMapIdx;
     uint gPrefilteredMapIdx;
     uint gBRDFLutIdx;
-    uint gPadding2;
-}
-
-cbuffer cbMaterial : register(b3)
-{
-    float4 gDiffuseAlbedo;
+    uint gMaterialsBufferIdx;
 }
 
 struct VertexIn
@@ -175,12 +172,14 @@ float4 PS(VertexOut pin) : SV_Target
 {
     pin.NormalW = normalize(pin.NormalW);
     
-    float3 albedo = float3(0.0, 0.0, 0);
+    StructuredBuffer<Material> materials = ResourceDescriptorHeap[gMaterialsBufferIdx];
+    
+    float3 albedo = materials[gObjMaterialIdx].BaseColorFactor;
     
     if (gAlbedoTexIdx != -1)
     {
         Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
-        albedo = pow(albedoTex.Sample(gsamLinearWrap, pin.TexC), 2.2) * gDiffuseAlbedo;
+        albedo = pow(albedoTex.Sample(gsamLinearWrap, pin.TexC), 2.2) * materials[gObjMaterialIdx].BaseColorFactor;
     }
     
     float3 N = pin.NormalW;

@@ -26,7 +26,6 @@ namespace EduEngine
 		void BuildPBRPass(const wchar_t* debugView = nullptr);
 
 	private:
-		std::shared_ptr<BufferD3D12> m_MaterialBuffer;
 		std::shared_ptr<BufferD3D12> m_TextureIdxBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
@@ -42,7 +41,6 @@ namespace EduEngine
 	
 		float m_MeshScale;
 		XMFLOAT3 m_MeshRotation;
-		PBRLighting::MaterialConstants m_MaterialConstants;
 		PBRLighting::TextureIndexes m_TextureIndexes;
 		PBRLighting::Light m_LightConstants;
 	};
