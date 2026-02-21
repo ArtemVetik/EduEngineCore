@@ -61,7 +61,7 @@ namespace EduEngine
 
 		uint32 m_LodCount;
 		uint32 m_InstanceCount;
-		XMUINT3 m_GridSize;
+		XMINT3 m_GridSize;
 		bool m_UseMeshletCulling = false;
 		bool m_FreezeCulling = false;
 

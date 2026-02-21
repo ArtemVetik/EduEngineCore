@@ -142,10 +142,10 @@ namespace EduEngine
 			PostQuitMessage(0);
 			return 0;
 
-			/*case WM_GETMINMAXINFO:
-				((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
-				((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200;
-				return 0;*/
+		case WM_GETMINMAXINFO:
+			((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
+			((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200;
+			return 0;
 		}
 
 		return DefWindowProc(hwnd, msg, wParam, lParam);

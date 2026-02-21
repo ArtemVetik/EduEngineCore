@@ -29,7 +29,7 @@ namespace EduEngine
 	void MeshShadersDemo::OnStartUp()
 	{
 		m_LodCount = 4;
-		m_GridSize = XMUINT3{ 1, 1, 1 };
+		m_GridSize = XMINT3{ 1, 1, 1 };
 
 		XMUINT4 meshletInfoPacked[MAX_LOD_LEVEL];
 		memset(meshletInfoPacked, 0, sizeof(meshletInfoPacked));
@@ -219,7 +219,12 @@ namespace EduEngine
 		if (ImGui::InputInt("Width", (int*)&m_GridSize.x) ||
 			ImGui::InputInt("Height", (int*)&m_GridSize.y) ||
 			ImGui::InputInt("Depth", (int*)&m_GridSize.z))
+		{
+			m_GridSize.x = std::max(1, m_GridSize.x);
+			m_GridSize.y = std::max(1, m_GridSize.y);
+			m_GridSize.z = std::max(1, m_GridSize.z);
 			BuildInstanceBuffer();
+		}
 
 		const char* items[] = {
 			"Meshlets",
