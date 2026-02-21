@@ -11,8 +11,7 @@ cbuffer cbPerObject : register(b0)
     
     uint gAlbedoTexIdx;
     uint gNormalMapIdx;
-    uint gMetallicRoughnessIdx;
-    uint gAOIdx;
+    uint gORMIdx;
     uint gSSRMask;
 }
 
@@ -45,7 +44,7 @@ struct PSOut
 #else
     half4 NormalW : SV_TARGET1;
 #endif
-    half4 MetalRoughAo : SV_TARGET2;
+    half4 ORM : SV_TARGET2;
 };
 
 #include "PackNormals.hlsli"
@@ -95,29 +94,18 @@ PSOut PS(VertexOut vOut)
 #endif
     }
     
-    if (gMetallicRoughnessIdx != -1)
+    if (gORMIdx != -1)
     {
-        Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessIdx];
-        float2 metallicRoughness = metallicRoughnessTex.Sample(gsamLinearWrap, vOut.TexC).gb;
-        psOut.MetalRoughAo.r = metallicRoughness.g;
-        psOut.MetalRoughAo.g = metallicRoughness.r;
+        Texture2D ormTex = ResourceDescriptorHeap[gORMIdx];
+        float3 orm = ormTex.Sample(gsamLinearWrap, vOut.TexC).rgb;
+        psOut.ORM.rgb = orm.rgb;
     }
     else
     {
-        psOut.MetalRoughAo.rg = float2(0.0f, 0.5f);
+        psOut.ORM.rgb = float3(1.0f, 0.0f, 0.0f);
     }
     
-    if (gAOIdx != -1)
-    {
-        Texture2D aoTex = ResourceDescriptorHeap[gAOIdx];
-        psOut.MetalRoughAo.b = aoTex.Sample(gsamLinearWrap, vOut.TexC).r;
-    }
-    else
-    {
-        psOut.MetalRoughAo.b = 1;
-    }
-    
-    psOut.MetalRoughAo.a = gSSRMask;
+    psOut.ORM.a = gSSRMask;
     
     return psOut;
 }

@@ -35,7 +35,7 @@ cbuffer cbTextureIndexes : register(b2)
 {
     uint gAlbedoTexIdx;
     uint gNormalMapIdx;
-    uint gMetallicRoughAoIdx;
+    uint gORMIdx;
     uint gDepthBufferIdx;
     uint gSsaoMapIdx;
     uint gIrradianceMapIdx;
@@ -83,14 +83,14 @@ float4 PS(VertexOut pin) : SV_Target
 {
     Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
     Texture2D normalWTex = ResourceDescriptorHeap[gNormalMapIdx];
-    Texture2D metallicRoughAoTex = ResourceDescriptorHeap[gMetallicRoughAoIdx];
+    Texture2D ormTex = ResourceDescriptorHeap[gORMIdx];
     
     float3 albedo = pow(albedoTex.Sample(gsamPointWrap, pin.TexC), 2.2).xyz * gDiffuseAlbedo.xyz;
-    float3 metallicRoughAo = metallicRoughAoTex.Sample(gsamPointWrap, pin.TexC).rgb;
+    float3 orm = ormTex.Sample(gsamPointWrap, pin.TexC).rgb;
     
-    float metallic = metallicRoughAo.r;
-    float roughness = metallicRoughAo.g;
-    float ao = metallicRoughAo.b;
+    float ao = orm.r;
+    float roughness = orm.g;
+    float metallic = orm.b;
     
 #if PACK_NORMALS > 0
     half2 packedN = normalWTex.Sample(gsamPointWrap, pin.TexC).xy;

@@ -221,7 +221,8 @@ namespace EduEngine
 			material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &roughnessTexPath);
 			material->GetTexture(aiTextureType_LIGHTMAP, 0, &aoTexPath);
 
-			if (metalnessTexPath == roughnessTexPath && metalnessTexPath == aoTexPath)
+			if (metalnessTexPath == roughnessTexPath && metalnessTexPath == aoTexPath ||
+				metalnessTexPath == roughnessTexPath && aoTexPath.length == 0)
 			{
 				CreateTexture(metalnessTexPath, PBR_TEXTURE_ORM);
 			}
