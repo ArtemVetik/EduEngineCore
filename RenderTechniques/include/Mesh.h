@@ -25,6 +25,7 @@ namespace EduEngine
 		PBR_TEXTURE_BASE_COLOR = 0,
 		PBR_TEXTURE_NORMAL_MAP = 1,
 		PBR_TEXTURE_ORM = 2,
+		PBR_TEXTURE_TRANSMISSION = 3,
 		PBR_TEXTURE_NUM = 4,
 	};
 
@@ -41,7 +42,10 @@ namespace EduEngine
 	public:
 		struct Material
 		{
-			aiColor4D BaseColorFactor;
+			aiColor4D BaseColorFactor = { 1, 1, 1, 1 };
+			float RoughnessFactor = 1;
+			float MetallicFactor = 0;
+			float TransmissionFactor = 0;
 		};
 
 	public:
@@ -56,6 +60,11 @@ namespace EduEngine
 
 		int GetVertexCount(uint32 meshIdx = 0) const;
 		int GetIndexCount(uint32 meshIdx = 0) const;
+
+		uint32 GetOpaqueMeshCount() const { return (uint32)m_OpaqueIndexes.size(); }
+		uint32 GetTransmissionMeshCount() const { return (uint32)m_TransmissionIndexes.size(); }
+		uint32 GetOpaqueMeshIndex(uint32 idx) const { return m_OpaqueIndexes[idx]; }
+		uint32 GetTransmissionMeshIndex(uint32 idx) const { return m_TransmissionIndexes[idx]; }
 
 		int GetMeshCount() const { return m_Scene->mNumMeshes; }
 		VertexBufferD3D12* GetVertexBuffer(uint32 meshIdx = 0) const { return m_VertexBuffers[meshIdx].get(); }
@@ -86,6 +95,8 @@ namespace EduEngine
 		std::vector<std::unique_ptr<Texture>> m_Textures[PBR_TEXTURE_NUM];
 		std::vector<std::shared_ptr<VertexBufferD3D12>> m_VertexBuffers;
 		std::vector<std::shared_ptr<IndexBufferD3D12>> m_IndexBuffers;
+		std::vector<uint32> m_OpaqueIndexes;
+		std::vector<uint32> m_TransmissionIndexes;
 
 		std::unique_ptr<ORMTextureGenerator> m_ORMTextureGen;
 		const char* m_FilePath;

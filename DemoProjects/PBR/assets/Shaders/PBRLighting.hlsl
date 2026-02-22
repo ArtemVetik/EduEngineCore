@@ -14,6 +14,9 @@ struct Light
 struct Material
 {
     float4 BaseColorFactor;
+    float RoughnessFactor;
+    float MetallicFactor;
+    float TransmissionFactor;
 };
 
 SamplerState gsamPointWrap : register(s0);
@@ -32,6 +35,7 @@ cbuffer cbPerObject : register(b0)
     uint gAlbedoTexIdx;
     uint gNormalMapIdx;
     uint gORMTexIdx;
+    uint gTransmissionTexIdx;
     uint gObjMaterialIdx;
 };
 
@@ -173,8 +177,17 @@ float4 PS(VertexOut pin) : SV_Target
     pin.NormalW = normalize(pin.NormalW);
     
     StructuredBuffer<Material> materials = ResourceDescriptorHeap[gMaterialsBufferIdx];
+    Material material = materials[gObjMaterialIdx];
     
-    float3 albedo = materials[gObjMaterialIdx].BaseColorFactor;
+    float transmission = material.TransmissionFactor;
+    
+    if (gTransmissionTexIdx != -1)
+    {
+        Texture2D transmissionTex = ResourceDescriptorHeap[gTransmissionTexIdx];
+        transmission *= transmissionTex.Sample(gsamPointClamp, pin.TexC).r;
+    }
+    
+    float3 albedo = material.BaseColorFactor;
     
     if (gAlbedoTexIdx != -1)
     {
@@ -190,7 +203,7 @@ float4 PS(VertexOut pin) : SV_Target
         N = NormalSampleToWorldSpace(normalMapSample, pin.NormalW, pin.TangentW);
     }
     
-    float3 orm = float3(1.0f, 0.0, 0.0);
+    float3 orm = float3(1.0f, material.RoughnessFactor, material.MetallicFactor);
     if (gORMTexIdx != -1)
     {
         Texture2D ormTex = ResourceDescriptorHeap[gORMTexIdx];
@@ -232,7 +245,7 @@ float4 PS(VertexOut pin) : SV_Target
             
         // add to outgoing radiance Lo
         float NdotL = max(dot(N, L), 0.0);
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        Lo += (kD * albedo * (1.0f - transmission) / PI + specular) * radiance * NdotL;
     }
     
     float3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
@@ -246,7 +259,7 @@ float4 PS(VertexOut pin) : SV_Target
     Texture2D brdfLutTex = ResourceDescriptorHeap[gBRDFLutIdx];
     
     float3 irradiance = irradianceMapTex.Sample(gsamLinearWrap, N).rgb;
-    float3 diffuse = irradiance * albedo;
+    float3 diffuse = irradiance * albedo * (1.0f - transmission);
     
     float3 R = reflect(-V, N);
     float3 prefilteredColor = prefilteredMapTex.SampleLevel(gsamLinearWrap, R, roughness * gPrefilteredMapLods).rgb;
@@ -283,5 +296,5 @@ float4 PS(VertexOut pin) : SV_Target
     
     color = pow(color, 1.0 / 2.2);
     
-    return float4(color, 1.0);
+    return float4(color, 1.0f - transmission);
 }

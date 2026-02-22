@@ -128,9 +128,11 @@ namespace EduEngine
 				return -1;
 			};
 
-		m_ColorPass->GetPipelineState().CommitPso(GetMainContext());
-		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
+		m_ColorPass->GetOpaquePipelineState().CommitPso(GetMainContext());
+		for (uint32 i = 0; i < m_Mesh->GetOpaqueMeshCount(); i++)
 		{
+			uint32 meshIdx = m_Mesh->GetOpaqueMeshIndex(i);
+
 			PBRLighting::ObjectConstants objData;
 
 			objData.World = (SimpleMath::Matrix::CreateScale(m_MeshScale) *
@@ -138,21 +140,49 @@ namespace EduEngine
 				SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_MeshRotation.y)) *
 				SimpleMath::Matrix::CreateRotationZ(XMConvertToRadians(m_MeshRotation.z))).Transpose();
 
-			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_BASE_COLOR));
-			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_NORMAL_MAP));
-			objData.ORMTexIdx = GetTexIdx(m_Mesh->GetTexture(i, PBR_TEXTURE_ORM));
-			objData.ObjMaterialIdx = m_Mesh->GetMaterialIndex(i);
+			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_BASE_COLOR));
+			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_NORMAL_MAP));
+			objData.ORMTexIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_ORM));
+			objData.TransmissionTexIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_TRANSMISSION));
+			objData.ObjMaterialIdx = m_Mesh->GetMaterialIndex(meshIdx);
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);
 
-			m_ColorPass->GetPipelineState().CommitBinder(GetMainContext(), m_Binder.get());
-			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(i)->GetView());
-			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(i)->GetView());
+			m_ColorPass->GetOpaquePipelineState().CommitBinder(GetMainContext(), m_Binder.get());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(meshIdx)->GetView());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(meshIdx)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(i), 1, 0, 0, 0);
+			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(meshIdx), 1, 0, 0, 0);
 		}
 
 		m_Skybox->Render(GetMainContext(), GetCamera());
+
+		m_ColorPass->GetTransmissionPipelineState().CommitPso(GetMainContext());
+		for (uint32 i = 0; i < m_Mesh->GetTransmissionMeshCount(); i++)
+		{
+			uint32 meshIdx = m_Mesh->GetTransmissionMeshIndex(i);
+
+			PBRLighting::ObjectConstants objData;
+
+			objData.World = (SimpleMath::Matrix::CreateScale(m_MeshScale) *
+				SimpleMath::Matrix::CreateRotationX(XMConvertToRadians(m_MeshRotation.x)) *
+				SimpleMath::Matrix::CreateRotationY(XMConvertToRadians(m_MeshRotation.y)) *
+				SimpleMath::Matrix::CreateRotationZ(XMConvertToRadians(m_MeshRotation.z))).Transpose();
+
+			objData.AlbedoTexIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_BASE_COLOR));
+			objData.NormalMapIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_NORMAL_MAP));
+			objData.ORMTexIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_ORM));
+			objData.TransmissionTexIdx = GetTexIdx(m_Mesh->GetTexture(meshIdx, PBR_TEXTURE_TRANSMISSION));
+			objData.ObjMaterialIdx = m_Mesh->GetMaterialIndex(meshIdx);
+
+			m_ObjBuffer->LoadData(GetMainContext(), objData);
+
+			m_ColorPass->GetTransmissionPipelineState().CommitBinder(GetMainContext(), m_Binder.get());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(meshIdx)->GetView());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(meshIdx)->GetView());
+			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(meshIdx), 1, 0, 0, 0);
+		}
 
 		XMFLOAT3 lightEndDir =
 		{
@@ -296,9 +326,8 @@ namespace EduEngine
 
 		m_ColorPass = std::make_unique<PBRLighting>(GetDevice(), macros);
 		m_ColorPass->Build(GetDevice());
-		m_ColorPass->GetPipelineState().SetName(L"PSO_PBR");
 
-		m_Binder = m_ColorPass->GetPipelineState().CreateShaderBinder();
+		m_Binder = m_ColorPass->GetOpaquePipelineState().CreateShaderBinder();
 
 		m_Binder->BindResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "cbTextureIndexes", m_TextureIdxBuffer);
 		m_Binder->BindDynamicResource(EduEngine::EduBinding::EDU_SHADER_TYPE_PIXEL, "gLight", m_LightBuffer);

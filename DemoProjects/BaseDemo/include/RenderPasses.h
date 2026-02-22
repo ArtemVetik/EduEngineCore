@@ -18,6 +18,7 @@ namespace EduEngine
 			UINT AlbedoTexIdx;
 			UINT NormalMapIdx;
 			UINT ORMTexIdx;
+			UINT TransmissionTexIdx;
 			UINT ObjMaterialIdx;
 		};
 
@@ -62,7 +63,8 @@ namespace EduEngine
 	private:
 		std::shared_ptr<EduEngine::EduBinding::ShaderD3D12> m_VertexShader;
 		std::shared_ptr<EduEngine::EduBinding::ShaderD3D12> m_PixelShader;
-		EduEngine::EduBinding::PipelineState m_Pso;
+		EduEngine::EduBinding::PipelineState m_OpaquePso;
+		EduEngine::EduBinding::PipelineState m_TransmissionPso;
 		EduEngine::EduBinding::ShaderDesc m_psDesc;
 		EduEngine::EduBinding::ShaderDesc m_vsDesc;
 
@@ -108,16 +110,36 @@ namespace EduEngine
 			dsDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 			dsDesc.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
 
-			m_Pso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
-			m_Pso.SetShader(m_VertexShader);
-			m_Pso.SetShader(m_PixelShader);
-			m_Pso.SetDepthStencilState(dsDesc);
-			m_Pso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+			D3D12_BLEND_DESC blendDesc = {};
+			blendDesc.AlphaToCoverageEnable = FALSE;
+			blendDesc.RenderTarget[0].BlendEnable = TRUE;
+			blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+			blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+			blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+			blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-			m_Pso.Build(device);
+			m_OpaquePso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
+			m_OpaquePso.SetShader(m_VertexShader);
+			m_OpaquePso.SetShader(m_PixelShader);
+			m_OpaquePso.SetDepthStencilState(dsDesc);
+			m_OpaquePso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+
+			m_TransmissionPso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
+			m_TransmissionPso.SetShader(m_VertexShader);
+			m_TransmissionPso.SetShader(m_PixelShader);
+			m_TransmissionPso.SetBlendState(blendDesc);
+			m_TransmissionPso.SetDepthStencilState(dsDesc);
+			m_TransmissionPso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+
+			m_OpaquePso.Build(device);
+			m_TransmissionPso.Build(device);
 		}
 
-		EduEngine::EduBinding::PipelineState& GetPipelineState() { return m_Pso; }
+		EduEngine::EduBinding::PipelineState& GetOpaquePipelineState() { return m_OpaquePso; }
+		EduEngine::EduBinding::PipelineState& GetTransmissionPipelineState() { return m_TransmissionPso; }
 	};
 
 	class DebugRenderPass

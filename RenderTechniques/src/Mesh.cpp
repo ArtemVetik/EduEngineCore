@@ -3,6 +3,7 @@
 
 #include <StringUtils.h>
 #include <filesystem>
+#include <assimp/GltfMaterial.h>
 
 namespace EduEngine
 {
@@ -62,6 +63,13 @@ namespace EduEngine
 		for (uint32 i = 0; i < m_Scene->mNumMeshes; i++)
 		{
 			aiMesh* mesh = m_Scene->mMeshes[i];
+			aiMaterial* material = m_Scene->mMaterials[mesh->mMaterialIndex];
+
+			float transmissionFactor = 0;
+			if (material->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmissionFactor) == AI_SUCCESS && transmissionFactor > 0)
+				m_TransmissionIndexes.push_back(i);
+			else
+				m_OpaqueIndexes.push_back(i);
 
 			if (loadDesc.Flags & MESH_LOAD_FLAG_LOAD_TEXTURES)
 				LoadPBRTextures(i, loadDesc);
@@ -201,18 +209,18 @@ namespace EduEngine
 		m_Materials->SetName(L"MeshMaterialsBuffer");
 
 		std::vector<Material> materials(m_Scene->mNumMaterials);
-		
+
 		for (uint32 i = 0; i < m_Scene->mNumMaterials; i++)
 		{
 			Material data = {};
 			aiMaterial* material = m_Scene->mMaterials[i];
 
-			aiColor4D baseColor;
-			if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS)
-			{
-				data.BaseColorFactor = baseColor;
-				materials[i] = data;
-			}
+			material->Get(AI_MATKEY_BASE_COLOR, data.BaseColorFactor);
+			material->Get(AI_MATKEY_ROUGHNESS_FACTOR, data.RoughnessFactor);
+			material->Get(AI_MATKEY_METALLIC_FACTOR, data.MetallicFactor);
+			material->Get(AI_MATKEY_TRANSMISSION_FACTOR, data.TransmissionFactor);
+
+			materials[i] = data;
 		}
 
 		m_Materials->LoadData(m_Context, materials.data());
@@ -248,7 +256,7 @@ namespace EduEngine
 				CreateTexture(texPath, PBR_TEXTURE_BASE_COLOR);
 			}
 		}
-		
+
 		// Normal Map
 		{
 			aiString texPath;
@@ -295,6 +303,16 @@ namespace EduEngine
 			{
 				// TODO: if assert failed, extend ORMTextureLoader for this case
 				ASSERT_FAILED("Unexpected texture combination");
+			}
+		}
+
+		// Transmission
+		{
+			aiString texPath;
+
+			if (material->GetTexture(aiTextureType_TRANSMISSION, 0, &texPath) == AI_SUCCESS)
+			{
+				CreateTexture(texPath, PBR_TEXTURE_TRANSMISSION);
 			}
 		}
 	}
