@@ -39,7 +39,6 @@ cbuffer cbBlurPass : register(b2)
 void ComputePosAndReflection(uint2 tid, float3 normalVS, Texture2D<float4> depthTex, out float3 outSamplePosInTS, out float3 outReflDirInTS, out float outMaxDistance)
 {
     float sampleDepth = depthTex.Load(int3(tid, 0)).r;
-    float texC = (float2(tid) + 0.5) / gScreenSize;
     
     float4 samplePosInCS = float4(((float2(tid) + 0.5) / gScreenSize) * 2 - 1.0f, sampleDepth, 1);
     samplePosInCS.y *= -1;

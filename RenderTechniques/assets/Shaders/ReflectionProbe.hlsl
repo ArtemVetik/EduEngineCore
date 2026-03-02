@@ -78,7 +78,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
     shadowAttenuation.w = shadowMap.SampleCmpLevelZero(gsamShadow, pIn.ShadowPosH.xy + float2( dx,  dx), pIn.ShadowPosH.z);
     float shadowFactor = dot(shadowAttenuation, float(0.25));
     
-    float3 albedoColor = albedoTex.Sample(gsamLinearWrap, pIn.TexC);
+    float3 albedoColor = albedoTex.Sample(gsamLinearWrap, pIn.TexC).xyz;
     
     float3 N = 0;
     

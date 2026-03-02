@@ -85,9 +85,13 @@ namespace EduEngine
 
 		m_Pso.CommitAll(context, m_Binder.get());
 
+		context->GetCommandCtx()->TransitionResource(m_LightTexture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+
 		context->GetCommandCtx()->GetCmdList()->OMSetRenderTargets(1, &m_LightTexture->GetRTVView()->GetCpuHandle(), false, nullptr);
 		context->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_LightTexture->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
+
+		context->GetCommandCtx()->TransitionResource(m_LightTexture.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	void VolumetricLight::Resize(UINT width, UINT height)

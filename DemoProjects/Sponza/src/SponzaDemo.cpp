@@ -123,7 +123,6 @@ namespace EduEngine
 		m_PostProcPso.OnPsoUpdated = [this]()
 			{
 				m_PostProcBinder = m_PostProcPso.Pso->CreateShaderBinder();
-				m_PostProcBinder->BindResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PostProcBuffer);
 				m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PostProcBuffer);
 			};
 		m_PostProcPso.Initialize();

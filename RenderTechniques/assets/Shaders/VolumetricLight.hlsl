@@ -58,8 +58,8 @@ float PhaseHG(float cosTheta, float g)
 float PS(VertexOut pIn) : SV_TARGET
 {
     Texture2D depthTex = ResourceDescriptorHeap[gDepthTexIdx];
-    float depth = depthTex.Sample(gsamPointClamp, pIn.TexC);
-    float3 posW = ReconstructWorldPosFromDepth(depth, pIn.TexC, gInvProj, gInvView);
+    float depth = depthTex.Sample(gsamPointClamp, pIn.TexC).r;
+    float3 posW = ReconstructWorldPosFromDepth(depth, pIn.TexC, gInvProj, gInvView).xyz;
     
     float3 camPos = gCameraPos;
     float3 viewDir = normalize(posW - camPos);
