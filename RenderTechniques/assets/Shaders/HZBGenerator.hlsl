@@ -1,5 +1,7 @@
 // Based on Unreal Engine implementation
-// Source: UE_5.6\Engine\Shaders\Private\ReductionCommon.ush
+// Source: 
+//  UE_5.6\Engine\Shaders\Private\HZB.usf
+//  UE_5.6\Engine\Shaders\Private\ReductionCommon.ush
 
 #define GROUP_TILE_SIZE 8
 #define MAX_MIP_BATCH_SIZE 4
