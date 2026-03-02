@@ -17,9 +17,12 @@ namespace EduEngine
 		void Resize(TextureD3D12* depth);
 
 	private:
+		static constexpr uint32 MAX_BATCH_SIZE = 4;
+
+	private:
 		std::unique_ptr<TextureD3D12> m_HZBTexture;
 
-		ComputePipelineState m_Pso;
+		ComputePipelineState m_Pso[MAX_BATCH_SIZE];
 		std::shared_ptr<ShaderBinder> m_Binder;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 

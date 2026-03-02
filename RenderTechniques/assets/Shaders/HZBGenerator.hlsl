@@ -9,7 +9,6 @@ SamplerState gPointClampSampler : register(s1);
 cbuffer cbPass : register(b0)
 {
     float2 gInvInputTextureSize;
-    uint gMipCount;
     uint gInputTextureIdx;
     uint gOutputTexture0Idx;
     uint gOutputTexture1Idx;
@@ -69,21 +68,27 @@ uint2 InitialTilePixelPositionForReduction2x2(const uint TileSizeLog2, uint Shar
 
 void OutputMipLevel(uint mipLevel, uint2 outputPixelPos, float minDeviceZ)
 {
+#if DIM_MIP_LEVEL_COUNT >= 2
     if (mipLevel == 1)
     {
         RWTexture2D<float> outputTexture1 = ResourceDescriptorHeap[gOutputTexture1Idx];
         outputTexture1[outputPixelPos] = minDeviceZ;
     }
+#endif
+#if DIM_MIP_LEVEL_COUNT >= 3
     else if (mipLevel == 2)
     {
         RWTexture2D<float> outputTexture2 = ResourceDescriptorHeap[gOutputTexture2Idx];
         outputTexture2[outputPixelPos] = minDeviceZ;
     }
+#endif
+#if DIM_MIP_LEVEL_COUNT >= 4
     else if (mipLevel == 3)
     {
         RWTexture2D<float> outputTexture3 = ResourceDescriptorHeap[gOutputTexture3Idx];
         outputTexture3[outputPixelPos] = minDeviceZ;
     }
+#endif
 }
 
 [numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
@@ -107,8 +112,8 @@ void CS(
     
     SharedMinDeviceZ[groupIndex] = minDeviceZ;
     
-    //[unroll]
-    for (uint mipLevel = 1; mipLevel < gMipCount; ++mipLevel)
+    [unroll]
+    for (uint mipLevel = 1; mipLevel < DIM_MIP_LEVEL_COUNT; ++mipLevel)
     {
         uint mipTileSize = uint(GROUP_TILE_SIZE) >> mipLevel;
         uint reduceBankSize = mipTileSize * mipTileSize;

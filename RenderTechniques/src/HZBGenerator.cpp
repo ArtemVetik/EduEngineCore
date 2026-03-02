@@ -8,20 +8,40 @@ namespace EduEngine
 {
 	HZBGenerator::HZBGenerator(RenderDeviceD3D12* device) :
 		m_Device(device),
-		m_Pso(QueueId::Direct)
+		m_Pso
+		{
+			ComputePipelineState(QueueId::Direct),
+			ComputePipelineState(QueueId::Direct),
+			ComputePipelineState(QueueId::Direct),
+			ComputePipelineState(QueueId::Direct),
+		}
 	{
 		ShaderDesc sDesc = {};
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
 		sDesc.ResourceNum = 0;
 
-		auto cs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\HZBGenerator.hlsl", L"CS", L"cs_6_6", nullptr, sDesc);
+		LPCWSTR numbers[MAX_BATCH_SIZE]
+		{
+			L"1", L"2", L"3", L"4"
+		};
 
-		m_Pso.SetShader(cs);
-		m_Pso.Build(m_Device);
+		for (uint32 i = 0; i < MAX_BATCH_SIZE; i++)
+		{
+			LPCWSTR macros[]
+			{
+				L"DIM_MIP_LEVEL_COUNT", numbers[i],
+				NULL, NULL,
+			};
+
+			auto cs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\HZBGenerator.hlsl", L"CS", L"cs_6_6", macros, sDesc);
+
+			m_Pso[i].SetShader(cs);
+			m_Pso[i].Build(m_Device);
+		}
 
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(m_Device);
 
-		m_Binder = m_Pso.CreateShaderBinder();
+		m_Binder = m_Pso[0].CreateShaderBinder();
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
 	}
 
@@ -30,7 +50,6 @@ namespace EduEngine
 		struct PassData
 		{
 			XMFLOAT2 InvInputTextureSize;
-			UINT MipCount;
 			UINT InputTextureIdx;
 			UINT OutputTexture0Idx;
 			UINT OutputTexture1Idx;
@@ -49,14 +68,12 @@ namespace EduEngine
 		{
 			UINT mipCount = std::min(totalMipLevels, 4u);
 
-			passData.InvInputTextureSize = XMFLOAT2(2.0f / parentTextureSize.x, 2.0f / parentTextureSize.y);
-			passData.MipCount = mipCount;
-			
 			if (outMip == 0)
 				passData.InputTextureIdx = m_DepthSrv.GetGpuHeapIndex();
 			else
 				passData.InputTextureIdx = m_HZBTexture->GetSRVView()->GetGpuHeapIndex(outMip - 1);
 
+			passData.InvInputTextureSize = XMFLOAT2(2.0f / parentTextureSize.x, 2.0f / parentTextureSize.y);
 			passData.OutputTexture0Idx = m_HZBTexture->GetUAVView()->GetGpuHeapIndex(outMip + 0);
 			passData.OutputTexture1Idx = m_HZBTexture->GetUAVView()->GetGpuHeapIndex(outMip + 1);
 			passData.OutputTexture2Idx = m_HZBTexture->GetUAVView()->GetGpuHeapIndex(outMip + 2);
@@ -64,7 +81,7 @@ namespace EduEngine
 
 			m_PassBuffer->LoadData(context, passData);
 
-			m_Pso.CommitAll(context, m_Binder.get());
+			m_Pso[mipCount - 1].CommitAll(context, m_Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch((UINT)std::ceil(parentTextureSize.x / 16.0f), (UINT)std::ceil(parentTextureSize.y / 16.0f), 1);
 
 			totalMipLevels -= mipCount;
