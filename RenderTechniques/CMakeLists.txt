@@ -18,6 +18,7 @@ add_library(RenderTechniques STATIC
     src/VolumetricLight.cpp
     src/Bloom.cpp
     src/ORMTextureGenerator.cpp
+    src/HZBGenerator.cpp
 )
 
 target_include_directories(RenderTechniques

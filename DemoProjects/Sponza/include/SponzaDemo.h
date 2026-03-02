@@ -14,6 +14,7 @@
 #include <ScreenSpaceReflection.h>
 #include <VolumetricLight.h>
 #include <Bloom.h>
+#include <HZBGenerator.h>
 #include <SponzaCommon.h>
 #include <DebugRendererSystem.h>
 #include <SponzaGUI.h>
@@ -46,6 +47,7 @@ namespace EduEngine
 		std::unique_ptr<ScreenSpaceReflection> m_SSR;
 		std::unique_ptr<VolumetricLight> m_VolumetricLight;
 		std::unique_ptr<Bloom> m_Bloom;
+		std::unique_ptr<HZBGenerator> m_HZBGenerator;
 
 		std::shared_ptr<Mesh> m_Mesh;
 

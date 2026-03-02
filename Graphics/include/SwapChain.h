@@ -23,6 +23,7 @@ namespace EduEngine
 		D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 		D3D12_GPU_DESCRIPTOR_HANDLE DepthStencilSRVView() const;
 
+		TextureD3D12* GetDepthStencilTexture() const;
 		std::shared_ptr<TextureD3D12> GetDepthStencilTextureShared() const;
 
 		int GetWidth() const { return m_Width; }

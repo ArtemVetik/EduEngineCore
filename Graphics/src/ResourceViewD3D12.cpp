@@ -78,6 +78,25 @@ namespace EduEngine
 		m_SrvView = std::make_unique<ResourceHeapView>(this, std::move(allocation), onCpu);
 	}
 
+	void ResourceViewD3D12::CreateSRV_Tex2DMip(D3D12_SHADER_RESOURCE_VIEW_DESC& srvDesc, bool onCpu)
+	{
+		VERIFY_EXPR(srvDesc.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2D, "");
+		VERIFY_EXPR(srvDesc.Texture2D.MipLevels > 0, "");
+
+		uint32 mipLevels = srvDesc.Texture2D.MipLevels;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		DescriptorHeapAllocation allocation = std::move(Allocate(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, mipLevels, onCpu));
+
+		for (size_t i = 0; i < mipLevels; i++)
+		{
+			srvDesc.Texture2D.MostDetailedMip = i;
+			m_Device->GetD3D12Device()->CreateShaderResourceView(m_d3d12Resource.Get(), &srvDesc, allocation.GetCpuHandle(i));
+		}
+
+		m_SrvView = std::make_unique<ResourceHeapView>(this, std::move(allocation), onCpu);
+	}
+
 	void ResourceViewD3D12::CreateRTV(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc)
 	{
 		DescriptorHeapAllocation allocation = std::move(Allocate(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, true));

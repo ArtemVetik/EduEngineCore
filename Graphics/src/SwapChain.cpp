@@ -173,8 +173,7 @@ namespace EduEngine
 		depthSrvDesc.Texture2D.PlaneSlice = 0;
 		m_DepthStencilTexture->CreateSRV(&depthSrvDesc);
 
-		context->GetCommandCtx()->ResourceBarrier(
-			CD3DX12_RESOURCE_BARRIER::Transition(m_DepthStencilTexture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		context->GetCommandCtx()->TransitionResource(m_DepthStencilTexture.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 	}
 
 	void SwapChain::Present()
@@ -217,6 +216,11 @@ namespace EduEngine
 	D3D12_GPU_DESCRIPTOR_HANDLE SwapChain::DepthStencilSRVView() const
 	{
 		return m_DepthStencilTexture->GetSRVView()->GetGpuHandle();
+	}
+
+	TextureD3D12* SwapChain::GetDepthStencilTexture() const
+	{
+		return m_DepthStencilTexture.get();
 	}
 
 	std::shared_ptr<TextureD3D12> SwapChain::GetDepthStencilTextureShared() const

@@ -45,7 +45,7 @@ namespace EduEngine
 		m_CubeIB->SetName(L"IB Cube");
 
 		//
-		// Init Tectures
+		// Init Textures
 		//
 
 		//

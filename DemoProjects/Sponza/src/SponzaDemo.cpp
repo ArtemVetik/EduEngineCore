@@ -49,6 +49,7 @@ namespace EduEngine
 		m_SSR = std::make_unique<ScreenSpaceReflection>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 		m_VolumetricLight = std::make_unique<VolumetricLight>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 		m_Bloom = std::make_unique<Bloom>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
+		m_HZBGenerator = std::make_unique<HZBGenerator>(GetDevice());
 
 		struct ProbeInitData
 		{
@@ -162,6 +163,9 @@ namespace EduEngine
 
 		GetMainContext()->GetCommandCtx()->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(GetSwapChain()->CurrentBackBuffer(),
 			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		
+		GetMainContext()->GetCommandCtx()->TransitionResource(GetSwapChain()->GetDepthStencilTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		
 		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
 		GetMainContext()->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
@@ -229,7 +233,11 @@ namespace EduEngine
 		for (uint32 i = 0; i < SponzaGBufferId::NumBuffers; i++)
 			GetMainContext()->GetCommandCtx()->TransitionResource(m_GBuffer->GetGBuffer(i), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
+		GetMainContext()->GetCommandCtx()->TransitionResource(GetSwapChain()->GetDepthStencilTexture(), D3D12_RESOURCE_STATE_DEPTH_READ);
+
 		GetMainContext()->GetCommandCtx()->FlushResourceBarriers();
+
+		m_HZBGenerator->Generate(GetMainContext(), GetSwapChain()->GetDepthStencilTexture());
 
 		m_Ssao->Render(GetMainContext());
 
@@ -328,6 +336,11 @@ namespace EduEngine
 				deferredLightBuffers.ShadowMapIdx[i] = m_CSMRendering->GetSrv(i)->GetGpuHeapIndex();
 
 			m_LightPass->SetBufferIndexes(GetMainContext(), deferredLightBuffers);
+		}
+
+		if (m_HZBGenerator)
+		{
+			m_HZBGenerator->Resize(GetSwapChain()->GetDepthStencilTexture());
 		}
 
 		if (updatePostProc)
