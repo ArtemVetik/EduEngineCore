@@ -94,10 +94,20 @@ namespace EduEngine
 
 	void HZBGenerator::Resize(TextureD3D12* depth)
 	{
+		auto RoundUpToPowerOfTwo = [&](uint32 Arg) -> uint32
+		{
+			Arg = Arg ? Arg : 1;
+
+			unsigned long BitIndex;
+			_BitScanReverse(&BitIndex, Arg - 1);
+
+			return 1u << BitIndex;
+		};
+
 		D3D12_RESOURCE_DESC depthDesc = depth->GetD3D12Resource()->GetDesc();
 
-		UINT64 newWidth = floor(depthDesc.Width / 2.0f);
-		UINT64 newHeight = floor(depthDesc.Height / 2.0f);
+		UINT64 newWidth = RoundUpToPowerOfTwo(depthDesc.Width);
+		UINT64 newHeight = RoundUpToPowerOfTwo(depthDesc.Height);
 
 		if (newWidth == 0 || newHeight == 0)
 		{

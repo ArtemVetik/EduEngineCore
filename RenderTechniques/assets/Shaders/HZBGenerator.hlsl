@@ -99,10 +99,17 @@ void CS(
     uint groupIndex : SV_GroupIndex
 )
 {
+#if DIM_MIP_LEVEL_COUNT == 1
+	uint2 groupThreadId = uint2(groupIndex % GROUP_TILE_SIZE, groupIndex / GROUP_TILE_SIZE);
+#else
+    uint2 groupThreadId = InitialTilePixelPositionForReduction2x2(MAX_MIP_BATCH_SIZE - 1, groupIndex);
+#endif
+    
     Texture2D<float> inputTexture = ResourceDescriptorHeap[gInputTextureIdx];
     RWTexture2D<float> outputTexture0 = ResourceDescriptorHeap[gOutputTexture0Idx];
     
-    uint2 dispatchThreadId = groupID * GROUP_TILE_SIZE + InitialTilePixelPositionForReduction2x2(MAX_MIP_BATCH_SIZE - 1, groupIndex);
+    uint2 groupOffset = GROUP_TILE_SIZE * groupID;
+    uint2 dispatchThreadId = groupOffset + groupThreadId;
     
     float2 uv = (dispatchThreadId + 0.5f) * gInvInputTextureSize;
     float4 samples = inputTexture.GatherRed(gPointClampSampler, uv);
@@ -112,39 +119,47 @@ void CS(
     uint2 outputPixelPos = dispatchThreadId;
     outputTexture0[outputPixelPos] = minDeviceZ;
     
-    SharedMinDeviceZ[groupIndex] = minDeviceZ;
-    
-    [unroll]
-    for (uint mipLevel = 1; mipLevel < DIM_MIP_LEVEL_COUNT; ++mipLevel)
+#if DIM_MIP_LEVEL_COUNT == 1
     {
-        uint mipTileSize = uint(GROUP_TILE_SIZE) >> mipLevel;
-        uint reduceBankSize = mipTileSize * mipTileSize;
-        
-        uint laneCount = WaveGetLaneCount();
-        
-        if ((reduceBankSize << 2u) > laneCount)
+    
+    }
+#else
+    {
+        SharedMinDeviceZ[groupIndex] = minDeviceZ;
+    
+        [unroll]
+        for (uint mipLevel = 1; mipLevel < DIM_MIP_LEVEL_COUNT; ++mipLevel)
         {
-            GroupMemoryBarrierWithGroupSync();
-        }
+            uint mipTileSize = uint(GROUP_TILE_SIZE) >> mipLevel;
+            uint reduceBankSize = mipTileSize * mipTileSize;
         
-        if (groupIndex < reduceBankSize)
-        {
-            float4 mipMinDeviceZ;
-            mipMinDeviceZ[0] = minDeviceZ;
-            
-            [unroll]
-            for (uint i = 1; i < 4; i++)
+            uint laneCount = WaveGetLaneCount();
+        
+            if ((reduceBankSize << 2u) > laneCount)
             {
-                uint ldsIndex = groupIndex + i * reduceBankSize;
-                mipMinDeviceZ[i] = SharedMinDeviceZ[ldsIndex];
+                GroupMemoryBarrierWithGroupSync();
             }
+        
+            if (groupIndex < reduceBankSize)
+            {
+                float4 mipMinDeviceZ;
+                mipMinDeviceZ[0] = minDeviceZ;
+                
+               [unroll]
+                for (uint i = 1; i < 4; i++)
+                {
+                    uint ldsIndex = groupIndex + i * reduceBankSize;
+                    mipMinDeviceZ[i] = SharedMinDeviceZ[ldsIndex];
+                }
             
-            minDeviceZ = min(min(mipMinDeviceZ.x, mipMinDeviceZ.y), min(mipMinDeviceZ.z, mipMinDeviceZ.w));
+                minDeviceZ = min(min(mipMinDeviceZ.x, mipMinDeviceZ.y), min(mipMinDeviceZ.z, mipMinDeviceZ.w));
             
-            outputPixelPos = outputPixelPos >> 1;
-            OutputMipLevel(mipLevel, outputPixelPos, minDeviceZ);
+                outputPixelPos = outputPixelPos >> 1;
+                OutputMipLevel(mipLevel, outputPixelPos, minDeviceZ);
             
-            SharedMinDeviceZ[groupIndex] = minDeviceZ;
+                SharedMinDeviceZ[groupIndex] = minDeviceZ;
+            }
         }
     }
+#endif
 }
