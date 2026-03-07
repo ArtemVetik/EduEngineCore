@@ -82,7 +82,13 @@ namespace EduEngine
 			m_PassBuffer->LoadData(context, passData);
 
 			m_Pso[mipCount - 1].CommitAll(context, m_Binder.get());
-			context->GetCommandCtx()->GetCmdList()->Dispatch((UINT)std::ceil(parentTextureSize.x / 16.0f), (UINT)std::ceil(parentTextureSize.y / 16.0f), 1);
+			context->GetCommandCtx()->GetCmdList()->Dispatch((UINT)std::ceil(parentTextureSize.x / 8.0f), (UINT)std::ceil(parentTextureSize.y / 8.0f), 1);
+
+			if (outMip == 0)
+			{
+				parentTextureSize.x = RoundUpToPowerOfTwo(parentTextureSize.x) << 1;
+				parentTextureSize.y = RoundUpToPowerOfTwo(parentTextureSize.y) << 1;
+			}
 
 			totalMipLevels -= mipCount;
 			outMip += mipCount;
@@ -94,16 +100,6 @@ namespace EduEngine
 
 	void HZBGenerator::Resize(TextureD3D12* depth)
 	{
-		auto RoundUpToPowerOfTwo = [&](uint32 Arg) -> uint32
-		{
-			Arg = Arg ? Arg : 1;
-
-			unsigned long BitIndex;
-			_BitScanReverse(&BitIndex, Arg - 1);
-
-			return 1u << BitIndex;
-		};
-
 		D3D12_RESOURCE_DESC depthDesc = depth->GetD3D12Resource()->GetDesc();
 
 		UINT64 newWidth = RoundUpToPowerOfTwo(depthDesc.Width);
@@ -156,5 +152,15 @@ namespace EduEngine
 			m_DepthSrv.GetCpuHandle(),
 			depth->GetSRVView()->GetCpuHandle(),
 			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+
+	uint32 HZBGenerator::RoundUpToPowerOfTwo(uint32 arg)
+	{
+		arg = arg ? arg : 1;
+
+		unsigned long BitIndex;
+		_BitScanReverse(&BitIndex, arg - 1);
+
+		return 1u << BitIndex;
 	}
 }

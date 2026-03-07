@@ -19,6 +19,8 @@ namespace EduEngine
 	private:
 		static constexpr uint32 MAX_BATCH_SIZE = 4;
 
+		uint32 RoundUpToPowerOfTwo(uint32 arg);
+
 	private:
 		std::unique_ptr<TextureD3D12> m_HZBTexture;
 
