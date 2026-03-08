@@ -250,11 +250,10 @@ namespace EduEngine
 		m_SkyboxPassBuff->LoadData(context, cb);
 
 		if (hdr)
-			m_PsoSkybox[1].CommitAll(context, m_PsoSkyboxBinder[0].get());
+			m_PsoSkybox[1].BeginPSOAndCommitResources(context, m_PsoSkyboxBinder[0].get());
 		else
-			m_PsoSkybox[0].CommitAll(context, m_PsoSkyboxBinder[0].get());
+			m_PsoSkybox[0].BeginPSOAndCommitResources(context, m_PsoSkyboxBinder[0].get());
 
-		context->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		context->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
 		context->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
 

@@ -83,7 +83,7 @@ namespace EduEngine
 
 		float clear[4] = { 0, 0, 0, 1 };
 
-		m_Pso.CommitAll(context, m_Binder.get());
+		m_Pso.BeginPSOAndCommitResources(context, m_Binder.get());
 
 		context->GetCommandCtx()->TransitionResource(m_LightTexture.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 

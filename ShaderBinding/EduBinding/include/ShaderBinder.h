@@ -115,6 +115,15 @@ namespace EduEngine::EduBinding
 	class EDUBINDING_API ShaderBinder
 	{
 	public:
+		enum CommitFlags : uint32
+		{
+			DYNAMIC_ROOT_VIEW = 1u << 1,
+			DYNAMIC_TABLE = 1u << 2,
+			MUTABLE_ROOT_VIEW = 1u << 3,
+			MUTABLE_TABLE = 1u << 4,
+		};
+
+	public:
 		ShaderBinder(RenderDeviceD3D12* device);
 		~ShaderBinder();
 
@@ -128,7 +137,7 @@ namespace EduEngine::EduBinding
 		void BindDynamicResource(EDU_SHADER_TYPE shaderType, const char* name, std::shared_ptr<DynamicUploadBuffer> resource);
 		void DryMutableResources();
 
-		void CommitAll(DeviceContext* context, bool isCompute);
+		void CommitAll(DeviceContext* context, bool isCompute, uint32 flags = static_cast<uint32>(~0u));
 
 #ifdef EDUBINDINGDEBUG
 		void DebugPrint();

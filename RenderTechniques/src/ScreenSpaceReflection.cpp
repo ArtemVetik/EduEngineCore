@@ -131,7 +131,7 @@ namespace EduEngine
 
 		m_PassBuffer->LoadData(context, passData);
 
-		m_MainPso.Pso->CommitAll(context, m_MainBinder.get());
+		m_MainPso.Pso->BeginPSOAndCommitResources(context, m_MainBinder.get());
 		context->GetCommandCtx()->GetCmdList()->Dispatch(ceilf(m_Viewport.Width / 32.0f), ceilf(m_Viewport.Height / 32.0f), 1);
 
 		if (!m_Settings.BlurEnabled)
@@ -144,13 +144,13 @@ namespace EduEngine
 		UINT horizontal = 1;
 		m_BlurPassBuffer->LoadData(context, horizontal);
 
-		m_BlurPso.Pso->CommitAll(context, m_BlurBinder.get());
+		m_BlurPso.Pso->BeginPSOAndCommitResources(context, m_BlurBinder.get());
 		context->GetCommandCtx()->GetCmdList()->Dispatch(ceilf(camera->GetViewportSize().x / 8.0f), ceilf(camera->GetViewportSize().y / 8.0f), 1);
 		
 		horizontal = 0;
 		m_BlurPassBuffer->LoadData(context, horizontal);
 
-		m_BlurPso.Pso->CommitBinder(context, m_BlurBinder.get());
+		m_BlurPso.Pso->CommitResources(context, m_BlurBinder.get());
 		context->GetCommandCtx()->GetCmdList()->Dispatch(ceilf(camera->GetViewportSize().x / 8.0f), ceilf(camera->GetViewportSize().y / 8.0f), 1);
 	}
 

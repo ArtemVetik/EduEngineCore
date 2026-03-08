@@ -14,10 +14,9 @@ namespace EduEngine::EduBinding
 		virtual ~PipelineStateBase();
 
 		void Build(RenderDeviceD3D12* pDevice, D3D12_STATIC_SAMPLER_DESC* staticSamplers = nullptr, uint32 numStaticSamplers = 0);
-		void CommitPso(DeviceContext* context);
-		// TODO: redundant API calls when commit all. Make it possible to commit only a specific resource.
-		void CommitBinder(DeviceContext* context, ShaderBinder* shaderBinder);
-		void CommitAll(DeviceContext* context, ShaderBinder* shaderBinder);
+		void BeginPSO(DeviceContext* context);
+		void CommitResources(DeviceContext* context, ShaderBinder* shaderBinder);
+		void BeginPSOAndCommitResources(DeviceContext* context, ShaderBinder* shaderBinder);
 
 		std::shared_ptr<ShaderBinder> CreateShaderBinder();
 
@@ -30,6 +29,7 @@ namespace EduEngine::EduBinding
 	protected:
 		void SetShaderBase(const std::shared_ptr<ShaderD3D12>& shader);
 
+		virtual bool GetTopology(D3D12_PRIMITIVE_TOPOLOGY& outTopology) { return false; }
 		virtual void BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso) = 0;
 
 	private:

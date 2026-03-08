@@ -192,11 +192,10 @@ namespace EduEngine
 		vertexView.StrideInBytes = sizeof(VertexPointColor);
 		vertexView.SizeInBytes = m_Lines.size() * sizeof(VertexPointColor);
 
-		m_RenderPass.GetPipelineState().CommitAll(context, m_RenderPassBinder.get());
+		m_RenderPass.GetPipelineState().BeginPSOAndCommitResources(context, m_RenderPassBinder.get());
 
 		auto* cmdList = context->GetCommandCtx()->GetCmdList();
 		cmdList->IASetVertexBuffers(0, 1, &vertexView);
-		cmdList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 		cmdList->DrawInstanced(m_Lines.size(), 1, 0, 0);
 
 		m_Lines.clear();

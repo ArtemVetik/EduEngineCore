@@ -194,6 +194,7 @@ namespace EduEngine
 		uint32 groupsPerDispatch = MaxDispatchGroups * WAVE_THREADS_NUM;
 		uint32 dispatchCount = DivRoundUp(m_InstanceCount, groupsPerDispatch);
 
+		m_Pso.BeginPSO(GetMainContext());
 		for (uint32 i = 0; i < dispatchCount; i++)
 		{
 			DispatchData dispatchData;
@@ -201,8 +202,8 @@ namespace EduEngine
 			dispatchData.DispatchInstanceCount = std::min(m_InstanceCount - dispatchData.DispatchInstanceOffset, groupsPerDispatch);
 
 			m_DispatchDataBuffer->LoadData(GetMainContext(), dispatchData);
-
-			m_Pso.CommitAll(GetMainContext(), m_Binder.get());
+			
+			m_Pso.CommitResources(GetMainContext(), m_Binder.get());
 
 			uint32 groupCount = DivRoundUp(dispatchData.DispatchInstanceCount, WAVE_THREADS_NUM);
 			static_cast<ID3D12GraphicsCommandList6*>(GetMainContext()->GetCommandCtx()->GetCmdList())->DispatchMesh(groupCount, 1, 1);

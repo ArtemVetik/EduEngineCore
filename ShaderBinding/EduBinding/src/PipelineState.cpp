@@ -19,11 +19,30 @@ namespace EduEngine::EduBinding
 		m_Desc.SampleDesc.Count = 1;
 		m_Desc.SampleDesc.Quality = 0;
 		m_Desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		m_Topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	}
 
 	void PipelineState::SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology)
 	{
 		m_Desc.PrimitiveTopologyType = topology;
+
+		switch (topology)
+		{
+		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT:
+			m_Topology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+			break;
+		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE:
+			m_Topology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+			break;
+		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE:
+			m_Topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			break;
+		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH:
+		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED:
+			ASSERT_FAILED("This primitive topology is not supported (", topology, ")");
+			break;
+		}
 	}
 
 	void PipelineState::SetBlendState(D3D12_BLEND_DESC blendState)
@@ -89,6 +108,12 @@ namespace EduEngine::EduBinding
 		}
 
 		SetShaderBase(shader);
+	}
+
+	bool PipelineState::GetTopology(D3D12_PRIMITIVE_TOPOLOGY& outTopology)
+	{
+		outTopology = m_Topology;
+		return true;
 	}
 
 	void PipelineState::BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso)

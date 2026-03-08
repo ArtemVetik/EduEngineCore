@@ -126,7 +126,7 @@ namespace EduEngine
 			passData.DirectionalLightCount = numLights;
 
 			m_PassBuffer->LoadData(context, passData);
-			m_PSO.CommitPso(context);
+			m_PSO.BeginPSO(context);
 
 			for (uint32 obj = 0; obj < objectsNum; obj++)
 			{
@@ -151,10 +151,9 @@ namespace EduEngine
 
 					m_ObjBuffer->LoadData(context, objData);
 
-					m_PSO.CommitBinder(context, m_Binder.get());
+					m_PSO.CommitResources(context, m_Binder.get());
 					commandContext->GetCmdList()->IASetIndexBuffer(&renderObjects[obj].Mesh->GetIndexBuffer(mIdx)->GetView());
 					commandContext->GetCmdList()->IASetVertexBuffers(0, 1, &renderObjects[obj].Mesh->GetVertexBuffer(mIdx)->GetView());
-					commandContext->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 					commandContext->GetCmdList()->DrawIndexedInstanced(renderObjects[obj].Mesh->GetIndexCount(mIdx), 1, 0, 0, 0);
 				}
 			}

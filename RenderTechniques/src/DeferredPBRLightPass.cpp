@@ -99,7 +99,7 @@ namespace EduEngine
 	void DeferredPBRLightPass::Render(DeviceContext* context, TextureD3D12* target)
 	{
 		context->GetCommandCtx()->SetRenderTargets(1, &target->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_PsoEntry.Pso->CommitAll(context, m_Binder.get());
+		m_PsoEntry.Pso->BeginPSOAndCommitResources(context, m_Binder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 	}
 

@@ -128,7 +128,7 @@ namespace EduEngine
 				return -1;
 			};
 
-		m_ColorPass->GetOpaquePipelineState().CommitPso(GetMainContext());
+		m_ColorPass->GetOpaquePipelineState().BeginPSO(GetMainContext());
 		for (uint32 i = 0; i < m_Mesh->GetOpaqueMeshCount(); i++)
 		{
 			uint32 meshIdx = m_Mesh->GetOpaqueMeshIndex(i);
@@ -148,16 +148,15 @@ namespace EduEngine
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);
 
-			m_ColorPass->GetOpaquePipelineState().CommitBinder(GetMainContext(), m_Binder.get());
+			m_ColorPass->GetOpaquePipelineState().CommitResources(GetMainContext(), m_Binder.get());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(meshIdx)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(meshIdx)->GetView());
-			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(meshIdx), 1, 0, 0, 0);
 		}
 
 		m_Skybox->Render(GetMainContext(), GetCamera());
 
-		m_ColorPass->GetTransmissionPipelineState().CommitPso(GetMainContext());
+		m_ColorPass->GetTransmissionPipelineState().BeginPSO(GetMainContext());
 		for (uint32 i = 0; i < m_Mesh->GetTransmissionMeshCount(); i++)
 		{
 			uint32 meshIdx = m_Mesh->GetTransmissionMeshIndex(i);
@@ -177,10 +176,9 @@ namespace EduEngine
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);
 
-			m_ColorPass->GetTransmissionPipelineState().CommitBinder(GetMainContext(), m_Binder.get());
+			m_ColorPass->GetTransmissionPipelineState().CommitResources(GetMainContext(), m_Binder.get());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(meshIdx)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(meshIdx)->GetView());
-			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(meshIdx), 1, 0, 0, 0);
 		}
 

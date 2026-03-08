@@ -202,7 +202,7 @@ namespace EduEngine
 				return -1;
 			};
 
-		m_DrawPso.CommitPso(GetMainContext());
+		m_DrawPso.BeginPSO(GetMainContext());
 		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
 		{
 			struct ObjData
@@ -222,10 +222,9 @@ namespace EduEngine
 
 			m_ObjBuffer->LoadData(GetMainContext(), objData);
 
-			m_DrawPso.CommitBinder(GetMainContext(), m_DrawBinder.get());
+			m_DrawPso.CommitResources(GetMainContext(), m_DrawBinder.get());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(i)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(i)->GetView());
-			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(i), 1, 0, 0, 0);
 		}
 		
@@ -259,7 +258,7 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
-		m_PostProcPso.Pso->CommitAll(GetMainContext(), m_PostProcBinder.get());
+		m_PostProcPso.Pso->BeginPSOAndCommitResources(GetMainContext(), m_PostProcBinder.get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		m_Skybox->Render(GetMainContext(), GetCamera());

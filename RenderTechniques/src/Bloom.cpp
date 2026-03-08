@@ -131,7 +131,7 @@ namespace EduEngine
 			passData.BloomTex1Idx = -1;
 			m_PassBuffer->LoadData(context, passData);
 
-			m_ThresholdPso.CommitAll(context, m_ThresholdBinder.get());
+			m_ThresholdPso.BeginPSOAndCommitResources(context, m_ThresholdBinder.get());
 
 			commandContext->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 			commandContext->TransitionResource(m_BloomMipDown[0].get(), D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -155,7 +155,7 @@ namespace EduEngine
 				passData.BloomTex1Idx = m_BloomMipDown[i]->GetSRVView()->GetGpuHeapIndex();
 				m_PassBuffer->LoadData(context, passData);
 
-				m_HPso.CommitAll(context, m_HBinder.get());
+				m_HPso.BeginPSOAndCommitResources(context, m_HBinder.get());
 
 				commandContext->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 				commandContext->TransitionResource(m_BloomMipUp[i + 1].get(), D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -169,7 +169,7 @@ namespace EduEngine
 				passData.BloomTex1Idx = m_BloomMipUp[i + 1]->GetSRVView()->GetGpuHeapIndex();
 				m_PassBuffer->LoadData(context, passData);
 
-				m_VPso.CommitAll(context, m_VBinder.get());
+				m_VPso.BeginPSOAndCommitResources(context, m_VBinder.get());
 
 				commandContext->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 				commandContext->TransitionResource(m_BloomMipDown[i + 1].get(), D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -199,7 +199,7 @@ namespace EduEngine
 
 			m_PassBuffer->LoadData(context, passData);
 
-			m_UpscalePso.CommitAll(context, m_UpscaleBinder.get());
+			m_UpscalePso.BeginPSOAndCommitResources(context, m_UpscaleBinder.get());
 
 			commandContext->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 			commandContext->TransitionResource(m_BloomMipUp[i].get(), D3D12_RESOURCE_STATE_GENERIC_READ);

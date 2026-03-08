@@ -72,6 +72,7 @@ namespace EduEngine
 			DirectX::XMUINT2 TexSize;
 		} passData;
 
+		m_PsoEntry.Pso->BeginPSO(context);
 		for (uint32 i = 0; i < ormDesc.MipLevels; i++)
 		{
 			uint64 width = std::max((int)(ormDesc.Width >> i), 1);
@@ -85,7 +86,7 @@ namespace EduEngine
 
 			m_PassBuffer->LoadData(context, passData);
 
-			m_PsoEntry.Pso->CommitAll(context, m_Binder.get());
+			m_PsoEntry.Pso->CommitResources(context, m_Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch((UINT)std::ceil(width / 8.0f), (UINT)std::ceil(height / 8.0f), 1);
 		}
 

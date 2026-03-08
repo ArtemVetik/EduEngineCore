@@ -134,7 +134,7 @@ namespace EduEngine
 
 			m_PassBuffer->LoadData(context, passData);
 
-			m_Pso.CommitPso(context);
+			m_Pso.BeginPSO(context);
 
 			for (uint32 obj = 0; obj < objectsNum; obj++)
 			{
@@ -149,10 +149,9 @@ namespace EduEngine
 
 					m_ObjBuffer->LoadData(context, objData);
 
-					m_Pso.CommitBinder(context, m_Binder.get());
+					m_Pso.CommitResources(context, m_Binder.get());
 					commandContext->GetCmdList()->IASetIndexBuffer(&objects[obj].Mesh->GetIndexBuffer(mIdx)->GetView());
 					commandContext->GetCmdList()->IASetVertexBuffers(0, 1, &objects[obj].Mesh->GetVertexBuffer(mIdx)->GetView());
-					commandContext->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 					commandContext->GetCmdList()->DrawIndexedInstanced(objects[obj].Mesh->GetIndexCount(mIdx), 1, 0, 0, 0);
 				}
 			}

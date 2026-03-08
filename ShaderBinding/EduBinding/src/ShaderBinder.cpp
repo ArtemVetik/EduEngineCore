@@ -205,14 +205,14 @@ namespace EduEngine::EduBinding
 		);
 	}
 
-	void ShaderBinder::CommitAll(DeviceContext* context, bool isCompute)
+	void ShaderBinder::CommitAll(DeviceContext* context, bool isCompute, uint32 flags)
 	{
 		auto cmdList = context->GetCommandCtx()->GetCmdList();
 
 		ProcessRootParams(
 			[&](uint16 rootIndex, CachedRootParam* param) // OnRootView
 			{
-				if (param->IsDynamic())
+				if (param->IsDynamic() && (flags & CommitFlags::DYNAMIC_ROOT_VIEW))
 				{
 					VERIFY_EXPR(param->RootView.Dynamic.get(), "Dynamic GPU resource (", param->RootView.Name, ") for Root CBV is not set");
 					if (isCompute)
@@ -220,7 +220,7 @@ namespace EduEngine::EduBinding
 					else
 						cmdList->SetGraphicsRootConstantBufferView(rootIndex, param->RootView.Dynamic->GetHeapAllocation(context).GetGpuAddress());
 				}
-				else
+				else if (flags & CommitFlags::MUTABLE_ROOT_VIEW)
 				{
 					VERIFY_EXPR(param->RootView.Mutable.get(), "Mutable GPU resource (", param->RootView.Name, ") for Root CBV is not set");
 					if (isCompute)
@@ -231,14 +231,14 @@ namespace EduEngine::EduBinding
 			},
 			[&](uint16 rootIndex, CachedRootParam* param) // OnDescriptorTable
 			{
-				if (!param->IsDynamic())
+				if (!param->IsDynamic() && (flags & CommitFlags::MUTABLE_TABLE))
 				{
 					if (isCompute)
 						cmdList->SetComputeRootDescriptorTable(rootIndex, m_MutableHeapSpace.GetGpuHandle(param->DescriptorTable.GPUHeapOffset));
 					else
 						cmdList->SetGraphicsRootDescriptorTable(rootIndex, m_MutableHeapSpace.GetGpuHandle(param->DescriptorTable.GPUHeapOffset));
 				}
-				else
+				else if (flags & CommitFlags::DYNAMIC_TABLE)
 				{
 					auto dynHeapSpace = context->AllocateDynamicDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, param->DescriptorTable.DescriptorsNum);
 

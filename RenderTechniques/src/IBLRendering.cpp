@@ -213,9 +213,8 @@ namespace EduEngine
 		cmdCtx->SetViewports(&vp, 1);
 		cmdCtx->SetScissorRects(&scissor, 1);
 
-		psoGenBrdfLut.CommitAll(context, psoGenBrdfLutBinder.get());
+		psoGenBrdfLut.BeginPSOAndCommitResources(context, psoGenBrdfLutBinder.get());
 
-		cmdCtx->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmdCtx->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		cmdCtx->TransitionResource(m_BrdfLut.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -246,9 +245,8 @@ namespace EduEngine
 			cmdCtx->SetViewports(&vp, 1);
 			cmdCtx->SetScissorRects(&scissor, 1);
 
-			pso.CommitAll(context, binder);
+			pso.BeginPSOAndCommitResources(context, binder);
 
-			cmdCtx->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			cmdCtx->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
 			cmdCtx->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
 

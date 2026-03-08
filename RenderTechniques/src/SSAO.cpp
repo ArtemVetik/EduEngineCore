@@ -209,7 +209,7 @@ namespace EduEngine
 
 		context->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_SsaoPsoEntry.Pso->CommitAll(context, m_SsaoBinder.get());
+		m_SsaoPsoEntry.Pso->BeginPSOAndCommitResources(context, m_SsaoBinder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 		
 		UINT horizontalBlur = 1;
@@ -220,7 +220,7 @@ namespace EduEngine
 
 		context->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_SsaoTexture[1]->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[1]->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_BlurPsoEntry.Pso->CommitAll(context, m_BlurBinder.get());
+		m_BlurPsoEntry.Pso->BeginPSOAndCommitResources(context, m_BlurBinder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		horizontalBlur = 0;
@@ -230,7 +230,7 @@ namespace EduEngine
 		context->GetCommandCtx()->TransitionResource(m_SsaoTexture[1].get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
 		context->GetCommandCtx()->SetRenderTargets(1, &m_SsaoTexture[0]->GetRTVView()->GetCpuHandle(), false, nullptr);
-		m_BlurPsoEntry.Pso->CommitBinder(context, m_BlurBinder.get());
+		m_BlurPsoEntry.Pso->CommitResources(context, m_BlurBinder.get());
 		context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 	}
 

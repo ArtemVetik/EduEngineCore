@@ -81,7 +81,7 @@ namespace EduEngine
 
 			m_PassBuffer->LoadData(context, passData);
 
-			m_Pso[mipCount - 1].CommitAll(context, m_Binder.get());
+			m_Pso[mipCount - 1].BeginPSOAndCommitResources(context, m_Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch((UINT)std::ceil(parentTextureSize.x / 8.0f), (UINT)std::ceil(parentTextureSize.y / 8.0f), 1);
 
 			if (outMip == 0)

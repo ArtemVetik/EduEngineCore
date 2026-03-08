@@ -279,12 +279,16 @@ namespace EduEngine
 
 			pThis->GetDeferredContext(contextId)->BeginDeferredFrame(QueueId::Direct);
 
+			ID3D12DescriptorHeap* descriptorHeaps[] = { pThis->GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+			pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
 			uint32 numToRender = (pThis->m_GridSize.x * pThis->m_GridSize.y * pThis->m_GridSize.z) / pThis->m_ActiveThreads;
 			uint32 startIndex = contextId * numToRender;
 
 			if (contextId == pThis->m_ActiveThreads - 1)
 				numToRender = (pThis->m_GridSize.x * pThis->m_GridSize.y * pThis->m_GridSize.z) - startIndex;
 
+			pThis->m_PSO.BeginPSO(pThis->GetDeferredContext(contextId));
 			for (uint32 idx = startIndex; idx < startIndex + numToRender; idx++)
 			{
 				uint32 x = idx % pThis->m_GridSize.x;
@@ -306,17 +310,12 @@ namespace EduEngine
 				pThis->m_ObjBuff->LoadData(pThis->GetDeferredContext(contextId), world.Transpose());
 				pThis->m_PassBuff->LoadData(pThis->GetDeferredContext(contextId), viewProj);
 
-				ID3D12DescriptorHeap* descriptorHeaps[] = { pThis->GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
-
-				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetRenderTargets(1, &pThis->GetSwapChain()->CurrentBackBufferView(), true, &pThis->GetSwapChain()->DepthStencilView());
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetViewports(&pThis->GetViewport(), 1);
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->SetScissorRects(&pThis->GetScissorRect(), 1);
 
-				pThis->m_PSO.CommitAll(pThis->GetDeferredContext(contextId), pThis->m_Binder[contextId % TextureCount].get());
+				pThis->m_PSO.CommitResources(pThis->GetDeferredContext(contextId), pThis->m_Binder[contextId % TextureCount].get());
 
-				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &pThis->m_CubeVB->GetView());
 				pThis->GetDeferredContext(contextId)->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&pThis->m_CubeIB->GetView());
 

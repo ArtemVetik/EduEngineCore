@@ -273,12 +273,12 @@ namespace EduEngine
 		//
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(2, rtvs, false, &GetSwapChain()->DepthStencilView());
 
+		m_DrawPso.BeginPSO(GetMainContext());
 		for (uint32 i = 0; i < m_Mesh->GetMeshCount(); i++)
 		{
-			m_DrawPso.CommitAll(GetMainContext(), m_DrawBinders[i].get());
+			m_DrawPso.CommitResources(GetMainContext(), m_DrawBinders[i].get());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_Mesh->GetIndexBuffer(i)->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_Mesh->GetVertexBuffer(i)->GetView());
-			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_Mesh->GetIndexCount(i), 1, 0, 0, 0);
 		}
 
@@ -301,9 +301,8 @@ namespace EduEngine
 
 			m_SkyboxPassBuffer->LoadData(GetMainContext(), cb);
 
-			m_SkyboxPso.CommitAll(GetMainContext(), m_SkyboxBinder.get());
+			m_SkyboxPso.BeginPSOAndCommitResources(GetMainContext(), m_SkyboxBinder.get());
 
-			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
 			GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
@@ -318,7 +317,7 @@ namespace EduEngine
 		// Resolve pass
 		//
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &m_HistoryTex[pingPong]->GetRTVView()->GetCpuHandle(), true, nullptr);
-		m_ResolvePso.CommitAll(GetMainContext(), m_ResolveBinder[1 - pingPong].get());
+		m_ResolvePso.BeginPSOAndCommitResources(GetMainContext(), m_ResolveBinder[1 - pingPong].get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		GetMainContext()->GetCommandCtx()->TransitionResource(m_HistoryTex[1 - pingPong].get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -328,7 +327,7 @@ namespace EduEngine
 		// Post process pass
 		//
 		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
-		m_PostProcPso.CommitAll(GetMainContext(), m_PostProcBinder[pingPong].get());
+		m_PostProcPso.BeginPSOAndCommitResources(GetMainContext(), m_PostProcBinder[pingPong].get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 
 		pingPong = 1 - pingPong;

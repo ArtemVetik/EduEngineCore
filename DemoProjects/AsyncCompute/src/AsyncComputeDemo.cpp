@@ -119,13 +119,13 @@ namespace EduEngine
 
 		if (m_BuffersDirty)
 		{
-			m_EmitPSO->CommitAll(computeContext, m_EmitBinder[m_PingPongCounter].get());
+			m_EmitPSO->BeginPSOAndCommitResources(computeContext, m_EmitBinder[m_PingPongCounter].get());
 			computeContext->GetCommandCtx()->GetCmdList()->Dispatch(m_MaxParticles / NumThreads + 1, 1, 1);
 			m_BuffersDirty = false;
 		}
 
 		m_GpuStats->MarkStartComputeWork(computeContext);
-		m_UpdatePSO->CommitAll(computeContext, m_UpdateBinder[m_PingPongCounter].get());
+		m_UpdatePSO->BeginPSOAndCommitResources(computeContext, m_UpdateBinder[m_PingPongCounter].get());
 		computeContext->GetCommandCtx()->GetCmdList()->Dispatch(m_MaxParticles / NumThreads + 1, 1, 1);
 
 		if (m_EnableAsyncCompute)
@@ -163,8 +163,7 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
-		m_DrawPSO->CommitAll(GetMainContext(), m_DrawBinder[m_PingPongCounter].get());
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+		m_DrawPSO->BeginPSOAndCommitResources(GetMainContext(), m_DrawBinder[m_PingPongCounter].get());
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawInstanced(m_MaxParticles, 1, 0, 0);
 
 		m_GpuStats->MarkEndDrawWork(GetMainContext());

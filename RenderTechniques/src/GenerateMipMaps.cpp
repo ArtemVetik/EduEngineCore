@@ -130,6 +130,7 @@ namespace EduEngine
 
 		VERIFY_EXPR(texDesc.DepthOrArraySize == 1, "");
 
+		m_PSO.BeginPSO(context);
 		for (UINT16 srcMip = 0; srcMip < texDesc.MipLevels - 1u; )
 		{
 			uint64 dstWidth = std::max<uint64>(1, texDesc.Width >> (srcMip + 1));
@@ -161,7 +162,7 @@ namespace EduEngine
 			m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip3", texture, srcMip + 3);
 			m_Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "OutMip4", texture, srcMip + 4);
 
-			m_PSO.CommitAll(context, m_Binder.get());
+			m_PSO.CommitResources(context, m_Binder.get());
 			m_Binder->DryMutableResources();
 
 			context->GetCommandCtx()->GetCmdList()->Dispatch(dstWidth / 8 + 1, dstHeight / 8 + 1, 1);

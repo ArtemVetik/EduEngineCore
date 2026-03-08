@@ -21,9 +21,11 @@ namespace EduEngine::EduBinding
 		void SetShader(const std::shared_ptr<ShaderD3D12>& shader);
 
 	protected:
+		bool GetTopology(D3D12_PRIMITIVE_TOPOLOGY& outTopology) override final;
 		void BuildPSO(ID3D12Device* device, ID3D12RootSignature* rootSignature, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pso) override final;
 
 	private:
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC m_Desc;
+		D3D12_PRIMITIVE_TOPOLOGY m_Topology;
 	};
 }
