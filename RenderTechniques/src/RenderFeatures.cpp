@@ -38,6 +38,7 @@ namespace EduEngine
 			if (param == RenderFeatureID::UseSSAO) AddDefine("USE_SSAO", f.UseSSAO);
 			else if (param == RenderFeatureID::UseIBL) AddDefine("USE_IBL", f.UseIBL);
 			else if (param == RenderFeatureID::PackNormalsMethod) AddDefine("PACK_NORMALS", (int)f.PackNormalsMethod);
+			else if (param == RenderFeatureID::SSRTraceMethod) AddDefine("SSR_TRACE_METHOD", (int)f.SSRTraceMethod);
 			else if (param == RenderFeatureID::DebugView) AddDefine("DEBUG_VIEW", (int)f.DebugView);
 		}
 

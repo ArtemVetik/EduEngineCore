@@ -6,7 +6,7 @@ using namespace DirectX;
 
 namespace EduEngine
 {
-	HZBGenerator::HZBGenerator(RenderDeviceD3D12* device) :
+	HZBGenerator::HZBGenerator(RenderDeviceD3D12* device, TextureD3D12* depth) :
 		m_Device(device),
 		m_Pso
 		{
@@ -14,7 +14,9 @@ namespace EduEngine
 			ComputePipelineState(QueueId::Direct),
 			ComputePipelineState(QueueId::Direct),
 			ComputePipelineState(QueueId::Direct),
-		}
+		},
+		m_Width(0),
+		m_Height(0)
 	{
 		ShaderDesc sDesc = {};
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
@@ -43,6 +45,8 @@ namespace EduEngine
 
 		m_Binder = m_Pso[0].CreateShaderBinder();
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
+
+		Resize(depth);
 	}
 
 	void HZBGenerator::Generate(DeviceContext* context, TextureD3D12* depth)
@@ -71,7 +75,7 @@ namespace EduEngine
 			if (outMip == 0)
 				passData.InputTextureIdx = m_DepthSrv.GetGpuHeapIndex();
 			else
-				passData.InputTextureIdx = m_HZBTexture->GetSRVView()->GetGpuHeapIndex(outMip - 1);
+				passData.InputTextureIdx = m_HZBTexture->GetSRVView()->GetGpuHeapIndex(outMip);
 
 			passData.InvInputTextureSize = XMFLOAT2(2.0f / parentTextureSize.x, 2.0f / parentTextureSize.y);
 			passData.OutputTexture0Idx = m_HZBTexture->GetUAVView()->GetGpuHeapIndex(outMip + 0);
@@ -102,6 +106,14 @@ namespace EduEngine
 	{
 		D3D12_RESOURCE_DESC depthDesc = depth->GetD3D12Resource()->GetDesc();
 
+		if (m_HZBTexture)
+		{
+			D3D12_RESOURCE_DESC hzbDesc = m_HZBTexture->GetD3D12Resource()->GetDesc();
+			if (depthDesc.Width == m_Width &&
+				depthDesc.Height == m_Height)
+				return;
+		}
+
 		UINT64 newWidth = RoundUpToPowerOfTwo(depthDesc.Width);
 		UINT64 newHeight = RoundUpToPowerOfTwo(depthDesc.Height);
 
@@ -111,6 +123,9 @@ namespace EduEngine
 				"This can happen if the input depth texture is too small.Width: ", newWidth, ", Height : ", newHeight);
 			return;
 		}
+
+		m_Width = newWidth;
+		m_Height = newHeight;
 
 		DWORD mipCount;
 		_BitScanReverse(&mipCount, std::min(newWidth, newHeight));

@@ -133,16 +133,50 @@ namespace EduEngine
 			if (ImGui::Checkbox("Enabled", &m_Sponza->m_SSREnabled))
 				m_Sponza->UpdatePostProcData();
 
+			static int currentTraceMethod = 0;
+
+			if (ImGui::Combo("Method", (int*)&currentTraceMethod, SSRTraceMethodStr, IM_ARRAYSIZE(SSRTraceMethodStr)))
+			{
+				g_RenderFeatures.SSRTraceMethod = (SSRTraceMethod)currentTraceMethod;
+				g_PsoCache.OnRenderFeaturesChanged(g_RenderFeatures, RenderFeatureID::SSRTraceMethod);
+			}
+
 			if (ImGui::SliderFloat("Intensity", &m_Sponza->m_SSRIntensity, 0.0f, 2.0f))
 				m_Sponza->UpdatePostProcData();
 
+			ImGui::Separator();
+
 			if (m_Sponza->m_SSREnabled)
 			{
-				if (ImGui::SliderInt("Max Iterations", (int*)&ssrSettings.MaxIterations, 1, 4096))
+				if (ImGui::SliderInt("Max Iterations", (int*)&ssrSettings.MaxIterations, 1, 1400))
 					m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
 
-				if (ImGui::SliderFloat("Depth Thickness", &ssrSettings.DepthThickness, 0.0f, 0.01f, "%.4f"))
-					m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+				if (currentTraceMethod == (int)SSRTraceMethod::Linear)
+				{
+					if (ImGui::SliderFloat("Depth Thickness", &ssrSettings.DepthThickness, 0.0f, 0.21f, "%.4f"))
+						m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+				}
+				else
+				{
+					if (ImGui::SliderFloat("Compare Tolerance", &ssrSettings.CompareTolerance, 0.1f, 5.0f))
+						m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+
+					if (ImGui::SliderFloat("Start Mip Level", &ssrSettings.StartMipLevel, 0.0f, 2.0f))
+						m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+
+					if (ImGui::SliderFloat("Step Offset", &ssrSettings.StepOffset, 0.0f, 50.0f))
+						m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+
+					if (ImGui::SliderFloat("Roughness", &ssrSettings.Roughness, 0.0f, 5.0f))
+						m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+
+					if (ImGui::Checkbox("Stop When Uncertain", &ssrSettings.StopWhenUncertain))
+					{
+						m_Sponza->m_SSR->UpdateSettings(m_Sponza->GetMainContext(), ssrSettings);
+					}
+				}
+
+				ImGui::Separator();
 
 				if (ImGui::Checkbox("Blur Enabled", &ssrSettings.BlurEnabled))
 				{

@@ -6,6 +6,7 @@
 #include <ComputePipelineState.h>
 #include <RenderFeatures.h>
 #include <BufferD3D12.h>
+#include <HZBGenerator.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -18,6 +19,11 @@ namespace EduEngine
 		{
 			UINT MaxIterations = 1024;
 			float DepthThickness = 0.001f;
+			float CompareTolerance = 2.0f;
+			float StartMipLevel = 0.0f;
+			float StepOffset = 2.0f;
+			float Roughness = 0.0f;
+			bool StopWhenUncertain = true;
 			bool BlurEnabled = false;
 		};
 
@@ -29,7 +35,7 @@ namespace EduEngine
 			UINT DepthTexIdx;
 		};
 
-		ScreenSpaceReflection(RenderDeviceD3D12* device, DeviceContext* context, UINT rtWidth, UINT rtHeight);
+		ScreenSpaceReflection(RenderDeviceD3D12* device, DeviceContext* context, const HZBGenerator* hzb, UINT rtWidth, UINT rtHeight);
 
 		void UpdateIndexes(DeviceContext* context, TextureIndexes texIndexes);
 		void UpdateSettings(DeviceContext* context, Settings settings);
@@ -61,6 +67,7 @@ namespace EduEngine
 		D3D12_VIEWPORT m_Viewport = {};
 		D3D12_RECT m_ScissorRect = {};
 
+		const HZBGenerator* m_HZB;
 		RenderDeviceD3D12* m_Device;
 	};
 }

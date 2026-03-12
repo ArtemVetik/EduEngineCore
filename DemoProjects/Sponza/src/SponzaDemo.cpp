@@ -46,10 +46,10 @@ namespace EduEngine
 		m_Ssao = std::make_unique<SSAO>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 
 		m_CSMRendering = std::make_unique<CSMRendering>(GetDevice(), GetMainContext());
-		m_SSR = std::make_unique<ScreenSpaceReflection>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
+		m_HZBGenerator = std::make_unique<HZBGenerator>(GetDevice(), GetSwapChain()->GetDepthStencilTexture());
+		m_SSR = std::make_unique<ScreenSpaceReflection>(GetDevice(), GetMainContext(), m_HZBGenerator.get(), GetViewport().Width, GetViewport().Height);
 		m_VolumetricLight = std::make_unique<VolumetricLight>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
 		m_Bloom = std::make_unique<Bloom>(GetDevice(), GetMainContext(), GetViewport().Width, GetViewport().Height);
-		m_HZBGenerator = std::make_unique<HZBGenerator>(GetDevice());
 
 		struct ProbeInitData
 		{
@@ -283,6 +283,11 @@ namespace EduEngine
 			updatePostProc = true;
 		}
 
+		if (m_HZBGenerator)
+		{
+			m_HZBGenerator->Resize(GetSwapChain()->GetDepthStencilTexture());
+		}
+
 		if (m_SSR)
 		{
 			m_SSR->Resize(GetViewport().Width, GetViewport().Height);
@@ -334,11 +339,6 @@ namespace EduEngine
 				deferredLightBuffers.ShadowMapIdx[i] = m_CSMRendering->GetSrv(i)->GetGpuHeapIndex();
 
 			m_LightPass->SetBufferIndexes(GetMainContext(), deferredLightBuffers);
-		}
-
-		if (m_HZBGenerator)
-		{
-			m_HZBGenerator->Resize(GetSwapChain()->GetDepthStencilTexture());
 		}
 
 		if (updatePostProc)

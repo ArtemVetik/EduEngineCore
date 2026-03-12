@@ -17,9 +17,17 @@ namespace EduEngine
 		UINT SSRTexIdx0;
 		UINT SSRTexIdx1;
 
+		UINT HZBTexIdx;
 		UINT MaxIterations;
 		float DepthThickness;
-		XMUINT2 Padding;
+		float CompareTolerance;
+
+		float StartMipLevel;
+		float StepOffset;
+		float Roughness;
+		UINT StopWhenUncertain;
+
+		XMFLOAT4 HZBUvFactorAndInvFactor;
 
 		XMFLOAT4 BlurWeights[3];
 	};
@@ -57,8 +65,9 @@ namespace EduEngine
 		return weights;
 	}
 
-	ScreenSpaceReflection::ScreenSpaceReflection(RenderDeviceD3D12* device, DeviceContext* context, UINT rtWidth, UINT rtHeight) :
-		m_Device(device)
+	ScreenSpaceReflection::ScreenSpaceReflection(RenderDeviceD3D12* device, DeviceContext* context, const HZBGenerator* hzb, UINT rtWidth, UINT rtHeight) :
+		m_Device(device),
+		m_HZB(hzb)
 	{
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(m_Device);
 		m_BlurPassBuffer = std::make_shared<DynamicUploadBuffer>(m_Device);
@@ -78,14 +87,14 @@ namespace EduEngine
 		m_ConstantsBuffer = std::make_shared<BufferD3D12>(m_Device, context, buffDesc, QueueId::Direct);
 
 		m_MainPso.Name = "SSR_MainPass";
-		m_MainPso.DependentParams = { RenderFeatureID::PackNormalsMethod };
+		m_MainPso.DependentParams = { RenderFeatureID::PackNormalsMethod, RenderFeatureID::SSRTraceMethod };
 		m_MainPso.BuildPsoFunc = [this]() { return BuildPso(false); };
 		m_MainPso.OnPsoUpdated = [this]()
-		{
-			m_MainBinder = m_MainPso.Pso->CreateShaderBinder();
-			m_MainBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
-			m_MainBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ConstantsBuffer);
-		};
+			{
+				m_MainBinder = m_MainPso.Pso->CreateShaderBinder();
+				m_MainBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
+				m_MainBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ConstantsBuffer);
+			};
 		m_MainPso.Initialize();
 
 		m_BlurPso.Name = "SSR_BlurPass";
@@ -146,7 +155,7 @@ namespace EduEngine
 
 		m_BlurPso.Pso->BeginPSOAndCommitResources(context, m_BlurBinder.get());
 		context->GetCommandCtx()->GetCmdList()->Dispatch(ceilf(camera->GetViewportSize().x / 8.0f), ceilf(camera->GetViewportSize().y / 8.0f), 1);
-		
+
 		horizontal = 0;
 		m_BlurPassBuffer->LoadData(context, horizontal);
 
@@ -218,6 +227,7 @@ namespace EduEngine
 	std::shared_ptr<PipelineStateBase> ScreenSpaceReflection::BuildPso(bool blurPso)
 	{
 		auto packNormal = std::to_wstring((int)g_RenderFeatures.PackNormalsMethod);
+		auto ssrMethod = std::to_wstring((int)g_RenderFeatures.SSRTraceMethod);
 
 		ShaderResourceDesc res[]
 		{
@@ -233,6 +243,7 @@ namespace EduEngine
 		LPCWSTR macros[]
 		{
 			L"PACK_NORMALS", packNormal.c_str(),
+			L"SSR_TRACE_METHOD", ssrMethod.c_str(),
 			NULL, NULL
 		};
 
@@ -258,11 +269,20 @@ namespace EduEngine
 		data.DepthTexIdx = m_TexIndexes.DepthTexIdx;
 		data.SSRTexIdx0 = m_ReflectionTex[0]->GetSRVView()->GetGpuHeapIndex();
 		data.SSRTexIdx1 = m_ReflectionTex[1]->GetSRVView()->GetGpuHeapIndex();
+		data.HZBTexIdx = m_HZB->GetHZBTexture()->GetSRVView()->GetGpuHeapIndex();
 		data.MaxIterations = m_Settings.MaxIterations;
 		data.DepthThickness = m_Settings.DepthThickness;
+		data.CompareTolerance = m_Settings.CompareTolerance;
+		data.StartMipLevel = m_Settings.StartMipLevel;
+		data.StepOffset = m_Settings.StepOffset;
+		data.Roughness = m_Settings.Roughness;
+		data.StopWhenUncertain = m_Settings.StopWhenUncertain;
 		data.BlurWeights[0] = XMFLOAT4(&weights[0]);
 		data.BlurWeights[1] = XMFLOAT4(&weights[4]);
 		data.BlurWeights[2] = XMFLOAT4(&weights[8]);
+
+		const XMFLOAT2 HZBUvFactor(float(m_Viewport.Width) / float(2 * m_HZB->GetWidth()), float(m_Viewport.Height) / float(2 * m_HZB->GetHeight()));
+		data.HZBUvFactorAndInvFactor = XMFLOAT4(HZBUvFactor.x, HZBUvFactor.y, 1.0f / HZBUvFactor.x, 1.0f / HZBUvFactor.y);
 
 		m_ConstantsBuffer->LoadData(context, &data);
 	}

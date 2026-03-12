@@ -21,12 +21,18 @@ namespace EduEngine
 		UseSSAO,
 		UseIBL,
 		PackNormalsMethod,
+		SSRTraceMethod,
 		DebugView,
 	};
 
 	enum class PackNormalsMethod : uint32
 	{
 		None, Simple, Spherical, Spheremap, Stereographic
+	};
+
+	enum class SSRTraceMethod : uint32
+	{
+		Linear, HZB
 	};
 
 	enum class DebugView : uint32
@@ -37,6 +43,11 @@ namespace EduEngine
 	inline static const char* PackNormalsMethodStr[5] =
 	{
 		"None", "Simple", "Spherical", "Spheremap", "Stereographic"
+	};
+
+	inline static const char* SSRTraceMethodStr[2] =
+	{
+		"Linear", "HZB"
 	};
 
 	inline static const char* DebugViewsStr[13] =
@@ -51,6 +62,7 @@ namespace EduEngine
 		bool UseSSAO = true;
 		bool UseIBL = true;
 		PackNormalsMethod PackNormalsMethod = PackNormalsMethod::None;
+		SSRTraceMethod SSRTraceMethod = SSRTraceMethod::Linear;
 		DebugView DebugView = DebugView::None;
 	};
 

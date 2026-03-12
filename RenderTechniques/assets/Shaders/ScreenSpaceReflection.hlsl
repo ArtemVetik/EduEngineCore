@@ -1,3 +1,6 @@
+#define SSR_TRACE_METHOD_LINEAR 0
+#define SSR_TRACE_METHOD_HZB    1
+
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
 
@@ -21,9 +24,17 @@ cbuffer cbConstants : register(b1)
     uint gSSRTexIdx0;
     uint gSSRTexIdx1;
     
+    uint gHZBTexIdx;
     uint gMaxIterations;
     float gDepthThickness;
-    uint2 gPadding;
+    float gCompareTolerance;
+
+    float gStartMipLevel;
+    float gStepOffset;
+    float gRoughness;
+    uint gStopWhenUncertain;
+    
+    float4 gHZBUvFactorAndInvFactor;
     
     float4 gBlurWeights[3];
 }
@@ -33,6 +44,7 @@ cbuffer cbBlurPass : register(b2)
     uint gHorizontalBlur;
 }
 
+#include "CastScreenSpaceRay_HZB.hlsli"
 #include "CommonTransforms.hlsli"
 #include "PackNormals.hlsli"
 
@@ -146,7 +158,7 @@ float FindIntersection_Linear(Texture2D<float4> depthTex, float3 samplePosInTS, 
 
 float4 ComputeReflectedColor(Texture2D<float4> albedoTex, float intensity, float3 intersection, float4 skyColor)
 {
-    float4 ssr_color = albedoTex.Sample(gsamPointWrap, intersection.xy);
+    float4 ssr_color = albedoTex.Sample(gsamPointClamp, intersection.xy);
 	
     return lerp(skyColor, ssr_color, intensity);
 }
@@ -162,6 +174,7 @@ void CS_Main(uint2 tid : SV_DispatchThreadID)
     Texture2D<float4> albedoTex = ResourceDescriptorHeap[gInputColorTexIdx];
     Texture2D<float4> maskTex = ResourceDescriptorHeap[gMaskTexIdx];
     Texture2D<float4> depthTex = ResourceDescriptorHeap[gDepthTexIdx];
+    Texture2D<float4> hzbTex = ResourceDescriptorHeap[gHZBTexIdx];
     RWTexture2D<float4> outTex = ResourceDescriptorHeap[gSSRTexIdx0];
     
     float2 texC = (float2(tid) + 0.5) / gScreenSize;
@@ -195,8 +208,55 @@ void CS_Main(uint2 tid : SV_DispatchThreadID)
         ComputePosAndReflection(tid, normalVS, depthTex, samplePosInTS, vReflDirInTS, maxTraceDistance);
 
         float3 intersection = 0;
-        float intensity = FindIntersection_Linear(depthTex, samplePosInTS, vReflDirInTS, maxTraceDistance, intersection);
-		
+        float intensity = 0;
+        
+#if SSR_TRACE_METHOD == SSR_TRACE_METHOD_LINEAR
+        intensity = FindIntersection_Linear(depthTex, samplePosInTS, vReflDirInTS, maxTraceDistance, intersection);
+#elif SSR_TRACE_METHOD == SSR_TRACE_METHOD_HZB
+        FSSRTCastingSettings castSettings;
+        castSettings.bStopWhenUncertain = gStopWhenUncertain;
+        
+        float3 rayEndTS = samplePosInTS + vReflDirInTS * maxTraceDistance;
+        
+        FSSRTRay ray;
+        ray.RayStartScreen = samplePosInTS;
+        ray.RayStepScreen = rayEndTS - samplePosInTS;
+        ray.CompareTolerance = gCompareTolerance;
+        
+        FViewParams localView;
+        localView.ScreenPositionScaleBias = float4(1.0f, 1.0f, 0.0f, 0.0f);
+        localView.HZBUvFactorAndInvFactor = gHZBUvFactorAndInvFactor;
+        
+        float3 debugOutput = float3(0, 0, 0);
+        float3 outHitUVz = float3(0, 0, 0);
+        float outLevel = 0.0f;
+        bool bFoundHit = false;
+        bool bUncertain = false;
+        
+        CastScreenSpaceRay_HZB(
+            hzbTex,
+            gsamPointClamp,
+            gStartMipLevel,
+            castSettings,
+            ray,
+            gRoughness,
+            gMaxIterations,
+            gStepOffset,
+            gHZBUvFactorAndInvFactor,
+            localView,
+            debugOutput,
+            outHitUVz,
+            outLevel,
+            bFoundHit,
+            bUncertain
+        );
+        
+        if (bFoundHit)
+        {
+            intersection = outHitUVz;
+            intensity = 1.0f;
+        }
+#endif
         reflectionColor = ComputeReflectedColor(albedoTex, intensity, intersection, skyColor);
     }
     
