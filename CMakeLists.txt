@@ -26,6 +26,7 @@ add_subdirectory(DemoProjects/MultithreadingDemo)
 add_subdirectory(DemoProjects/MeshShaders)
 add_subdirectory(DemoProjects/AsyncCompute)
 add_subdirectory(DemoProjects/TemporalAA)
+add_subdirectory(DemoProjects/VolumetricClouds)
 add_subdirectory(DemoProjects/Sponza)
 
 add_subdirectory(ThirdParty/ImGui)
