@@ -11,7 +11,7 @@ namespace EduEngine
 
 	void VolumetricCloudsDemo::OnStartUp()
 	{
-		
+		m_CloudsRendering = std::make_unique<VolumetricRaymarchedClouds>(GetDevice(), GetMainContext(), GetSwapChain()->GetWidth(), GetSwapChain()->GetHeight());
 	}
 
 	void VolumetricCloudsDemo::OnUpdate(const Timer& timer)
@@ -35,6 +35,8 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
+		m_CloudsRendering->Render(GetMainContext(), *GetSwapChain(), timer);
+
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
@@ -43,5 +45,11 @@ namespace EduEngine
 
 		ImGui::Render();
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
+	}
+
+	void VolumetricCloudsDemo::OnResize()
+	{
+		if (m_CloudsRendering)
+			m_CloudsRendering->Resize(GetSwapChain()->GetWidth(), GetSwapChain()->GetHeight());
 	}
 }

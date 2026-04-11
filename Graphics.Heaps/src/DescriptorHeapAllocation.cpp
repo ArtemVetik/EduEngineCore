@@ -50,6 +50,12 @@ namespace EduEngine
 
     DescriptorHeapAllocation& DescriptorHeapAllocation::operator=(DescriptorHeapAllocation&& allocation) noexcept
     {
+        if (this == &allocation)
+            return *this;
+
+        if (!IsNull() && m_pAllocator)
+            m_pAllocator->SafeFree(std::move(*this), ~QueueMask{0});
+
         m_FirstCpuHandle = std::move(allocation.m_FirstCpuHandle);
         m_FirstGpuHandle = std::move(allocation.m_FirstGpuHandle);
         m_HeapOffset = std::move(allocation.m_HeapOffset);

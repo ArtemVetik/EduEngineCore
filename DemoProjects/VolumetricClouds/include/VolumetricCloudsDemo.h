@@ -1,5 +1,6 @@
 #pragma once
 #include <RenderEngine.h>
+#include <VolumetricRaymarchedClouds.h>
 
 namespace EduEngine
 {
@@ -10,5 +11,9 @@ namespace EduEngine
 		void OnStartUp() override;
 		void OnUpdate(const Timer& timer) override;
 		void OnRender(const Timer& timer) override;
+		void OnResize() override;
+
+	private:
+		std::unique_ptr<VolumetricRaymarchedClouds> m_CloudsRendering;
 	};
 }
