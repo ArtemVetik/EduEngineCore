@@ -16,7 +16,9 @@ namespace EduEngine
 
 	void VolumetricCloudsDemo::OnUpdate(const Timer& timer)
 	{
-		FreeCameraUpdate(timer, GetCamera());
+		FreeCameraUpdate(timer, GetCamera(), 10);
+
+		m_CloudsRendering->Update(GetMainContext(), timer, GetCamera());
 	}
 
 	void VolumetricCloudsDemo::OnRender(const Timer& timer)
@@ -35,11 +37,13 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
-		m_CloudsRendering->Render(GetMainContext(), *GetSwapChain(), timer);
+		m_CloudsRendering->Render(GetMainContext(), *GetSwapChain());
 
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
+
+		RenderImGui();
 
 		RenderEngine::PopulateDebugImguiCommand();
 
@@ -51,5 +55,19 @@ namespace EduEngine
 	{
 		if (m_CloudsRendering)
 			m_CloudsRendering->Resize(GetSwapChain()->GetWidth(), GetSwapChain()->GetHeight());
+	}
+
+	void VolumetricCloudsDemo::RenderImGui()
+	{
+		auto constantsData = m_CloudsRendering->GetConstantsData();
+		if (ImGui::Begin("Cloud Settings"))
+		{
+			ImGui::SliderFloat3("Sun Position", &constantsData.SunPosition.x, -1, 1);
+			ImGui::SliderInt("Max Steps", (int*)&constantsData.MaxSteps, 10, 500);
+			ImGui::SliderFloat("March Size", &constantsData.MarchSize, 0.01f, 1.0f);
+			m_CloudsRendering->UpdateConstantsData(GetMainContext(), constantsData);
+
+			ImGui::End();
+		}
 	}
 }

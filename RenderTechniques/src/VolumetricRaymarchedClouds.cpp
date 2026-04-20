@@ -8,15 +8,31 @@ namespace EduEngine
 	VolumetricRaymarchedClouds::VolumetricRaymarchedClouds(RenderDeviceD3D12* device, DeviceContext* context, UINT width, UINT height) :
 		m_Device(device),
 		m_Frame(0),
-		m_MipMapGen(device)
+		m_MipMapGen(device),
+		m_ConstantsData{}
 	{
 		Resize(width, height);
+
+		D3D12_RESOURCE_DESC buffDesc = {};
+		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		buffDesc.Alignment = 0;
+		buffDesc.Height = 1;
+		buffDesc.Width = sizeof(ConstantsData);
+		buffDesc.DepthOrArraySize = 1;
+		buffDesc.MipLevels = 1;
+		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
+		buffDesc.SampleDesc.Count = 1;
+		buffDesc.SampleDesc.Quality = 0;
+		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		m_ConstantsBuffer = std::make_shared<BufferD3D12>(m_Device, context, buffDesc, QueueId::Direct);
+		m_ConstantsBuffer->LoadData(context, &m_ConstantsData);
 
 		ShaderResourceDesc resDesc[] =
 		{
 			{ "gNoise", SHADER_RESOURCE_TYPE_MUTABLE },
 			{ "gBlueNoise", SHADER_RESOURCE_TYPE_MUTABLE },
 			{ "gScene", SHADER_RESOURCE_TYPE_MUTABLE },
+			{ "cbConstants", SHADER_RESOURCE_TYPE_MUTABLE },
 		};
 
 		ShaderDesc sDesc = {};
@@ -59,26 +75,37 @@ namespace EduEngine
 		m_Binder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
 		m_Binder->BindResource(EDU_SHADER_TYPE_PIXEL, "gNoise", m_NoiseTexture->GetD3D12Texture());
 		m_Binder->BindResource(EDU_SHADER_TYPE_PIXEL, "gBlueNoise", m_BlueNoiseTexture->GetD3D12Texture());
+		m_Binder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbConstants", m_ConstantsBuffer);
 
 		m_BinderUpscale = m_PsoUpscale.CreateShaderBinder();
 		m_BinderUpscale->BindResource(EDU_SHADER_TYPE_PIXEL, "gScene", m_SceneTexture);
 	}
 
-	void VolumetricRaymarchedClouds::Render(DeviceContext* context, const SwapChain& swapChain, const Timer& timer)
+	void VolumetricRaymarchedClouds::Update(DeviceContext* context, const Timer& timer, const Camera* camera)
 	{
 		struct PassData
 		{
 			float Time;
 			UINT Frame;
-			DirectX::XMFLOAT2 Resolution;
+			XMFLOAT2 Resolution;
+			XMFLOAT3 CameraPosition;
+			UINT Padding0;
+			XMFLOAT4X4 LookAt;
+			UINT Padding1;
 		} passData;
 
 		passData.Time = timer.GetTotalTime();
 		passData.Frame = m_Frame++;
 		passData.Resolution = DirectX::XMFLOAT2(m_Width, m_Height);
+		passData.CameraPosition = camera->GetPosition();
+		XMStoreFloat4x4(&passData.LookAt, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetViewMatrix())));
+
 
 		m_PassBuffer->LoadData(context, passData);
+	}
 
+	void VolumetricRaymarchedClouds::Render(DeviceContext* context, const SwapChain& swapChain)
+	{
 		m_Pso.BeginPSOAndCommitResources(context, m_Binder.get());
 
 		static float clear[4] = { 0, 0, 0, 1 };
@@ -163,5 +190,11 @@ namespace EduEngine
 
 		if (m_BinderUpscale)
 			m_BinderUpscale->BindResource(EDU_SHADER_TYPE_PIXEL, "gScene", m_SceneTexture);
+	}
+
+	void VolumetricRaymarchedClouds::UpdateConstantsData(DeviceContext* context, ConstantsData& data)
+	{
+		m_ConstantsData = data;
+		m_ConstantsBuffer->LoadData(context, &m_ConstantsData);
 	}
 }

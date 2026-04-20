@@ -1,3 +1,7 @@
+#include "gpu_noise_lib.hlsl"
+
+#define PI 3.1415926536
+
 SamplerState gsamLinearWrap : register(s2);
 
 Texture2D gNoise : register(t0);
@@ -8,6 +12,17 @@ cbuffer cbPass : register(b0)
     float gTime;
     uint gFrame;
     float2 gResolution;
+    float3 gCameraPosition;
+    uint gPadding0;
+    float4x4 gLookAt;
+    uint gPadding1;
+}
+
+cbuffer cbConstants : register(b1)
+{
+    float3 gSunPosition;
+    uint gMaxSteps;
+    float gMarchSize;
 }
 
 struct VertexOut
@@ -16,26 +31,19 @@ struct VertexOut
     float2 TexC : TEXCOORD;
 };
 
-#define PI 3.1415926536
-#define MAX_STEPS 50
-#define MAX_STEPS_LIGHTS 6
-#define ABSORPTION_COEFFICIENT 0.9
-#define SCATTERING_ANISO 0.3
-
-float sdSphere(float3 p, float radius)
-{
-    return length(p) - radius;
-}
-
 float BeersLaw(float dist, float absorption)
 {
     return exp(-dist * absorption);
 }
 
-float HenyeyGreenstein(float g, float mu)
+// Follows PBRT convention http://www.pbr-book.org/3ed-2018/Volume_Scattering/Phase_Functions.html#PhaseHG
+float HenyeyGreensteinPhase(float G, float CosTheta)
 {
-    float gg = g * g;
-    return (1.0 / (4.0 * PI)) * ((1.0 - gg) / pow(1.0 + gg - 2.0 * g * mu, 1.5));
+	// Reference implementation (i.e. not schlick approximation). 
+	// See http://www.pbr-book.org/3ed-2018/Volume_Scattering/Phase_Functions.html
+    float Numer = 1.0f - G * G;
+    float Denom = 1.0f + G * G + 2.0f * G * CosTheta;
+    return Numer / (4.0f * PI * Denom * sqrt(Denom));
 }
 
 float noise(in float3 x)
@@ -52,7 +60,7 @@ float noise(in float3 x)
 
 float fbm(float3 p, bool lowRes)
 {
-    float3 q = p + gTime * 0.5 * float3(1.0, -0.2, -1.0);
+    float3 q = p + gTime * 0.5 * float3(0.0, 0.1, -0.2);
     float g = noise(q);
 
     float f = 0.0;
@@ -74,86 +82,56 @@ float fbm(float3 p, bool lowRes)
         scale *= 0.5;
     }
 
-    return f;
+    return clamp(f - p.y, 0.0, 1.0);
 }
 
 float scene(float3 p, bool lowRes)
 {
-    float distance = sdSphere(p, 1.0);
-    float f = fbm(p, lowRes);
-
-    return -distance + f;
+    return fbm(p, lowRes);
 }
 
-static const float3 SUN_POSITION = float3(1.0, 0.0, 0.0);
-static const float MARCH_SIZE = 0.16;
-
-float lightmarch(float3 position, float3 rayDirection)
+float4 raymarch(float3 rayOrigin, float3 rayDirection, float offset)
 {
-    float3 lightDirection = normalize(SUN_POSITION);
-    float totalDensity = 0.0;
-    float marchSize = 0.03;
- 
-    for (int step = 0; step < MAX_STEPS_LIGHTS; step++)
-    {
-        position += lightDirection * marchSize * float(step);
-            
-        float lightSample = scene(position, true);
-        totalDensity += lightSample;
-    }
-
-    float transmittance = BeersLaw(totalDensity, ABSORPTION_COEFFICIENT);
-    return transmittance;
-}
-
-float raymarch(float3 rayOrigin, float3 rayDirection, float offset)
-{
-    float depth = MARCH_SIZE * offset;
+    float depth = gMarchSize * offset;
     float3 p = rayOrigin + depth * rayDirection;
-    float3 sunDirection = normalize(SUN_POSITION);
+    float3 sunDirection = normalize(gSunPosition);
     
-    float totalTransmittance = 1.0;
-    float lightEnergy = 0.0;
+    float4 color = 0.0;
     
-    float phase = HenyeyGreenstein(SCATTERING_ANISO, dot(rayDirection, sunDirection));
-    
-    for (int i = 0; i < MAX_STEPS; i++)
+    for (int i = 0; i < gMaxSteps; i++)
     {
         float density = scene(p, false);
-
-        // We only draw the density if it's greater than 0
+        
         if (density > 0.0)
         {
-            float lightTransmittance = lightmarch(p, rayDirection);
-            float luminance = 0.025 + density * phase;
-
-            totalTransmittance *= lightTransmittance;
-            lightEnergy += totalTransmittance * luminance;
+            float4 c = float4(lerp(float3(1.0, 1.0, 1.0), float3(0.0, 0.0, 0.0), density), density);
+            c.a *= 0.4;
+            c.rgb *= c.a;
+            color += c * (1.0 - color.a);
         }
 
-        depth += MARCH_SIZE;
+        depth += gMarchSize;
         p = rayOrigin + depth * rayDirection;
     }
-
-    return lightEnergy;
+    
+    return color;
 }
 
 float4 PS(VertexOut pIn) : SV_TARGET
 {
     float2 uv = pIn.TexC;
+    uv.y = 1 - uv.y;
     uv -= 0.5;
     uv.x *= gResolution.x / gResolution.y;
-
-    // Ray Origin - camera
-    float3 ro = float3(0.0, 0.0, 5.0);
-    // Ray Direction
-    float3 rd = normalize(float3(uv, -1.0));
-  
+    
+    float3 ro = gCameraPosition;
+    float3 rd = mul(gLookAt, float4(normalize(float3(uv, 1.0)), 0));
+    
     float3 color = 0.0;
 
     // Sun and Sky
     float3 sunColor = float3(1.0, 0.5, 0.3);
-    float3 sunDirection = normalize(SUN_POSITION);
+    float3 sunDirection = normalize(gSunPosition);
     float sun = clamp(dot(sunDirection, rd), 0.0, 1.0);
     // Base sky color
     color = float3(0.7, 0.7, 0.90);
@@ -165,7 +143,7 @@ float4 PS(VertexOut pIn) : SV_TARGET
     float offset = frac(blueNoise + float(gFrame % 32) / sqrt(0.5));
     
     float res = raymarch(ro, rd, offset);
-    color = color + sunColor * res;
+    color = res;
 
     return float4(color, 1.0);
 }

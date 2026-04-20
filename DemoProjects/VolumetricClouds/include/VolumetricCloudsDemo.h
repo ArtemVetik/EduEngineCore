@@ -14,6 +14,9 @@ namespace EduEngine
 		void OnResize() override;
 
 	private:
+		void RenderImGui();
+
+	private:
 		std::unique_ptr<VolumetricRaymarchedClouds> m_CloudsRendering;
 	};
 }
