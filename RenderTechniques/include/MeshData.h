@@ -1,14 +1,12 @@
 #pragma once
 #include "framework.h"
 
+#include <EngineTypes.h>
 #include <DirectXColors.h>
 #include <vector>
 
 namespace EduEngine
 {
-	using uint16 = std::uint16_t;
-	using uint32 = std::uint32_t;
-
 	struct RENDERTECHNIQUES_API Vertex
 	{
 		Vertex() = default;

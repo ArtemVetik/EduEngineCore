@@ -11,6 +11,10 @@ namespace EduEngine::EduBinding
 	{
 		if (wcsncmp(L"vs", target, 2) == 0)
 			return EDU_SHADER_TYPE_VERTEX;
+		if (wcsncmp(L"hs", target, 2) == 0)
+			return EDU_SHADER_TYPE_HULL;
+		if (wcsncmp(L"ds", target, 2) == 0)
+			return EDU_SHADER_TYPE_DOMAIN;
 		if (wcsncmp(L"gs", target, 2) == 0)
 			return EDU_SHADER_TYPE_GEOMETRY;
 		if (wcsncmp(L"ps", target, 2) == 0)

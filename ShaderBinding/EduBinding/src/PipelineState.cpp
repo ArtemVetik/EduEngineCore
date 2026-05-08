@@ -39,6 +39,8 @@ namespace EduEngine::EduBinding
 			m_Topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH:
+			m_Topology = D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
+			break;
 		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED:
 			ASSERT_FAILED("This primitive topology is not supported (", topology, ")");
 			break;
@@ -96,6 +98,12 @@ namespace EduEngine::EduBinding
 		{
 		case EDU_SHADER_TYPE_VERTEX:
 			m_Desc.VS = shader->GetShaderBytecode();
+			break;
+		case EDU_SHADER_TYPE_HULL:
+			m_Desc.HS = shader->GetShaderBytecode();
+			break;
+		case EDU_SHADER_TYPE_DOMAIN:
+			m_Desc.DS = shader->GetShaderBytecode();
 			break;
 		case EDU_SHADER_TYPE_GEOMETRY:
 			m_Desc.GS = shader->GetShaderBytecode();

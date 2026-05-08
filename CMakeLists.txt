@@ -27,6 +27,7 @@ add_subdirectory(DemoProjects/MeshShaders)
 add_subdirectory(DemoProjects/AsyncCompute)
 add_subdirectory(DemoProjects/TemporalAA)
 add_subdirectory(DemoProjects/Sponza)
+add_subdirectory(DemoProjects/FFTOcean)
 
 add_subdirectory(ThirdParty/ImGui)
 add_subdirectory(ThirdParty/meshoptimizer)
