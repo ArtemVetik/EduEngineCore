@@ -1,3 +1,9 @@
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
+SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
 
 cbuffer cbPass : register(b0)
 {
@@ -12,6 +18,10 @@ cbuffer cbConstants : register(b1)
     float gMaxTesselationDistance;
     float gTesselationDecayFactor;
     float gCullingTollerance;
+    
+    uint gNbCascades;
+    uint gWavelengthsIdx;           // StructuredBuffer<float>
+    uint gDisplacementsTexturesIdx; // Texture2DArray<float3>
 }
 
 struct VertexInput
@@ -134,6 +144,9 @@ TessellationControlPoint Hull(InputPatch<TessellationControlPoint, 3> patch, uin
 [domain("tri")] // Signal we're inputting triangles
 Domain2FragmentData Domain(TessellationFactors factors, OutputPatch<TessellationControlPoint, 3> patch, float3 barycentricCoordinates : SV_DomainLocation)
 {
+    Texture2DArray<float3> displacementsTextures = ResourceDescriptorHeap[gDisplacementsTexturesIdx];
+    StructuredBuffer<float> wavelengths = ResourceDescriptorHeap[gWavelengthsIdx];
+    
     Domain2FragmentData output;
     output.PositionWS = patch[0].PositionWS * barycentricCoordinates.x +
                         patch[1].PositionWS * barycentricCoordinates.y +
@@ -145,6 +158,11 @@ Domain2FragmentData Domain(TessellationFactors factors, OutputPatch<Tessellation
     output.LodLevel = lerp(0.0, gMaxLodLevel, lodFactor);
 
     float3 displacement = 0;
+    for (uint i = 0; i < gNbCascades; i++)
+    {
+        displacement += displacementsTextures.SampleLevel(gsamLinearWrap, float3(output.WorldUV / wavelengths[i], i), output.LodLevel);
+    }
+    
     output.PositionWS += displacement;
 
     output.PositionCS = mul(float4(output.PositionWS, 1.0f), gViewProj);

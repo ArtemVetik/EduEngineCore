@@ -3,7 +3,7 @@
 #include "MeshGenerator.h"
 
 #include <RenderEngine.h>
-#include <PipelineState.h>
+#include <FFTOcean.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -16,6 +16,10 @@ namespace EduEngine
 		float MaxTesselationDistance = 250;
 		float TesselationDecayFactor = 4;
 		float CullingTollerance = 6;
+
+		UINT NbCascades = 1;
+		UINT WavelengthsIdx;
+		UINT DisplacementsTexturesIdx;
 	};
 
 	class FFTOceanDemo : public RenderEngine
@@ -26,6 +30,11 @@ namespace EduEngine
 		void OnRender(const Timer& timer) override;
 
 	private:
+		void RenderGui();
+		void RefreshOceanGpuConstants();
+		void RecreateFFTOceanPreservingSettings();
+
+	private:
 		PipelineState m_DrawPSO;
 
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
@@ -33,7 +42,9 @@ namespace EduEngine
 		std::shared_ptr<ShaderBinder> m_DrawBinder;
 
 		std::unique_ptr<MeshGenerator> m_MeshGenerator;
+		std::unique_ptr<FFTOcean> m_FFTOcean;
 
+		FFTOcean::InitialSettings m_OceanInitialSettings{};
 		ConstantsData m_ConstantsData;
 	};
 }

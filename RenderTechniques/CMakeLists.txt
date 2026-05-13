@@ -19,6 +19,8 @@ add_library(RenderTechniques STATIC
     src/Bloom.cpp
     src/ORMTextureGenerator.cpp
     src/HZBGenerator.cpp
+    src/FFTOcean.cpp
+    src/IFFT.cpp
 )
 
 target_include_directories(RenderTechniques
