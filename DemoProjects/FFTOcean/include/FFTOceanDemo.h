@@ -13,14 +13,39 @@ namespace EduEngine
 	{
 		UINT MaxLODLevel = 8;
 		UINT TesselationLevel = 10;
-		float MaxTesselationDistance = 250;
-		float TesselationDecayFactor = 4;
+		float MaxTesselationDistance = 350;
+		float TesselationDecayFactor = 8;
 		float CullingTollerance = 6;
 
 		UINT NbCascades = 1;
 		UINT WavelengthsIdx;
 		UINT DisplacementsTexturesIdx;
+		UINT DerivativesTexturesIdx;
+		UINT TurbulenceTexturesIdx;
+		UINT DrawConstantsPad0[2] = {};
+
+		XMFLOAT3 MainLightColor = { 1.f, 1.f, 1.f };
+		float EnvironmentReflectionStrength = 1.f;
+		XMFLOAT3 SubsurfaceScatteringColor = { 0.f, 1.f, 0.8f };
+		float SubsurfaceScatteringIntensity = 0.07f;
+		XMFLOAT3 DeepWaterColor = { 0.f, 0.1f, 0.4f };
+		float WaterFogDensity = 0.22f;
+		float RefractionStrength = 0.25f;
+		float Roughness = 0.08f;
+		float AnisoEX = 0.42f;
+		float AnisoEY = 1.f;
+		float FoamBlending = 0.f;
+		float FoamThreshold = 0.f;
+		XMFLOAT2 FoamPadRow = {};
+		XMFLOAT3 FoamColor = { 1.f, 1.f, 1.f };
+		float FoamPad0 = 0.f;
+		XMFLOAT3 ShadowsColor = { 0.f, 0.f, 0.f };
+		float ShadowsIntensity = 0.34f;
+		float SunReflectionStrength = 1.f;
+		XMFLOAT3 DrawConstantsPad1 = {};
+		XMFLOAT4 DrawConstantsPad2[5] = {};
 	};
+	static_assert(sizeof(ConstantsData) == 256, "ConstantsData must match FFTOceanDraw.hlsl cbConstants size (256 bytes)");
 
 	class FFTOceanDemo : public RenderEngine
 	{
@@ -33,6 +58,7 @@ namespace EduEngine
 		void RenderGui();
 		void RefreshOceanGpuConstants();
 		void RecreateFFTOceanPreservingSettings();
+		void FillMainLightPosFromSunAngles(XMFLOAT3& outMainLightPos) const;
 
 	private:
 		PipelineState m_DrawPSO;
@@ -46,5 +72,8 @@ namespace EduEngine
 
 		FFTOcean::InitialSettings m_OceanInitialSettings{};
 		ConstantsData m_ConstantsData;
+
+		float m_SunAzimuthDegrees = 84.29f;
+		float m_SunElevationDegrees = 5.69f;
 	};
 }

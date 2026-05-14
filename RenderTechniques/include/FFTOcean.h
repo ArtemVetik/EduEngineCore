@@ -59,6 +59,8 @@ namespace EduEngine
 
 		UINT GetWaveLengthSrvGpuBufferIdx() const { return m_Wavelengths->GetSRVView()->GetGpuHeapIndex(); }
 		UINT GetDisplacementsTexSrvGpuBufferIdx() const { return m_DisplacementsTextures->GetSRVView()->GetGpuHeapIndex(); }
+		UINT GetDerivativesTexSrvGpuBufferIdx() const { return m_DerivativesTextures->GetSRVView()->GetGpuHeapIndex(); }
+		UINT GetTurbulenceTexSrvGpuBufferIdx() const { return m_TurbulenceTextures->GetSRVView()->GetGpuHeapIndex(); }
 
 	private:
 		void CalculateInitialSpectrum(Settings settings);

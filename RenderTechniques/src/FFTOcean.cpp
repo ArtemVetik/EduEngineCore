@@ -56,7 +56,7 @@ namespace EduEngine
 		m_ConstantsBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
 		m_ConstantsBuffer->LoadData(context, &constantsData);
 
-		m_IFFT = std::make_unique<IFFT>(device, context, m_TextureSize, 1, m_ConstantsBuffer);
+		m_IFFT = std::make_unique<IFFT>(device, context, m_TextureSize, m_NbCascades, m_ConstantsBuffer);
 
 		GenerateRandomNoiseTexture(device, context);
 
@@ -72,12 +72,14 @@ namespace EduEngine
 				texDesc.SampleDesc.Count = 1;
 				texDesc.SampleDesc.Quality = 0;
 				texDesc.Format = format;
+				texDesc.Layout= D3D12_TEXTURE_LAYOUT_UNKNOWN;
 				texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 				D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 				uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 				uavDesc.Format = texDesc.Format;
 				uavDesc.Texture2DArray.ArraySize = depth;
+				uavDesc.Texture2DArray.FirstArraySlice = 0;
 				uavDesc.Texture2DArray.MipSlice = 0;
 				uavDesc.Texture2DArray.PlaneSlice = 0;
 
@@ -103,8 +105,8 @@ namespace EduEngine
 		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_WavesDataTextures, L"WavesDataTextures", true);
 		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_InitialSpectrumTextures, L"InitialSpectrumTextures", true);
 		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_DisplacementsTextures, L"DisplacementsTextures", true);
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_DerivativesTextures, L"DerivativesTextures");
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_TurbulenceTextures, L"TurbulenceTextures");
+		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_DerivativesTextures, L"DerivativesTextures", true);
+		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_TurbulenceTextures, L"TurbulenceTextures", true);
 		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32_FLOAT, m_DxDzTextures, L"DxDzTextures");
 		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32_FLOAT, m_DyDxzTextures, L"DyDxzTextures");
 		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32_FLOAT, m_DyxDyzTextures, L"DyxDyzTextures");

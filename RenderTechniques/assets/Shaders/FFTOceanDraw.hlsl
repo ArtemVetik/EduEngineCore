@@ -7,8 +7,11 @@ SamplerState gsamAnisotropicClamp : register(s5);
 
 cbuffer cbPass : register(b0)
 {
+    float4x4 gWorld;
     float4x4 gViewProj;
     float3 gCameraPos;
+    uint gPadding;
+    float3 gMainLightPos;
 };
 
 cbuffer cbConstants : register(b1)
@@ -18,11 +21,37 @@ cbuffer cbConstants : register(b1)
     float gMaxTesselationDistance;
     float gTesselationDecayFactor;
     float gCullingTollerance;
-    
+
     uint gNbCascades;
     uint gWavelengthsIdx;           // StructuredBuffer<float>
     uint gDisplacementsTexturesIdx; // Texture2DArray<float3>
+    uint gDerivativesTexturesIdx;   // Texture2DArray<float4>
+    uint gTurbulenceTexturesIdx;    // Texture2DArray<float4>
+    uint2 gDrawConstantsPad0;       // Align next block to 16-byte offset 48
+
+    float3 gMainLightColor;
+    float gEnvironmentReflectionStrength;
+    float3 gSubsurfaceScatteringColor;
+    float gSubsurfaceScatteringIntensity;
+    float3 gColor;
+    float gWaterFogDensity;
+    float gRefractionStrength;
+    float gRoughness;
+    float gEX;
+    float gEY;
+    float gFoamBlending;
+    float gFoamThreshold;
+    float2 gFoamPadRow;
+    float3 gFoamColor;
+    float gFoamPad0;
+    float3 gShadowsColor;
+    float gShadowsIntensity;
+    float gSunReflectionStrength;
+    float3 gDrawConstantsPad1;
+    float4 gDrawConstantsPad2[5];
 }
+
+#include "CommonTransforms.hlsli"
 
 struct VertexInput
 {
@@ -47,7 +76,7 @@ struct Domain2FragmentData
     float3 ViewDir    : TEXCOORD0;
     float3 PositionWS : TEXCOORD1;
     float2 WorldUV    : TEXCOORD2;
-    float4 PositionSS : TEXCOORD3;
+    float2 PositionSS : TEXCOORD3;
     half LodLevel     : TEXCOORD4;
 };
 
@@ -59,9 +88,91 @@ struct VertexOutput
 TessellationControlPoint VS(VertexInput input)
 {
     TessellationControlPoint output;
-    output.PositionWS = input.PosL;
-    output.PositionCS = mul(float4(input.PosL, 1.0f), gViewProj);
+    output.PositionWS = mul(float4(input.PosL, 1.0f), gWorld);
+    output.PositionCS = mul(float4(output.PositionWS, 1.0f), gViewProj);
     return output;
+}
+
+#define M_PI 3.1415926535897932384626433832795f
+#define FLT_MIN 1.175494351e-38
+#define WATER_REFRACTION_INDEX 1.333f
+#define AIR_REFRACTION_INDEX 1.0f
+#define R0 pow((AIR_REFRACTION_INDEX - WATER_REFRACTION_INDEX) / (AIR_REFRACTION_INDEX + WATER_REFRACTION_INDEX), 2)
+
+// Returns the color of what is rendered behind, distorts it to simulate refraction and blends with an adjustable color to cheaply apporoximate underwater light absorption.
+// Based on https://catlikecoding.com/unity/tutorials/flow/looking-through-water/
+float3 UnderwaterView(float2 positionSS, float3 normalWS)
+{
+    // TODO: Implement depth-based fog
+    return gColor;
+}
+
+// Returns a fast subsurface scattering approximation based on the height of the wave, the light direction and the view direction.
+float3 SubsurfaceScatteringApproximation(float waveHeight, float3 lightDir, float3 viewDir)
+{
+    float coeff = gSubsurfaceScatteringIntensity * max(0, waveHeight) * pow(max(0, dot(lightDir, viewDir)), 4);
+    return coeff * gSubsurfaceScatteringColor * gMainLightColor;
+}
+
+// Returns the reflection of the sky color by sampling the skybox cubemap.
+float3 EnvironmentReflections(float3 viewDir, float3 normalWS)
+{
+    float3 reflectionDir = -reflect(viewDir, float3(0.0, 1.0, 0.0));
+    //float3 reflectionDir = -reflect(viewDir, normalWS);
+    //float3 reflectionDir = normalWS;
+    half3 environment = half3(1, 1, 1); // TODO: Sample skybox cubemap with reflectionDir
+    return environment * gEnvironmentReflectionStrength;
+}
+
+// Code source: https://rtarun9.github.io/blogs/physically_based_rendering/#what-is-physically-based-rendering
+float NormalDistribution(float3 h, float3 normalWS, float3 viewDir, float roughness)
+{
+    float alpha = roughness * roughness;
+    float alphaSquare = alpha * alpha;
+    float nDotH = saturate(dot(normalWS, h));
+    
+    return alphaSquare / (max(M_PI * pow((nDotH * nDotH * (alphaSquare - 1.0f) + 1.0f), 2.0f), FLT_MIN));
+}
+
+// Code source: https://rtarun9.github.io/blogs/physically_based_rendering/#what-is-physically-based-rendering
+float SchlickBeckmannGS(float3 normalWS, float3 x, float roughness)
+{
+    float k = roughness / 2.0f;
+    float nDotX = saturate(dot(normalWS, x));
+                
+    return nDotX / (max((nDotX * (1.0f - k) + k), FLT_MIN));
+}
+
+// Code source: https://rtarun9.github.io/blogs/physically_based_rendering/#what-is-physically-based-rendering
+float GeometryShadowingFunction(float3 normalWS, float3 viewDir, float3 lightDir, float roughness)
+{
+    return SchlickBeckmannGS(normalWS, viewDir, roughness) * SchlickBeckmannGS(normalWS, lightDir, roughness);
+}
+
+// Computes the Cook-Torrance BRDF model for specular reflection
+// Code source: https://rtarun9.github.io/blogs/physically_based_rendering/#what-is-physically-based-rendering
+float3 CookTorranceBRDF(float3 h, float3 normalWS, float3 viewDir, float3 lightDir, float fresnel, float roughness)
+{
+    if (dot(lightDir, float3(0.0, 1.0, 0.0)) <= 0.0)
+        return 0.0;
+    float normalDistribution = max(NormalDistribution(h, normalWS, viewDir, roughness), 0.0);
+    float geometryFunction = max(GeometryShadowingFunction(normalWS, viewDir, lightDir, roughness), 0.0);
+
+    return gMainLightColor * normalDistribution * geometryFunction / max(8.0f * saturate(dot(viewDir, normalWS)) * saturate(dot(lightDir, normalWS)), FLT_MIN);
+}
+
+// Computes the Ashikhmin-Shirley anisotropic BRDF model for specular reflection.
+// https://www.researchgate.net/publication/2523875_An_anisotropic_phong_BRDF_model
+float3 AshikhminShirleyBRDF(float3 h, float3 viewDir, float3 lightDir, float3 normalWS, float fresnel, float ex, float ey)
+{
+    if (dot(lightDir, float3(0.0, 1.0, 0.0)) <= 0.0)
+        return 0.0;
+    
+    float cos2PhiH = max((h.x * h.x) / max(1.0 - h.z * h.z, FLT_MIN), 0.0);
+    float sin2PhiH = max((h.y * h.y) / max(1.0 - h.z * h.z, FLT_MIN), 0.0);
+    float d = sqrt((ex + 1) * (ey + 1)) * pow(max(dot(h, normalWS), 0.0), ex * cos2PhiH + ey * sin2PhiH);
+
+    return gMainLightColor * max(d * fresnel / max(8 * M_PI * dot(h, viewDir) * max(dot(normalWS, viewDir), dot(normalWS, lightDir)), FLT_MIN), 0.0);
 }
 
 // Returns true if the point is outside the bounds set by lower and higher.
@@ -131,17 +242,17 @@ TessellationFactors PatchConstantFunction(InputPatch<TessellationControlPoint, 3
     return f;
 }
 
-[domain("tri")] // Signal we're inputting triangles
-[outputcontrolpoints(3)] // Triangles have three points
-[outputtopology("triangle_cw")] // Signal we're outputting triangles
-[patchconstantfunc("PatchConstantFunction")] // Register the patch constant function
-[partitioning("integer")] // Select a partitioning mode: integer, fractional_odd, fractional_even or pow2
+[domain("tri")]
+[outputcontrolpoints(3)]
+[outputtopology("triangle_cw")]
+[patchconstantfunc("PatchConstantFunction")]
+[partitioning("integer")]
 TessellationControlPoint Hull(InputPatch<TessellationControlPoint, 3> patch, uint id : SV_OutputControlPointID)
 {
     return patch[id];
 }
 
-[domain("tri")] // Signal we're inputting triangles
+[domain("tri")]
 Domain2FragmentData Domain(TessellationFactors factors, OutputPatch<TessellationControlPoint, 3> patch, float3 barycentricCoordinates : SV_DomainLocation)
 {
     Texture2DArray<float3> displacementsTextures = ResourceDescriptorHeap[gDisplacementsTexturesIdx];
@@ -167,11 +278,59 @@ Domain2FragmentData Domain(TessellationFactors factors, OutputPatch<Tessellation
 
     output.PositionCS = mul(float4(output.PositionWS, 1.0f), gViewProj);
     output.ViewDir = normalize(gCameraPos - output.PositionWS);
+    
+    float2 uv = output.PositionCS.xy / output.PositionCS.w;
+    uv = uv * 0.5f + 0.5f;
+    output.PositionSS = uv;
 
     return output;
 }
 
 float4 PS(Domain2FragmentData input) : SV_TARGET
 {
-    return float4(0.0f, 0.5f, 1.0f, 1.0f);
+    Texture2DArray<float4> derivativesTextures = ResourceDescriptorHeap[gDerivativesTexturesIdx];
+    Texture2DArray<float4> turbulenceTextures = ResourceDescriptorHeap[gTurbulenceTexturesIdx];
+    StructuredBuffer<float> wavelengths = ResourceDescriptorHeap[gWavelengthsIdx];
+    
+    float4 derivatives = 0;
+    float turbulence = 0;
+    
+    //[unroll]
+    for (int i = 0; i < gNbCascades; i++)
+    {
+        float2 uv = input.WorldUV / wavelengths[i];
+        
+        derivatives += derivativesTextures.SampleLevel(gsamLinearWrap, float3(uv, i), input.LodLevel);
+        turbulence += 1 - saturate(turbulenceTextures.SampleLevel(gsamLinearWrap, float3(uv, i), input.LodLevel).x);
+    }
+
+    float2 slope = float2(derivatives.x / (1 + derivatives.z), derivatives.y / (1 + derivatives.w));
+    float3 normalOS = normalize(float3(-slope.x, 1, -slope.y));
+    float3 normalWS = normalize(TransformNormalToWorldSpace(normalOS, gWorld));
+
+    float3 lightDir = normalize(gMainLightPos);
+    float3 halfwayVec = normalize(input.ViewDir + lightDir);
+
+    float fresnel = R0 + (1 - R0) * pow(1.0 - saturate(dot(normalWS, input.ViewDir)), 5 * exp(-2.69 * gRoughness)) / (1 + 22.7 * pow(gRoughness, 1.5));
+    float fresnelH = R0 + (1 - R0) * pow(1.0 - saturate(dot(halfwayVec, input.ViewDir)), 5);
+    
+    float shadowFactor = 1; // TODO: Sample Shadow Map
+
+    half3 refraction = UnderwaterView(input.PositionSS, normalWS);
+    refraction += SubsurfaceScatteringApproximation(input.PositionWS.y, lightDir, -input.ViewDir);
+
+    half3 reflections = EnvironmentReflections(input.ViewDir, normalWS);
+    refraction *= reflections;
+    float nu = gEX * 10.0 * (1.0 - gRoughness); // Controls anisotropy along x-axis
+    float nv = gEY * 10.0 * (1.0 - gRoughness); // Controls anisotropy along z-axis
+    half3 ashikhminShirleySpec = AshikhminShirleyBRDF(halfwayVec, input.ViewDir, lightDir, normalWS, fresnelH, nu, nv);
+    half3 cookTorranceSpec = CookTorranceBRDF(halfwayVec, normalWS, input.ViewDir, lightDir, fresnelH, gRoughness);
+    // Blending factor based on view angle, adding Ashikhmin-Shirley at flatter angles
+    reflections += (cookTorranceSpec + ashikhminShirleySpec * saturate(dot(input.ViewDir, normalWS))) * shadowFactor * gSunReflectionStrength;
+
+    half3 emission = lerp(lerp(refraction, reflections, fresnel), gShadowsColor, gShadowsIntensity * (1 - shadowFactor));
+    if (turbulence >= gFoamThreshold)
+        emission = lerp(emission, gFoamColor, gFoamBlending);
+
+    return half4(emission, 1.0f);
 }

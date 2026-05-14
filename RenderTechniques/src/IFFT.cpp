@@ -76,19 +76,31 @@ namespace EduEngine
 		// Create the "Ping Pong" textures that will store the intermediate IFFT computations.
 		// One "Ping Pong" texture for each cascade
 		// https://doi.org/10.15480/882.1436 ("4.2.5 Ping-Pong Texture" section)
-		texDesc.Width = texturesSize;
-		texDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
-		texDesc.DepthOrArraySize = nbCascades;
+		{
+			D3D12_RESOURCE_DESC texDesc = {};
+			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			texDesc.Alignment = 0;
+			texDesc.MipLevels = 1;
+			texDesc.DepthOrArraySize = nbCascades;
+			texDesc.Width = texturesSize;
+			texDesc.Height = texturesSize;
+			texDesc.SampleDesc.Count = 1;
+			texDesc.SampleDesc.Quality = 0;
+			texDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-		uavDesc.Format = texDesc.Format;
-		uavDesc.Texture2DArray.ArraySize = nbCascades;
-		uavDesc.Texture2DArray.MipSlice = 0;
-		uavDesc.Texture2DArray.PlaneSlice = 0;
+			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+			uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+			uavDesc.Format = texDesc.Format;
+			uavDesc.Texture2DArray.ArraySize = nbCascades;
+			uavDesc.Texture2DArray.FirstArraySlice = 0;
+			uavDesc.Texture2DArray.MipSlice = 0;
+			uavDesc.Texture2DArray.PlaneSlice = 0;
 
-		m_PingPongTextures = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
-		m_PingPongTextures->CreateUAV(&uavDesc, false);
-		m_PingPongTextures->SetName(L"PingPongTextures");
+			m_PingPongTextures = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
+			m_PingPongTextures->CreateUAV(&uavDesc, false);
+			m_PingPongTextures->SetName(L"PingPongTextures");
+		}
 
 		FFTData data = {};
 		data.TwiddleFactorsAndInputIndicesTextureIdx = m_TwiddleFactorsAndInputIndicesTexture->GetUAVView()->GetGpuHeapIndex();
