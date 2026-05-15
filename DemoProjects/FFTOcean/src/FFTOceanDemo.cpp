@@ -56,6 +56,8 @@ namespace EduEngine
 
 	void FFTOceanDemo::OnStartUp()
 	{
+		GetCamera()->UpdateNearFar(0.1f, 10000.f);
+
 		m_OceanInitialSettings.TextureSize = 512;
 		m_OceanInitialSettings.CascadesCount = 3;
 		m_OceanInitialSettings.Cascades[0] = { 1530, 1e12f, 1e-10f, 0.4f, 0.1f };
