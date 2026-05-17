@@ -4,6 +4,7 @@
 
 #include <RenderEngine.h>
 #include <FFTOcean.h>
+#include <Atmosphere.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -69,6 +70,7 @@ namespace EduEngine
 
 		std::unique_ptr<MeshGenerator> m_MeshGenerator;
 		std::unique_ptr<FFTOcean> m_FFTOcean;
+		std::unique_ptr<Atmosphere> m_Atmosphere;
 
 		FFTOcean::InitialSettings m_OceanInitialSettings{};
 		ConstantsData m_ConstantsData;

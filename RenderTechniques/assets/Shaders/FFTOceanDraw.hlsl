@@ -328,9 +328,10 @@ float4 PS(Domain2FragmentData input) : SV_TARGET
     // Blending factor based on view angle, adding Ashikhmin-Shirley at flatter angles
     reflections += (cookTorranceSpec + ashikhminShirleySpec * saturate(dot(input.ViewDir, normalWS))) * shadowFactor * gSunReflectionStrength;
 
-    half3 emission = lerp(lerp(refraction, reflections, fresnel), gShadowsColor, gShadowsIntensity * (1 - shadowFactor));
+    float3 emission = lerp(lerp(refraction, reflections, fresnel), gShadowsColor, gShadowsIntensity * (1 - shadowFactor));
     if (turbulence >= gFoamThreshold)
         emission = lerp(emission, gFoamColor, gFoamBlending);
-
-    return half4(emission, 1.0f);
+    
+    emission = pow(emission, 1.0f / 2.2f);
+    return float4(emission, 1.0f);
 }

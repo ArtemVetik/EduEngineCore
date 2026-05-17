@@ -21,6 +21,7 @@ add_library(RenderTechniques STATIC
     src/HZBGenerator.cpp
     src/FFTOcean.cpp
     src/IFFT.cpp
+    src/Atmosphere.cpp
 )
 
 target_include_directories(RenderTechniques

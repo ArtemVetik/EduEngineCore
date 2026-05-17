@@ -1,0 +1,350 @@
+#include "Atmosphere.h"
+
+namespace EduEngine
+{
+	const int LOCAL_WORK_GROUPS_X = 8;
+	const int LOCAL_WORK_GROUPS_Y = 8;
+
+	const int transmittanceLUTWidth = 64;
+	const int transmittanceLUTHeight = 256;
+
+	const int multiscatteringLUTWidth = 64;
+	const int multiscatteringLUTHeight = 64;
+
+	const int skyViewLUTWidth = 256;
+	const int skyViewLUTHeight = 128;
+
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) LUTSizes
+	{
+		UINT LutWidth;
+		UINT LutHeight;
+	};
+
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) AtmosphereParams
+	{
+		float PlanetRadius;
+		float AtmosphereRadius;
+
+		float MieG;
+		UINT Padding0;
+
+		XMFLOAT3 RayleighScatteringCoefficient;
+		float RayleighScaleHeight;
+		XMFLOAT3 RayleighAbsorptionCoefficient;
+		UINT Padding1;
+
+		XMFLOAT3 MieScatteringCoefficient;
+		float MieScaleHeight;
+		XMFLOAT3 MieAbsorptionCoefficient;
+		UINT Padding2;
+
+		XMFLOAT3 OzoneScatteringCoefficient;
+		UINT Padding3;
+		XMFLOAT3 OzoneAbsorptionCoefficient;
+		UINT Padding4;
+
+		XMFLOAT3 GroundSpectrumAlbedo;
+		UINT Padding5;
+	};
+
+	Atmosphere::Atmosphere(RenderDeviceD3D12* device, DeviceContext* context, XMFLOAT3 sunDirection) :
+		m_Context(context)
+	{
+		ShaderResourceDesc resDesc[] =
+		{
+			{ "cbPass", SHADER_RESOURCE_TYPE_DYNAMIC },
+		};
+
+		ShaderDesc sDesc = {};
+		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
+		sDesc.ResourceDesc = resDesc;
+		sDesc.ResourceNum = _countof(resDesc);
+
+		auto computeMultiscatteringLUTCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\MultiscatteringLUT.hlsl", L"ComputeMultiscatteringLUT", L"cs_6_6", nullptr, sDesc);
+		auto computeSkyViewLUTCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\SkyViewLUT.hlsl", L"ComputeSkyViewLUT", L"cs_6_6", nullptr, sDesc);
+		auto computeTransmittanceLUTCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\TransmittanceLUT.hlsl", L"ComputeTransmittanceLUT", L"cs_6_6", nullptr, sDesc);
+
+		m_MultiscatteringLUTPso = std::make_unique<ComputePipelineState>(QueueId::Direct);
+		m_MultiscatteringLUTPso->SetShader(computeMultiscatteringLUTCS);
+		m_MultiscatteringLUTPso->Build(device);
+		m_MultiscatteringLUTPso->SetName(L"MultiscatteringLUT_PSO");
+		m_MultiscatteringLUTBinder = m_MultiscatteringLUTPso->CreateShaderBinder();
+
+		m_SkyViewLUTPso = std::make_unique<ComputePipelineState>(QueueId::Direct);
+		m_SkyViewLUTPso->SetShader(computeSkyViewLUTCS);
+		m_SkyViewLUTPso->Build(device);
+		m_SkyViewLUTPso->SetName(L"SkyViewLUT_PSO");
+		m_SkyViewLUTBinder = m_SkyViewLUTPso->CreateShaderBinder();
+
+		m_TransmittanceLUTPso = std::make_unique<ComputePipelineState>(QueueId::Direct);
+		m_TransmittanceLUTPso->SetShader(computeTransmittanceLUTCS);
+		m_TransmittanceLUTPso->Build(device);
+		m_TransmittanceLUTPso->SetName(L"TransmittanceLUT_PSO");
+		m_TransmittanceLUTBinder = m_TransmittanceLUTPso->CreateShaderBinder();
+
+		auto CreateTexture = [&](std::shared_ptr<TextureD3D12>& texture,
+								 uint32 width,
+								 uint32 height,
+								 DXGI_FORMAT format,
+								 const wchar_t* name,
+								 bool createSrv = false
+			)
+			{
+				D3D12_RESOURCE_DESC texDesc = {};
+				texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+				texDesc.Alignment = 0;
+				texDesc.MipLevels = 1;
+				texDesc.DepthOrArraySize = 1;
+				texDesc.Width = width;
+				texDesc.Height = height;
+				texDesc.SampleDesc.Count = 1;
+				texDesc.SampleDesc.Quality = 0;
+				texDesc.Format = format;
+				texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+				texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+				D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+				uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+				uavDesc.Format = texDesc.Format;
+				uavDesc.Texture2DArray.ArraySize = 1;
+				uavDesc.Texture2DArray.FirstArraySlice = 0;
+				uavDesc.Texture2DArray.MipSlice = 0;
+				uavDesc.Texture2DArray.PlaneSlice = 0;
+
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+				srvDesc.Texture2DArray.ArraySize = 1;
+				srvDesc.Texture2DArray.FirstArraySlice = 0;
+				srvDesc.Texture2DArray.MipLevels = 1;
+				srvDesc.Texture2DArray.MostDetailedMip = 0;
+				srvDesc.Texture2DArray.PlaneSlice = 0;
+				srvDesc.Texture2DArray.ResourceMinLODClamp = 0;
+
+				texture = std::make_shared<TextureD3D12>(device, texDesc, nullptr, QueueId::Direct);
+				texture->CreateUAV(&uavDesc);
+				if (createSrv)
+					texture->CreateSRV(&srvDesc);
+
+				texture->SetName(name);
+			};
+
+		CreateTexture(m_TransmittanceLut, transmittanceLUTWidth, transmittanceLUTHeight, DXGI_FORMAT_R32G32B32A32_FLOAT, L"TransmittanceLut", true);
+		CreateTexture(m_MultiscatteringLUT, multiscatteringLUTWidth, multiscatteringLUTHeight, DXGI_FORMAT_R32G32B32A32_FLOAT, L"MultiscatteringLUT", true);
+		CreateTexture(m_SkyViewLUT, skyViewLUTWidth, skyViewLUTHeight, DXGI_FORMAT_R32G32B32A32_FLOAT, L"SkyViewLUT", true);
+
+		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(device);
+
+		D3D12_RESOURCE_DESC buffDesc = {};
+		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		buffDesc.Width = sizeof(AtmosphereParams);
+		buffDesc.Alignment = 0;
+		buffDesc.Height = 1;
+		buffDesc.DepthOrArraySize = 1;
+		buffDesc.MipLevels = 1;
+		buffDesc.SampleDesc.Count = 1;
+		buffDesc.SampleDesc.Quality = 0;
+		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		buffDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		m_AtmosphereParamsBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
+		m_AtmosphereParamsBuffer->SetName(L"AtmosphereParamsBuffer");
+
+		UpdateSettings(m_Settings, context);
+
+		buffDesc.Width = sizeof(LUTSizes);
+		m_LUTSizeBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
+		m_LUTSizeBuffer->SetName(L"LUTSizeBuffer");
+
+		m_TransmittanceLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbLUTSizes", m_LUTSizeBuffer);
+		m_TransmittanceLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbAtmosphereParameters", m_AtmosphereParamsBuffer);
+		m_TransmittanceLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "gTransmittanceLUT", m_TransmittanceLut);
+
+		m_MultiscatteringLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbLUTSizes", m_LUTSizeBuffer);
+		m_MultiscatteringLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbAtmosphereParameters", m_AtmosphereParamsBuffer);
+		m_MultiscatteringLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "gTransmittanceLUT", m_TransmittanceLut);
+		m_MultiscatteringLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "gMultiscatteringLUT", m_MultiscatteringLUT);
+
+		m_SkyViewLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbLUTSizes", m_LUTSizeBuffer);
+		m_SkyViewLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbAtmosphereParameters", m_AtmosphereParamsBuffer);
+		m_SkyViewLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "gTransmittanceLUT", m_TransmittanceLut);
+		m_SkyViewLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "gMultiscatteringLUT", m_MultiscatteringLUT);
+		m_SkyViewLUTBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "gSkyViewLUT", m_SkyViewLUT);
+		m_SkyViewLUTBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
+
+		// Build Draw PSO
+		{
+			ShaderResourceDesc resDesc[]
+			{
+				ShaderResourceDesc("cbPass", SHADER_RESOURCE_TYPE_DYNAMIC),
+			};
+
+			ShaderDesc sDesc = {};
+			sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
+			sDesc.ResourceDesc = resDesc;
+			sDesc.ResourceNum = _countof(resDesc);
+
+			std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout =
+			{
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			};
+
+			D3D12_DEPTH_STENCIL_DESC dss = {};
+			dss.DepthEnable = true;
+			dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+			dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+
+			auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\AtmosphereDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+			auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\AtmosphereDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+
+			m_DrawPassBuffer = std::make_shared<DynamicUploadBuffer>(device);
+
+			m_DrawPso.SetDepthStencilState(dss);
+			m_DrawPso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
+			m_DrawPso.SetShader(vs);
+			m_DrawPso.SetShader(ps);
+			m_DrawPso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+			m_DrawPso.Build(device);
+			m_DrawPso.SetName(L"SkyDrawPso");
+
+			m_DrawBinder = m_DrawPso.CreateShaderBinder();
+			m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_DrawPassBuffer);
+			m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_DrawPassBuffer);
+			m_DrawBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSkyLUT", m_SkyViewLUT);
+		}
+
+		// Compute transmittance
+		{
+			LUTSizes lutSizes = {};
+			lutSizes.LutWidth = transmittanceLUTWidth;
+			lutSizes.LutHeight = transmittanceLUTHeight;
+			m_LUTSizeBuffer->LoadData(context, &lutSizes);
+
+			m_TransmittanceLUTPso->BeginPSOAndCommitResources(context, m_TransmittanceLUTBinder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(transmittanceLUTWidth / LOCAL_WORK_GROUPS_X, transmittanceLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
+
+			context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+		}
+
+		// Compute multiscattering
+		{
+			LUTSizes lutSizes = {};
+			lutSizes.LutWidth = multiscatteringLUTWidth;
+			lutSizes.LutHeight = multiscatteringLUTHeight;
+			m_LUTSizeBuffer->LoadData(context, &lutSizes);
+
+			m_MultiscatteringLUTPso->BeginPSOAndCommitResources(context, m_MultiscatteringLUTBinder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(multiscatteringLUTWidth / LOCAL_WORK_GROUPS_X, multiscatteringLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
+
+			context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			context->GetCommandCtx()->TransitionResource(m_MultiscatteringLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+		}
+
+		// Compute sky view
+		{
+			m_PassBuffer->LoadData(context, sunDirection);
+
+			LUTSizes lutSizes = {};
+			lutSizes.LutWidth = skyViewLUTWidth;
+			lutSizes.LutHeight = skyViewLUTHeight;
+			m_LUTSizeBuffer->LoadData(context, &lutSizes);
+
+			m_SkyViewLUTPso->BeginPSOAndCommitResources(context, m_SkyViewLUTBinder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(skyViewLUTWidth / LOCAL_WORK_GROUPS_X, skyViewLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
+
+			context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			context->GetCommandCtx()->TransitionResource(m_MultiscatteringLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			context->GetCommandCtx()->TransitionResource(m_SkyViewLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+		}
+
+		//	TODO: Share cube buffers!
+		// 
+		//	Generate cube buffers
+		//
+		DirectX::XMFLOAT3 vertices[] =
+		{
+			// +X
+			{ +1, +1, -1 }, { +1, -1, -1 }, { +1, -1, +1 }, { +1, +1, +1 },
+			// -X
+			{ -1, +1, +1 }, { -1, -1, +1 }, { -1, -1, -1 }, { -1, +1, -1 },
+			// +Y
+			{ -1, +1, +1 }, { -1, +1, -1 }, { +1, +1, -1 }, { +1, +1, +1 },
+			// -Y
+			{ -1, -1, -1 }, { -1, -1, +1 }, { +1, -1, +1 }, { +1, -1, -1 },
+			// +Z
+			{ -1, +1, +1 }, { +1, +1, +1 }, { +1, -1, +1 }, { -1, -1, +1 },
+			// -Z
+			{ +1, +1, -1 }, { -1, +1, -1 }, { -1, -1, -1 }, { +1, -1, -1 },
+		};
+
+		uint16 indices[] = {
+			0,1,2,		0,2,3,		// +X
+			4,5,6,		4,6,7,      // -X
+			8,9,10,		8,10,11,	// +Y
+			12,13,14,	12,14,15,	// -Y
+			16,17,18,	16,18,19,	// +Z
+			20,21,22,	20,22,23,	// -Z
+		};
+
+		m_CubeVB = std::make_shared<VertexBufferD3D12>(device, context, vertices, sizeof(DirectX::XMFLOAT3), _countof(vertices));
+		m_CubeIB = std::make_shared<IndexBufferD3D12>(device, context, indices, sizeof(uint16), _countof(indices), DXGI_FORMAT_R16_UINT);
+	}
+
+	void Atmosphere::Render(const Camera* camera, XMFLOAT3 sunDirection)
+	{
+		m_PassBuffer->LoadData(m_Context, sunDirection);
+
+		m_SkyViewLUTPso->BeginPSOAndCommitResources(m_Context, m_SkyViewLUTBinder.get());
+		m_Context->GetCommandCtx()->GetCmdList()->Dispatch(skyViewLUTWidth / LOCAL_WORK_GROUPS_X, skyViewLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
+
+		struct DrawData
+		{
+			XMFLOAT4X4 View;
+			XMFLOAT4X4 Proj;
+			XMFLOAT4 MainLightColor;
+			XMFLOAT3 MainLightPosition;
+			float SunSize;
+		} drawData;
+
+		XMStoreFloat4x4(&drawData.View, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetViewMatrix())));
+		XMStoreFloat4x4(&drawData.Proj, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
+		drawData.MainLightColor = { 1, 1, 1, 1 };
+		drawData.MainLightPosition = sunDirection;
+		drawData.SunSize = 0.04f;
+		
+		m_DrawPassBuffer->LoadData(m_Context, drawData);
+
+		m_DrawPso.BeginPSOAndCommitResources(m_Context, m_DrawBinder.get());
+
+		m_Context->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
+		m_Context->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
+
+		m_Context->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
+	}
+
+	void Atmosphere::UpdateSettings(Settings newSettings, DeviceContext* context)
+	{
+		m_Settings = newSettings;
+
+		AtmosphereParams params = {};
+		params.PlanetRadius = m_Settings.PlanetRadius;
+		params.AtmosphereRadius = m_Settings.AtmosphereRadius;
+		params.MieG = m_Settings.MieG;
+
+		params.RayleighScatteringCoefficient = m_Settings.RayleighScatteringCoefficient;
+		params.RayleighAbsorptionCoefficient = m_Settings.RayleighAbsorptionCoefficient;
+		params.RayleighScaleHeight = m_Settings.RayleighScaleHeight;
+
+		params.MieScatteringCoefficient = m_Settings.MieScatteringCoefficient;
+		params.MieAbsorptionCoefficient = m_Settings.MieAbsorptionCoefficient;
+		params.MieScaleHeight = m_Settings.MieScaleHeight;
+
+		params.OzoneScatteringCoefficient = m_Settings.OzoneScatteringCoefficient;
+		params.OzoneAbsorptionCoefficient = m_Settings.OzoneAbsorptionCoefficient;
+
+		params.GroundSpectrumAlbedo = m_Settings.GroundSpectrumAlbedo;
+
+		m_AtmosphereParamsBuffer->LoadData(context, &params);
+	}
+}

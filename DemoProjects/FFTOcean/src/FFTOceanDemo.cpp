@@ -64,8 +64,12 @@ namespace EduEngine
 		m_OceanInitialSettings.Cascades[1] = { 1000, 1e7f, 1e-7f, 0.3f, 0.2f };
 		m_OceanInitialSettings.Cascades[2] = { 201, 1000000.0f, 1e-5f, 0.1f, 0.1f };
 
+		XMFLOAT3 sunDir{};
+		FillMainLightPosFromSunAngles(sunDir);
+
 		m_MeshGenerator = std::make_unique<MeshGenerator>(GetDevice(), GetMainContext(), 512, 512, 5000);
 		m_FFTOcean = std::make_unique<FFTOcean>(GetDevice(), GetMainContext(), m_OceanInitialSettings);
+		m_Atmosphere = std::make_unique<Atmosphere>(GetDevice(), GetMainContext(), sunDir);
 
 		ShaderResourceDesc resDesc[] = 
 		{
@@ -181,6 +185,11 @@ namespace EduEngine
 		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_MeshGenerator->GetIndexBufferView());
 
 		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_MeshGenerator->GetIndexCount(), 1, 0, 0, 0);
+
+		XMFLOAT3 sunDir{};
+		FillMainLightPosFromSunAngles(sunDir);
+
+		m_Atmosphere->Render(GetCamera(), sunDir);
 
 		RenderGui();
 	}
