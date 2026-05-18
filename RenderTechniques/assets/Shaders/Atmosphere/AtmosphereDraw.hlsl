@@ -84,7 +84,7 @@ float4 PS(VertexOut vOut) : SV_Target
     float3 lightDir = normalize(gMainLightPosition);
 
     float4 sunColor = SunShape(lightDir, viewDir) * gMainLightColor;
-    float4 skyColor = SampleSkyLUT(viewDir);
+    float4 skyColor = SampleSkyLUT(viewDir) * 2;
 
     return sunColor + skyColor;
 }

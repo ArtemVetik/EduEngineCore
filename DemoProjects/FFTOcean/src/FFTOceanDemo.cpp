@@ -42,6 +42,7 @@ namespace EduEngine
 		m_ConstantsData.DisplacementsTexturesIdx = m_FFTOcean->GetDisplacementsTexSrvGpuBufferIdx();
 		m_ConstantsData.DerivativesTexturesIdx = m_FFTOcean->GetDerivativesTexSrvGpuBufferIdx();
 		m_ConstantsData.TurbulenceTexturesIdx = m_FFTOcean->GetTurbulenceTexSrvGpuBufferIdx();
+		m_ConstantsData.ReflectionCubeIdx = m_Atmosphere->GetReflectionCube()->GetSRVView()->GetGpuHeapIndex();
 
 		m_ConstantsBuffer->LoadData(GetMainContext(), &m_ConstantsData);
 	}
@@ -193,6 +194,10 @@ namespace EduEngine
 		FillMainLightPosFromSunAngles(sunDir);
 
 		m_Atmosphere->Render(GetCamera(), sunDir);
+
+		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &GetSwapChain()->CurrentBackBufferView(), true, &GetSwapChain()->DepthStencilView());
+		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
+		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 
 		RenderGui();
 	}

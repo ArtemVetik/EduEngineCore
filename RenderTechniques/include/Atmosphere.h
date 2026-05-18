@@ -43,6 +43,7 @@ namespace EduEngine
 		void Render(const Camera* camera, XMFLOAT3 sunDirection);
 
 		XMFLOAT4 GetSunColor() const { return m_SunColor; }
+		TextureD3D12* GetReflectionCube() const { return m_ReflectionCube.get(); }
 
 		void UpdateSettings(Settings newSettings, DeviceContext* context);
 		Settings GetSettings() const { return m_Settings; };
@@ -57,6 +58,7 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_DrawPassBuffer;
 
+		std::shared_ptr<TextureD3D12> m_ReflectionCube;
 		std::shared_ptr<VertexBufferD3D12> m_CubeVB;
 		std::shared_ptr<IndexBufferD3D12> m_CubeIB;
 
@@ -64,6 +66,7 @@ namespace EduEngine
 		std::unique_ptr<ComputePipelineState> m_SkyViewLUTPso;
 		std::unique_ptr<ComputePipelineState> m_TransmittanceLUTPso;
 		PipelineState m_DrawPso;
+		PipelineState m_ReflectionCubePso;
 
 		std::shared_ptr<ShaderBinder> m_MultiscatteringLUTBinder;
 		std::shared_ptr<ShaderBinder> m_SkyViewLUTBinder;

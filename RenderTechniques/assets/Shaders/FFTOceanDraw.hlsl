@@ -29,9 +29,9 @@ cbuffer cbConstants : register(b1)
     uint gDisplacementsTexturesIdx; // Texture2DArray<float3>
     uint gDerivativesTexturesIdx;   // Texture2DArray<float4>
     uint gTurbulenceTexturesIdx;    // Texture2DArray<float4>
-
+    uint gReflectionCube;           // TextureCube
+    
     float gEnvironmentReflectionStrength;
-    uint gPadding2;
     float3 gSubsurfaceScatteringColor;
     float gSubsurfaceScatteringIntensity;
     float3 gColor;
@@ -118,10 +118,13 @@ float3 SubsurfaceScatteringApproximation(float waveHeight, float3 lightDir, floa
 // Returns the reflection of the sky color by sampling the skybox cubemap.
 float3 EnvironmentReflections(float3 viewDir, float3 normalWS)
 {
+    TextureCube reflectionCube = ResourceDescriptorHeap[gReflectionCube];
+    
     float3 reflectionDir = -reflect(viewDir, float3(0.0, 1.0, 0.0));
     //float3 reflectionDir = -reflect(viewDir, normalWS);
     //float3 reflectionDir = normalWS;
-    half3 environment = half3(1, 1, 1); // TODO: Sample skybox cubemap with reflectionDir
+    
+    float3 environment = reflectionCube.Sample(gsamLinearWrap, reflectionDir);
     return environment * gEnvironmentReflectionStrength;
 }
 

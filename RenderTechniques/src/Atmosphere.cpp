@@ -15,6 +15,8 @@ namespace EduEngine
 	const int skyViewLUTWidth = 256;
 	const int skyViewLUTHeight = 128;
 
+	const int reflectionMapSize = 256;
+
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) LUTSizes
 	{
 		UINT LutWidth;
@@ -210,6 +212,16 @@ namespace EduEngine
 			m_DrawPso.Build(device);
 			m_DrawPso.SetName(L"SkyDrawPso");
 
+			dss.DepthEnable = false;
+
+			m_ReflectionCubePso.SetDepthStencilState(dss);
+			m_ReflectionCubePso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
+			m_ReflectionCubePso.SetShader(vs);
+			m_ReflectionCubePso.SetShader(ps);
+			m_ReflectionCubePso.SetRTVFormat(DXGI_FORMAT_R16G16B16A16_FLOAT);
+			m_ReflectionCubePso.Build(device);
+			m_ReflectionCubePso.SetName(L"ReflectionCubePso");
+
 			m_DrawBinder = m_DrawPso.CreateShaderBinder();
 			m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_DrawPassBuffer);
 			m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_DrawPassBuffer);
@@ -291,6 +303,50 @@ namespace EduEngine
 			context->GetCommandCtx()->TransitionResource(m_SkyViewLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 		}
 
+		//
+		// Reflection Cube
+		//
+		{
+			D3D12_RESOURCE_DESC texDesc;
+			ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
+			texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			texDesc.Width = reflectionMapSize;
+			texDesc.Height = reflectionMapSize;
+			texDesc.Alignment = 0;
+			texDesc.DepthOrArraySize = 6;
+			texDesc.MipLevels = 1;
+			texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+			texDesc.SampleDesc.Count = 1;
+			texDesc.SampleDesc.Quality = 0;
+			texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+			D3D12_CLEAR_VALUE optClear = {};
+			optClear.Format = texDesc.Format;
+			optClear.DepthStencil.Depth = 0.0f;
+			optClear.DepthStencil.Stencil = 0;
+
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = { };
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			rtvDesc.Format = texDesc.Format;
+			rtvDesc.Texture2DArray.ArraySize = 1;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Format = texDesc.Format;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+			srvDesc.TextureCube.MipLevels = texDesc.MipLevels;
+			srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+
+			m_ReflectionCube = std::make_shared<TextureD3D12>(device, texDesc, &optClear, QueueId::Direct);
+			m_ReflectionCube->CreateRTV_Array(rtvDesc);
+			m_ReflectionCube->CreateSRV(&srvDesc, false);
+			m_ReflectionCube->SetName(L"AtmosphereReflectionCube");
+
+			context->GetCommandCtx()->TransitionResource(m_ReflectionCube.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		}
+
 		//	TODO: Share cube buffers!
 		// 
 		//	Generate cube buffers
@@ -362,6 +418,53 @@ namespace EduEngine
 		m_Context->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
 
 		m_Context->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
+
+		//
+		// Create reflection Cube Map
+		//
+		float nearValue = 0.1f;
+		float farValue = 300.0f;
+
+		static Camera faceCamera[6]
+		{
+			Camera(reflectionMapSize, reflectionMapSize, XM_PIDIV2, nearValue, farValue, { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 }),
+			Camera(reflectionMapSize, reflectionMapSize, XM_PIDIV2, nearValue, farValue, { 0, 0, 0 }, {-1, 0, 0 }, { 0, 1, 0 }),
+			Camera(reflectionMapSize, reflectionMapSize, XM_PIDIV2, nearValue, farValue, { 0, 0, 0 }, { 0, 1, 0 }, { 0, 0,-1 }),
+			Camera(reflectionMapSize, reflectionMapSize, XM_PIDIV2, nearValue, farValue, { 0, 0, 0 }, { 0,-1, 0 }, { 0, 0, 1 }),
+			Camera(reflectionMapSize, reflectionMapSize, XM_PIDIV2, nearValue, farValue, { 0, 0, 0 }, { 0, 0, 1 }, { 0, 1, 0 }),
+			Camera(reflectionMapSize, reflectionMapSize, XM_PIDIV2, nearValue, farValue, { 0, 0, 0 }, { 0, 0,-1 }, { 0, 1, 0 }),
+		};
+
+		D3D12_VIEWPORT viewport = {};
+		viewport.Width = reflectionMapSize;
+		viewport.Height = reflectionMapSize;
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		viewport.MinDepth = 0;
+		viewport.MaxDepth = 1;
+
+		D3D12_RECT scissorRect = { 0, 0, (int)viewport.Width, (int)viewport.Height };
+		
+		CommandContext* commandContext = m_Context->GetCommandCtx();
+
+		for (size_t i = 0; i < 6; i++)
+		{
+			XMStoreFloat4x4(&drawData.View, XMMatrixTranspose(XMLoadFloat4x4(&faceCamera[i].GetViewMatrix())));
+			XMStoreFloat4x4(&drawData.Proj, XMMatrixTranspose(XMLoadFloat4x4(&faceCamera[i].GetProjectionMatrix())));
+			m_DrawPassBuffer->LoadData(m_Context, drawData);
+
+			commandContext->SetViewports(&viewport, 1);
+			commandContext->SetScissorRects(&scissorRect, 1);
+
+			commandContext->SetRenderTargets(1, &m_ReflectionCube->GetRTVView()->GetCpuHandle(i), false, nullptr);
+
+			m_ReflectionCubePso.BeginPSOAndCommitResources(m_Context, m_DrawBinder.get());
+
+			m_Context->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_CubeVB->GetView());
+			m_Context->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_CubeIB->GetView());
+
+			m_Context->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_CubeIB->GetLength(), 1, 0, 0, 0);
+		}
 	}
 
 	void Atmosphere::UpdateSettings(Settings newSettings, DeviceContext* context)
