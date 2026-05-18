@@ -96,6 +96,32 @@ namespace EduEngine
 		m_d3d12Resource->SetName(L"ReadBackBufferD3D12");
 	}
 
+	void ReadBackBufferD3D12::CopyTexture(DeviceContext* context, ResourceD3D12* texture)
+	{
+		D3D12_RESOURCE_STATES textureState = texture->GetState();
+
+		context->GetCommandCtx()->TransitionResource(texture, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		context->GetCommandCtx()->TransitionResource(this, D3D12_RESOURCE_STATE_COPY_DEST, true);
+
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+		UINT64 uploadBufferSize = 0;
+		m_Device->GetD3D12Device()->GetCopyableFootprints(&texture->GetD3D12Resource()->GetDesc(), 0, 1, 0, &footprint, nullptr, nullptr, &uploadBufferSize);
+
+		D3D12_TEXTURE_COPY_LOCATION dst = {};
+		dst.pResource = m_d3d12Resource.Get();
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		dst.PlacedFootprint = footprint;
+
+		D3D12_TEXTURE_COPY_LOCATION src = {};
+		src.pResource = texture->GetD3D12Resource();
+		src.SubresourceIndex = 0;
+		src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+		context->GetCommandCtx()->GetCmdList()->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		context->GetCommandCtx()->TransitionResource(texture, textureState, true);
+	}
+
 	UploadBufferD3D12::UploadBufferD3D12(RenderDeviceD3D12*			pDevice,
 										 const D3D12_RESOURCE_DESC& desc,
 										 QueueMask					queueMask) :

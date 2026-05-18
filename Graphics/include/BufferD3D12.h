@@ -112,6 +112,8 @@ namespace EduEngine
 			m_d3d12Resource->Unmap(0, nullptr);
 		}
 
+		void CopyTexture(DeviceContext* context, ResourceD3D12* texture);
+
 	private:
 		BYTE* m_MappedData = nullptr;
 	};
