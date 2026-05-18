@@ -147,14 +147,17 @@ namespace EduEngine
 			XMFLOAT4X4 World;
 			XMFLOAT4X4 ViewProj;
 			XMFLOAT3 CameraPos;
-			UINT Padding;
+			UINT Padding0;
 			XMFLOAT3 MainLightPos;
+			UINT Padding1;
+			XMFLOAT4 MainLightColor;
 		} passData;
 
 		XMStoreFloat4x4(&passData.World, XMMatrixIdentity());
 		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		passData.CameraPos = GetCamera()->GetPosition();
 		FillMainLightPosFromSunAngles(passData.MainLightPos);
+		passData.MainLightColor = m_Atmosphere->GetSunColor();
 
 		m_PassBuffer->LoadData(GetMainContext(), passData);
 	}
@@ -360,7 +363,6 @@ namespace EduEngine
 				{
 					bool shadingChanged = false;
 
-					shadingChanged |= ImGui::ColorEdit3("Main light color", &m_ConstantsData.MainLightColor.x);
 					shadingChanged |= ImGui::DragFloat("Environment reflection", &m_ConstantsData.EnvironmentReflectionStrength, 0.01f, 0.0f, 4.0f);
 
 					shadingChanged |= ImGui::ColorEdit3("Subsurface scatter color", &m_ConstantsData.SubsurfaceScatteringColor.x);

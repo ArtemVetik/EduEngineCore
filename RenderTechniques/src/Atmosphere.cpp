@@ -2,6 +2,7 @@
 
 namespace EduEngine
 {
+	// TODO: Change naming style
 	const int LOCAL_WORK_GROUPS_X = 8;
 	const int LOCAL_WORK_GROUPS_Y = 8;
 
@@ -48,7 +49,8 @@ namespace EduEngine
 	};
 
 	Atmosphere::Atmosphere(RenderDeviceD3D12* device, DeviceContext* context, XMFLOAT3 sunDirection) :
-		m_Context(context)
+		m_Context(context),
+		m_SunColor(1, 1, 1, 1)
 	{
 		ShaderResourceDesc resDesc[] =
 		{
@@ -227,6 +229,37 @@ namespace EduEngine
 			context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 		}
 
+		// TODO: Refactor
+		// Read sun colors
+		{
+			UINT64 size = sizeof(float) * 4 * transmittanceLUTWidth * transmittanceLUTHeight;
+			ReadBackBufferD3D12 sunColorsReadback(device, size, QueueId::Direct);
+			sunColorsReadback.SetName(L"SunColorsReadback");
+			
+			sunColorsReadback.CopyTexture(context, m_TransmittanceLut.get());
+
+			device->FlushQueues();
+			auto& queue = device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+			CommandContext* ctx[]{ context->GetCommandCtx() };
+			queue.CloseAndExecuteCommandContexts(ctx, 1);
+			context->FinishFrame();
+			device->FlushQueues();
+
+			ID3D12DescriptorHeap* descriptorHeaps[] = { device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+			context->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+			uint32 pixelSize = sizeof(float) * 4;
+			uint32 rowPitch = pixelSize * transmittanceLUTWidth;
+
+			float intervals[8] = { 0.01f, 0.14f, 0.28f, 0.36f, 0.57f, 0.75f, 0.86f, 0.99f };
+			XMFLOAT4 pixels[8];
+
+			for (size_t i = 0; i < 8; i++)
+				sunColorsReadback.ReadData<XMFLOAT4>(&pixels[i], pixelSize, (int)(intervals[i] * transmittanceLUTHeight) * rowPitch);
+
+			m_SunColorsGradient.SetColors(pixels);
+		}
+
 		// Compute multiscattering
 		{
 			LUTSizes lutSizes = {};
@@ -298,6 +331,14 @@ namespace EduEngine
 		m_SkyViewLUTPso->BeginPSOAndCommitResources(m_Context, m_SkyViewLUTBinder.get());
 		m_Context->GetCommandCtx()->GetCmdList()->Dispatch(skyViewLUTWidth / LOCAL_WORK_GROUPS_X, skyViewLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
 
+		// Compute the cosine of the angle between sun and zenith, in range: [-1, 1]
+		// Range [-1, 1] is remapped to [0, 1] for sampling the color gradient.
+		XMVECTOR sunDirV = XMVector3Normalize(XMVectorNegate(XMLoadFloat3(&sunDirection)));
+		XMVECTOR downV = { 0, -1, 0, 0 };
+		float dot = XMVectorGetX(XMVector3Dot(sunDirV, downV));
+		float sunElevation = (dot + 1.0f) * 0.5f;
+		m_SunColor = m_SunColorsGradient.GetColor(sunElevation);
+
 		struct DrawData
 		{
 			XMFLOAT4X4 View;
@@ -309,10 +350,10 @@ namespace EduEngine
 
 		XMStoreFloat4x4(&drawData.View, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetViewMatrix())));
 		XMStoreFloat4x4(&drawData.Proj, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
-		drawData.MainLightColor = { 1, 1, 1, 1 };
+		drawData.MainLightColor = m_SunColor;
 		drawData.MainLightPosition = sunDirection;
 		drawData.SunSize = 0.04f;
-		
+
 		m_DrawPassBuffer->LoadData(m_Context, drawData);
 
 		m_DrawPso.BeginPSOAndCommitResources(m_Context, m_DrawBinder.get());

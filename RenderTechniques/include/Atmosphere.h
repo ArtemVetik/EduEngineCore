@@ -6,6 +6,7 @@
 #include <TextureD3D12.h>
 #include <BufferD3D12.h>
 #include <Camera.h>
+#include <ColorUtils.h>
 #include <SimpleMath.h>
 
 using namespace EduEngine::EduBinding;
@@ -41,6 +42,8 @@ namespace EduEngine
 
 		void Render(const Camera* camera, XMFLOAT3 sunDirection);
 
+		XMFLOAT4 GetSunColor() const { return m_SunColor; }
+
 		void UpdateSettings(Settings newSettings, DeviceContext* context);
 		Settings GetSettings() const { return m_Settings; };
 
@@ -67,6 +70,8 @@ namespace EduEngine
 		std::shared_ptr<ShaderBinder> m_TransmittanceLUTBinder;
 		std::shared_ptr<ShaderBinder> m_DrawBinder;
 
+		XMFLOAT4 m_SunColor;
+		GradientColors<8> m_SunColorsGradient;
 		Settings m_Settings;
 		DeviceContext* m_Context;
 	};

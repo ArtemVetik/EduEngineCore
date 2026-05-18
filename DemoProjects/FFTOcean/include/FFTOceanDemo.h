@@ -23,10 +23,9 @@ namespace EduEngine
 		UINT DisplacementsTexturesIdx;
 		UINT DerivativesTexturesIdx;
 		UINT TurbulenceTexturesIdx;
-		UINT DrawConstantsPad0[2] = {};
 
-		XMFLOAT3 MainLightColor = { 1.f, 1.f, 1.f };
 		float EnvironmentReflectionStrength = 1.f;
+		UINT Padding;
 		XMFLOAT3 SubsurfaceScatteringColor = { 0.f, 1.f, 0.8f };
 		float SubsurfaceScatteringIntensity = 0.07f;
 		XMFLOAT3 DeepWaterColor = { 0.f, 0.1f, 0.4f };

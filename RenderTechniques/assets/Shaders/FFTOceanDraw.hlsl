@@ -10,8 +10,10 @@ cbuffer cbPass : register(b0)
     float4x4 gWorld;
     float4x4 gViewProj;
     float3 gCameraPos;
-    uint gPadding;
+    uint gPadding0;
     float3 gMainLightPos;
+    uint gPadding1;
+    float3 gMainLightColor;
 };
 
 cbuffer cbConstants : register(b1)
@@ -27,10 +29,9 @@ cbuffer cbConstants : register(b1)
     uint gDisplacementsTexturesIdx; // Texture2DArray<float3>
     uint gDerivativesTexturesIdx;   // Texture2DArray<float4>
     uint gTurbulenceTexturesIdx;    // Texture2DArray<float4>
-    uint2 gDrawConstantsPad0;       // Align next block to 16-byte offset 48
 
-    float3 gMainLightColor;
     float gEnvironmentReflectionStrength;
+    uint gPadding2;
     float3 gSubsurfaceScatteringColor;
     float gSubsurfaceScatteringIntensity;
     float3 gColor;
@@ -332,6 +333,6 @@ float4 PS(Domain2FragmentData input) : SV_TARGET
     if (turbulence >= gFoamThreshold)
         emission = lerp(emission, gFoamColor, gFoamBlending);
     
-    emission = pow(emission, 1.0f / 2.2f);
+    //emission = pow(emission, 1.0f / 2.2f);
     return float4(emission, 1.0f);
 }
