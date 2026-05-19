@@ -13,6 +13,15 @@ namespace
 				return i;
 		return 3;
 	}
+
+	bool DragFloat3Coeff(const char* label, XMFLOAT3& value)
+	{
+		const float maxAbs = std::max({ std::fabs(value.x), std::fabs(value.y), std::fabs(value.z) });
+		float speed = maxAbs * 0.05f;
+		if (speed < 1e-9f)
+			speed = 1e-9f;
+		return ImGui::DragFloat3(label, &value.x, speed, 0.0f, 0.0f, "%.3e");
+	}
 }
 
 namespace EduEngine
@@ -115,6 +124,97 @@ namespace EduEngine
 					if (oceanChanged)
 						m_FFTOceanDemo->m_FFTOcean->UpdateSettings(ocean);
 				}
+
+				ImGui::PopStyleVar();
+				ImGui::EndChild();
+				ImGui::EndTabItem();
+			}
+
+			if (ImGui::BeginTabItem("Atmosphere"))
+			{
+				static Settings m_PendingSettings = {};
+				static bool m_SettingsDirty = false;
+
+				Settings m_Settings = m_FFTOceanDemo->m_Atmosphere->GetSettings();
+
+				auto TryApplyPendingSettings = [&]()
+					{
+						if (!m_SettingsDirty || ImGui::IsAnyItemActive())
+							return;
+
+						m_FFTOceanDemo->m_Atmosphere->UpdateSettings(m_PendingSettings);
+						m_SettingsDirty = false;
+					};
+
+				ImGui::BeginChild("##_atmo_scroll", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+
+				Settings settings = m_SettingsDirty ? m_PendingSettings : m_Settings;
+				bool changed = false;
+
+				ImGui::TextDisabled("LUTs update when you release a control (avoids GPU sync while dragging).");
+
+				ImGui::SeparatorText("Planet & atmosphere shell");
+				changed |= ImGui::DragFloat("Planet radius (m)", &settings.PlanetRadius, 1000.0f, 1.0e6f, 1.0e8f, "%.0f");
+				changed |= ImGui::DragFloat("Atmosphere radius (m)", &settings.AtmosphereRadius, 1000.0f, 1.0e6f, 1.0e8f, "%.0f");
+				if (ImGui::IsItemHovered())
+					ImGui::SetTooltip("Outer boundary of the atmospheric shell (meters from planet center).");
+
+				ImGui::Spacing();
+				ImGui::SeparatorText("Mie phase function");
+				changed |= ImGui::DragFloat("Mie g (anisotropy)", &settings.MieG, 0.01f, -0.999f, 0.999f, "%.3f");
+				if (ImGui::IsItemHovered())
+					ImGui::SetTooltip("Henyey-Greenstein asymmetry; positive = forward scattering.");
+
+				ImGui::Spacing();
+				ImGui::SeparatorText("Rayleigh");
+				ImGui::PushID("Rayleigh");
+				changed |= DragFloat3Coeff("Scattering coefficient", settings.RayleighScatteringCoefficient);
+				changed |= DragFloat3Coeff("Absorption coefficient", settings.RayleighAbsorptionCoefficient);
+				changed |= ImGui::DragFloat("Scale height (m)", &settings.RayleighScaleHeight, 50.0f, 100.0f, 50000.0f, "%.0f");
+				ImGui::PopID();
+
+				ImGui::Spacing();
+				ImGui::SeparatorText("Mie aerosols");
+				ImGui::PushID("Mie");
+				changed |= DragFloat3Coeff("Scattering coefficient", settings.MieScatteringCoefficient);
+				changed |= DragFloat3Coeff("Absorption coefficient", settings.MieAbsorptionCoefficient);
+				changed |= ImGui::DragFloat("Scale height (m)", &settings.MieScaleHeight, 10.0f, 10.0f, 10000.0f, "%.0f");
+				ImGui::PopID();
+
+				ImGui::Spacing();
+				ImGui::SeparatorText("Ozone");
+				ImGui::PushID("Ozone");
+				changed |= DragFloat3Coeff("Scattering coefficient", settings.OzoneScatteringCoefficient);
+				changed |= DragFloat3Coeff("Absorption coefficient", settings.OzoneAbsorptionCoefficient);
+				ImGui::PopID();
+
+				ImGui::Spacing();
+				ImGui::SeparatorText("Ground");
+				ImGui::PushID("Ground");
+				changed |= DragFloat3Coeff("Spectrum albedo", settings.GroundSpectrumAlbedo);
+				ImGui::PopID();
+
+				if (changed)
+				{
+					m_PendingSettings = settings;
+					m_SettingsDirty = true;
+				}
+
+				{
+					const XMFLOAT4 sunColor = m_FFTOceanDemo->m_Atmosphere->GetSunColor();
+					ImGui::Spacing();
+					ImGui::TextDisabled("Sun color (from transmittance LUT): %.3f, %.3f, %.3f", sunColor.x, sunColor.y, sunColor.z);
+				}
+
+				if (ImGui::Button("Reset to defaults"))
+				{
+					m_PendingSettings = Settings{};
+					m_SettingsDirty = true;
+					changed = true;
+				}
+
+				TryApplyPendingSettings();
 
 				ImGui::PopStyleVar();
 				ImGui::EndChild();

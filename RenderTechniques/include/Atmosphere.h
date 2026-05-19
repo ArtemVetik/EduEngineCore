@@ -46,7 +46,7 @@ namespace EduEngine
 		TextureD3D12* GetReflectionCube() const { return m_ReflectionCube.get(); }
 
 		void UpdateSettings(Settings newSettings);
-		Settings GetSettings() const { return m_Settings; };
+		Settings GetSettings() const { return m_Settings; }
 
 	private:
 		std::shared_ptr<TextureD3D12> m_TransmittanceLut;
