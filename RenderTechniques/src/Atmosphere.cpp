@@ -51,6 +51,7 @@ namespace EduEngine
 	};
 
 	Atmosphere::Atmosphere(RenderDeviceD3D12* device, DeviceContext* context, XMFLOAT3 sunDirection) :
+		m_Device(device),
 		m_Context(context),
 		m_SunColor(1, 1, 1, 1)
 	{
@@ -155,8 +156,6 @@ namespace EduEngine
 		m_AtmosphereParamsBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
 		m_AtmosphereParamsBuffer->SetName(L"AtmosphereParamsBuffer");
 
-		UpdateSettings(m_Settings, context);
-
 		buffDesc.Width = sizeof(LUTSizes);
 		m_LUTSizeBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
 		m_LUTSizeBuffer->SetName(L"LUTSizeBuffer");
@@ -226,81 +225,6 @@ namespace EduEngine
 			m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_DrawPassBuffer);
 			m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_DrawPassBuffer);
 			m_DrawBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "gSkyLUT", m_SkyViewLUT);
-		}
-
-		// Compute transmittance
-		{
-			LUTSizes lutSizes = {};
-			lutSizes.LutWidth = transmittanceLUTWidth;
-			lutSizes.LutHeight = transmittanceLUTHeight;
-			m_LUTSizeBuffer->LoadData(context, &lutSizes);
-
-			m_TransmittanceLUTPso->BeginPSOAndCommitResources(context, m_TransmittanceLUTBinder.get());
-			context->GetCommandCtx()->GetCmdList()->Dispatch(transmittanceLUTWidth / LOCAL_WORK_GROUPS_X, transmittanceLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
-
-			context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-		}
-
-		// TODO: Refactor
-		// Read sun colors
-		{
-			UINT64 size = sizeof(float) * 4 * transmittanceLUTWidth * transmittanceLUTHeight;
-			ReadBackBufferD3D12 sunColorsReadback(device, size, QueueId::Direct);
-			sunColorsReadback.SetName(L"SunColorsReadback");
-			
-			sunColorsReadback.CopyTexture(context, m_TransmittanceLut.get());
-
-			device->FlushQueues();
-			auto& queue = device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-			CommandContext* ctx[]{ context->GetCommandCtx() };
-			queue.CloseAndExecuteCommandContexts(ctx, 1);
-			context->FinishFrame();
-			device->FlushQueues();
-
-			ID3D12DescriptorHeap* descriptorHeaps[] = { device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
-			context->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-			uint32 pixelSize = sizeof(float) * 4;
-			uint32 rowPitch = pixelSize * transmittanceLUTWidth;
-
-			float intervals[8] = { 0.01f, 0.14f, 0.28f, 0.36f, 0.57f, 0.75f, 0.86f, 0.99f };
-			XMFLOAT4 pixels[8];
-
-			for (size_t i = 0; i < 8; i++)
-				sunColorsReadback.ReadData<XMFLOAT4>(&pixels[i], pixelSize, (int)(intervals[i] * transmittanceLUTHeight) * rowPitch);
-
-			m_SunColorsGradient.SetColors(pixels);
-		}
-
-		// Compute multiscattering
-		{
-			LUTSizes lutSizes = {};
-			lutSizes.LutWidth = multiscatteringLUTWidth;
-			lutSizes.LutHeight = multiscatteringLUTHeight;
-			m_LUTSizeBuffer->LoadData(context, &lutSizes);
-
-			m_MultiscatteringLUTPso->BeginPSOAndCommitResources(context, m_MultiscatteringLUTBinder.get());
-			context->GetCommandCtx()->GetCmdList()->Dispatch(multiscatteringLUTWidth / LOCAL_WORK_GROUPS_X, multiscatteringLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
-
-			context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			context->GetCommandCtx()->TransitionResource(m_MultiscatteringLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
-		}
-
-		// Compute sky view
-		{
-			m_PassBuffer->LoadData(context, sunDirection);
-
-			LUTSizes lutSizes = {};
-			lutSizes.LutWidth = skyViewLUTWidth;
-			lutSizes.LutHeight = skyViewLUTHeight;
-			m_LUTSizeBuffer->LoadData(context, &lutSizes);
-
-			m_SkyViewLUTPso->BeginPSOAndCommitResources(context, m_SkyViewLUTBinder.get());
-			context->GetCommandCtx()->GetCmdList()->Dispatch(skyViewLUTWidth / LOCAL_WORK_GROUPS_X, skyViewLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
-
-			context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			context->GetCommandCtx()->TransitionResource(m_MultiscatteringLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			context->GetCommandCtx()->TransitionResource(m_SkyViewLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 		}
 
 		//
@@ -378,6 +302,8 @@ namespace EduEngine
 
 		m_CubeVB = std::make_shared<VertexBufferD3D12>(device, context, vertices, sizeof(DirectX::XMFLOAT3), _countof(vertices));
 		m_CubeIB = std::make_shared<IndexBufferD3D12>(device, context, indices, sizeof(uint16), _countof(indices), DXGI_FORMAT_R16_UINT);
+
+		UpdateSettings(m_Settings);
 	}
 
 	void Atmosphere::Render(const Camera* camera, XMFLOAT3 sunDirection)
@@ -467,7 +393,7 @@ namespace EduEngine
 		}
 	}
 
-	void Atmosphere::UpdateSettings(Settings newSettings, DeviceContext* context)
+	void Atmosphere::UpdateSettings(Settings newSettings)
 	{
 		m_Settings = newSettings;
 
@@ -489,6 +415,72 @@ namespace EduEngine
 
 		params.GroundSpectrumAlbedo = m_Settings.GroundSpectrumAlbedo;
 
-		m_AtmosphereParamsBuffer->LoadData(context, &params);
+		m_AtmosphereParamsBuffer->LoadData(m_Context, &params);
+
+		// Compute transmittance
+		{
+			LUTSizes lutSizes = {};
+			lutSizes.LutWidth = transmittanceLUTWidth;
+			lutSizes.LutHeight = transmittanceLUTHeight;
+			m_LUTSizeBuffer->LoadData(m_Context, &lutSizes);
+
+			m_TransmittanceLUTPso->BeginPSOAndCommitResources(m_Context, m_TransmittanceLUTBinder.get());
+			m_Context->GetCommandCtx()->GetCmdList()->Dispatch(transmittanceLUTWidth / LOCAL_WORK_GROUPS_X, transmittanceLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
+
+			m_Context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+		}
+
+		// TODO: Refactor
+		// Read sun colors
+		{
+			UINT64 size = sizeof(float) * 4 * transmittanceLUTWidth * transmittanceLUTHeight;
+			ReadBackBufferD3D12 sunColorsReadback(m_Device, size, QueueId::Direct);
+			sunColorsReadback.SetName(L"SunColorsReadback");
+
+			sunColorsReadback.CopyTexture(m_Context, m_TransmittanceLut.get());
+
+			m_Device->FlushQueues();
+			auto& queue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+			CommandContext* ctx[]{ m_Context->GetCommandCtx() };
+			queue.CloseAndExecuteCommandContexts(ctx, 1);
+			m_Context->FinishFrame();
+			m_Device->FlushQueues();
+
+			ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
+			m_Context->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+			uint32 pixelSize = sizeof(float) * 4;
+			uint32 rowPitch = pixelSize * transmittanceLUTWidth;
+
+			float intervals[8] = { 0.01f, 0.14f, 0.28f, 0.36f, 0.57f, 0.75f, 0.86f, 0.99f };
+			XMFLOAT4 pixels[8];
+
+			for (size_t i = 0; i < 8; i++)
+				sunColorsReadback.ReadData<XMFLOAT4>(&pixels[i], pixelSize, (int)(intervals[i] * transmittanceLUTHeight) * rowPitch);
+
+			m_SunColorsGradient.SetColors(pixels);
+		}
+
+		// Compute multiscattering
+		{
+			LUTSizes lutSizes = {};
+			lutSizes.LutWidth = multiscatteringLUTWidth;
+			lutSizes.LutHeight = multiscatteringLUTHeight;
+			m_LUTSizeBuffer->LoadData(m_Context, &lutSizes);
+
+			m_MultiscatteringLUTPso->BeginPSOAndCommitResources(m_Context, m_MultiscatteringLUTBinder.get());
+			m_Context->GetCommandCtx()->GetCmdList()->Dispatch(multiscatteringLUTWidth / LOCAL_WORK_GROUPS_X, multiscatteringLUTHeight / LOCAL_WORK_GROUPS_Y, 1);
+
+			m_Context->GetCommandCtx()->TransitionResource(m_TransmittanceLut.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			m_Context->GetCommandCtx()->TransitionResource(m_MultiscatteringLUT.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
+		}
+
+		// Setup sky view LUT sizes
+		{
+			LUTSizes lutSizes = {};
+			lutSizes.LutWidth = skyViewLUTWidth;
+			lutSizes.LutHeight = skyViewLUTHeight;
+			m_LUTSizeBuffer->LoadData(m_Context, &lutSizes);
+		}
 	}
 }

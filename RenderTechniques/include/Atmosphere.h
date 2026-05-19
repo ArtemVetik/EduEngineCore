@@ -45,7 +45,7 @@ namespace EduEngine
 		XMFLOAT4 GetSunColor() const { return m_SunColor; }
 		TextureD3D12* GetReflectionCube() const { return m_ReflectionCube.get(); }
 
-		void UpdateSettings(Settings newSettings, DeviceContext* context);
+		void UpdateSettings(Settings newSettings);
 		Settings GetSettings() const { return m_Settings; };
 
 	private:
@@ -77,5 +77,6 @@ namespace EduEngine
 		GradientColors<8> m_SunColorsGradient;
 		Settings m_Settings;
 		DeviceContext* m_Context;
+		RenderDeviceD3D12* m_Device;
 	};
 }

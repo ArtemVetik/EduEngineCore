@@ -5,6 +5,7 @@
 #include <RenderEngine.h>
 #include <FFTOcean.h>
 #include <Atmosphere.h>
+#include <FFTOceanGUI.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -55,12 +56,13 @@ namespace EduEngine
 		void OnRender(const Timer& timer) override;
 
 	private:
-		void RenderGui();
 		void RefreshOceanGpuConstants();
 		void RecreateFFTOceanPreservingSettings();
 		void FillMainLightPosFromSunAngles(XMFLOAT3& outMainLightPos) const;
 
 	private:
+		friend FFTOceanGUI;
+
 		PipelineState m_DrawPSO;
 
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
@@ -73,6 +75,7 @@ namespace EduEngine
 
 		FFTOcean::InitialSettings m_OceanInitialSettings{};
 		ConstantsData m_ConstantsData;
+		FFTOceanGUI m_Gui;
 
 		float m_SunAzimuthDegrees = 84.29f;
 		float m_SunElevationDegrees = 5.69f;

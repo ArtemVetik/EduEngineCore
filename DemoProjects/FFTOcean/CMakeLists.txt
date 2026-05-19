@@ -6,6 +6,7 @@ target_sources(FFTOcean PRIVATE
     src/FFTOceanDemo.cpp
     src/FFTOceanDemoFactory.cpp
     src/MeshGenerator.cpp
+    src/FFTOceanGUI.cpp
 )
 
 target_include_directories(FFTOcean
