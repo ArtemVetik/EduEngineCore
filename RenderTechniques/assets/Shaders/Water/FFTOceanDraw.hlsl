@@ -52,7 +52,7 @@ cbuffer cbConstants : register(b1)
     float4 gDrawConstantsPad2[5];
 }
 
-#include "CommonTransforms.hlsli"
+#include "..\CommonTransforms.hlsli"
 
 struct VertexInput
 {
@@ -124,7 +124,7 @@ float3 EnvironmentReflections(float3 viewDir, float3 normalWS)
     //float3 reflectionDir = -reflect(viewDir, normalWS);
     //float3 reflectionDir = normalWS;
     
-    float3 environment = reflectionCube.Sample(gsamLinearWrap, reflectionDir);
+    float3 environment = reflectionCube.Sample(gsamAnisotropicWrap, reflectionDir);
     return environment * gEnvironmentReflectionStrength;
 }
 
@@ -275,7 +275,7 @@ Domain2FragmentData Domain(TessellationFactors factors, OutputPatch<Tessellation
     float3 displacement = 0;
     for (uint i = 0; i < gNbCascades; i++)
     {
-        displacement += displacementsTextures.SampleLevel(gsamLinearWrap, float3(output.WorldUV / wavelengths[i], i), output.LodLevel);
+        displacement += displacementsTextures.SampleLevel(gsamAnisotropicWrap, float3(output.WorldUV / wavelengths[i], i), output.LodLevel);
     }
     
     output.PositionWS += displacement;
@@ -304,8 +304,8 @@ float4 PS(Domain2FragmentData input) : SV_TARGET
     {
         float2 uv = input.WorldUV / wavelengths[i];
         
-        derivatives += derivativesTextures.SampleLevel(gsamLinearWrap, float3(uv, i), input.LodLevel);
-        turbulence += 1 - saturate(turbulenceTextures.SampleLevel(gsamLinearWrap, float3(uv, i), input.LodLevel).x);
+        derivatives += derivativesTextures.SampleLevel(gsamAnisotropicWrap, float3(uv, i), input.LodLevel);
+        turbulence += 1 - saturate(turbulenceTextures.SampleLevel(gsamAnisotropicWrap, float3(uv, i), input.LodLevel).x);
     }
 
     float2 slope = float2(derivatives.x / (1 + derivatives.z), derivatives.y / (1 + derivatives.w));
@@ -336,6 +336,5 @@ float4 PS(Domain2FragmentData input) : SV_TARGET
     if (turbulence >= gFoamThreshold)
         emission = lerp(emission, gFoamColor, gFoamBlending);
     
-    //emission = pow(emission, 1.0f / 2.2f);
     return float4(emission, 1.0f);
 }

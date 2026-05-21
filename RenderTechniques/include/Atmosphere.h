@@ -33,12 +33,14 @@ namespace EduEngine
 		XMFLOAT3 OzoneAbsorptionCoefficient = { 0.65e-6f, 1.881e-6f, 0.085e-6f };
 		
 		XMFLOAT3 GroundSpectrumAlbedo = { 0.0f, 0.0f, 0.0f };
+
+		float SunSize = 0.04f;
 	};
 
 	class RENDERTECHNIQUES_API Atmosphere
 	{
 	public:
-		Atmosphere(RenderDeviceD3D12* device, DeviceContext* context, XMFLOAT3 sunDirection);
+		Atmosphere(RenderDeviceD3D12* device, DeviceContext* context);
 
 		void Render(const Camera* camera, XMFLOAT3 sunDirection);
 

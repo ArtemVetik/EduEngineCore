@@ -50,12 +50,9 @@ namespace EduEngine
 		m_OceanInitialSettings.Cascades[1] = { 1000, 1e7f, 1e-7f, 0.3f, 0.2f };
 		m_OceanInitialSettings.Cascades[2] = { 201, 1000000.0f, 1e-5f, 0.1f, 0.1f };
 
-		XMFLOAT3 sunDir{};
-		FillMainLightPosFromSunAngles(sunDir);
-
 		m_MeshGenerator = std::make_unique<MeshGenerator>(GetDevice(), GetMainContext(), 512, 512, 5000);
 		m_FFTOcean = std::make_unique<FFTOcean>(GetDevice(), GetMainContext(), m_OceanInitialSettings);
-		m_Atmosphere = std::make_unique<Atmosphere>(GetDevice(), GetMainContext(), sunDir);
+		m_Atmosphere = std::make_unique<Atmosphere>(GetDevice(), GetMainContext());
 
 		ShaderResourceDesc resDesc[] = 
 		{
@@ -67,10 +64,10 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(resDesc);
 		sDesc.ResourceDesc = resDesc;
 
-		auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FFTOceanDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto hs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FFTOceanDraw.hlsl", L"Hull", L"hs_6_6", nullptr, sDesc);
-		auto ds = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FFTOceanDraw.hlsl", L"Domain", L"ds_6_6", nullptr, sDesc);
-		auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FFTOceanDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto hs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Hull", L"hs_6_6", nullptr, sDesc);
+		auto ds = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Domain", L"ds_6_6", nullptr, sDesc);
+		auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
 		dss.DepthEnable = TRUE;

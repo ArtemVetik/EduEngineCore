@@ -154,6 +154,8 @@ namespace EduEngine
 
 				ImGui::TextDisabled("LUTs update when you release a control (avoids GPU sync while dragging).");
 
+				changed |= ImGui::SliderFloat("Sun size (degrees)", &settings.SunSize, 0.01f, 1.0f, "%.2f");
+
 				ImGui::SeparatorText("Planet & atmosphere shell");
 				changed |= ImGui::DragFloat("Planet radius (m)", &settings.PlanetRadius, 1000.0f, 1.0e6f, 1.0e8f, "%.0f");
 				changed |= ImGui::DragFloat("Atmosphere radius (m)", &settings.AtmosphereRadius, 1000.0f, 1.0e6f, 1.0e8f, "%.0f");

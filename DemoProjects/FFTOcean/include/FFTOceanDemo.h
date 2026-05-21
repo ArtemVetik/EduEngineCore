@@ -14,10 +14,10 @@ namespace EduEngine
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) ConstantsData
 	{
 		UINT MaxLODLevel = 8;
-		UINT TesselationLevel = 10;
-		float MaxTesselationDistance = 350;
-		float TesselationDecayFactor = 8;
-		float CullingTollerance = 6;
+		UINT TesselationLevel = 60;
+		float MaxTesselationDistance = 10000;
+		float TesselationDecayFactor = 10;
+		float CullingTollerance = 10;
 
 		UINT NbCascades = 1;
 		UINT WavelengthsIdx;
@@ -27,8 +27,8 @@ namespace EduEngine
 		UINT ReflectionCubeIdx;
 
 		float EnvironmentReflectionStrength = 1.f;
-		XMFLOAT3 SubsurfaceScatteringColor = { 0.f, 1.f, 0.8f };
-		float SubsurfaceScatteringIntensity = 0.07f;
+		XMFLOAT3 SubsurfaceScatteringColor = { 0.f, 1.f, 0.81f };
+		float SubsurfaceScatteringIntensity = 0.02f;
 		XMFLOAT3 DeepWaterColor = { 0.f, 0.1f, 0.4f };
 		float WaterFogDensity = 0.22f;
 		float RefractionStrength = 0.25f;

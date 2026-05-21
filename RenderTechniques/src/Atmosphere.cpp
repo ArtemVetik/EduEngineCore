@@ -50,7 +50,7 @@ namespace EduEngine
 		UINT Padding5;
 	};
 
-	Atmosphere::Atmosphere(RenderDeviceD3D12* device, DeviceContext* context, XMFLOAT3 sunDirection) :
+	Atmosphere::Atmosphere(RenderDeviceD3D12* device, DeviceContext* context) :
 		m_Device(device),
 		m_Context(context),
 		m_SunColor(1, 1, 1, 1)
@@ -334,7 +334,7 @@ namespace EduEngine
 		XMStoreFloat4x4(&drawData.Proj, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
 		drawData.MainLightColor = m_SunColor;
 		drawData.MainLightPosition = sunDirection;
-		drawData.SunSize = 0.04f;
+		drawData.SunSize = m_Settings.SunSize;
 
 		m_DrawPassBuffer->LoadData(m_Context, drawData);
 
