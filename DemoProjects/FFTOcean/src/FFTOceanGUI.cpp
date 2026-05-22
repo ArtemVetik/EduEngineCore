@@ -111,7 +111,7 @@ namespace EduEngine
 
 				ImGui::SeparatorText("Ocean (FFT spectrum)");
 				{
-					FFTOcean::Settings ocean = m_FFTOceanDemo->m_FFTOcean->GetSettings();
+					FFTOceanComputeSettings ocean = m_FFTOceanDemo->m_FFTOcean->GetComputeSettings();
 					bool oceanChanged = false;
 
 					oceanChanged |= ImGui::DragFloat("Wind speed (m/s)", &ocean.WindSpeed, 0.5f, 0.1f, 120.0f);
@@ -122,7 +122,7 @@ namespace EduEngine
 					oceanChanged |= ImGui::DragFloat("Depth (m)", &ocean.Depth, 10.0f, 1.0f, 20000.0f);
 
 					if (oceanChanged)
-						m_FFTOceanDemo->m_FFTOcean->UpdateSettings(ocean);
+						m_FFTOceanDemo->m_FFTOcean->UpdateComputeSettings(ocean);
 				}
 
 				ImGui::PopStyleVar();
@@ -230,30 +230,31 @@ namespace EduEngine
 
 				ImGui::SeparatorText("Tessellation & culling");
 				{
+					FFTOceanDrawSettings drawSettings = m_FFTOceanDemo->m_FFTOcean->GetDrawSettings();
 					bool constantsChanged = false;
 
-					constantsChanged |= ImGui::DragInt("Max LOD level", (int*)&m_FFTOceanDemo->m_ConstantsData.MaxLODLevel, 1, 0, 16);
+					constantsChanged |= ImGui::DragInt("Max LOD level", (int*)&drawSettings.MaxLODLevel, 1, 0, 16);
 					if (ImGui::IsItemHovered())
 						ImGui::SetTooltip("Which displacement cascade band is used vs distance.");
 
-					constantsChanged |= ImGui::DragInt("Max tessellation factor", (int*)&m_FFTOceanDemo->m_ConstantsData.TesselationLevel, 1, 1, 100);
+					constantsChanged |= ImGui::DragInt("Max tessellation factor", (int*)&drawSettings.TesselationLevel, 1, 1, 100);
 					if (ImGui::IsItemHovered())
 						ImGui::SetTooltip("Target hull edge factor when the patch is at the reference distance.");
 
-					constantsChanged |= ImGui::DragFloat("Full tessellation distance", &m_FFTOceanDemo->m_ConstantsData.MaxTesselationDistance, 1.0f, 1.0f, 10000.0f);
+					constantsChanged |= ImGui::DragFloat("Full tessellation distance", &drawSettings.MaxTesselationDistance, 1.0f, 1.0f, 10000.0f);
 					if (ImGui::IsItemHovered())
 						ImGui::SetTooltip("Camera distance at which edges reach max tessellation.");
 
-					constantsChanged |= ImGui::DragFloat("Tessellation falloff", &m_FFTOceanDemo->m_ConstantsData.TesselationDecayFactor, 0.05f, 0.1f, 20.0f);
+					constantsChanged |= ImGui::DragFloat("Tessellation falloff", &drawSettings.TesselationDecayFactor, 0.05f, 0.1f, 20.0f);
 					if (ImGui::IsItemHovered())
 						ImGui::SetTooltip("Higher keeps dense tessellation closer to the camera.");
 
-					constantsChanged |= ImGui::DragFloat("Frustum / patch margin", &m_FFTOceanDemo->m_ConstantsData.CullingTollerance, 0.1f, 0.0f, 50.0f);
+					constantsChanged |= ImGui::DragFloat("Frustum / patch margin", &drawSettings.CullingTollerance, 0.1f, 0.0f, 50.0f);
 					if (ImGui::IsItemHovered())
 						ImGui::SetTooltip("Extra world units around patch bounds before hull culling.");
 
 					if (constantsChanged)
-						m_FFTOceanDemo->m_ConstantsBuffer->LoadData(m_FFTOceanDemo->GetMainContext(), &m_FFTOceanDemo->m_ConstantsData);
+						m_FFTOceanDemo->m_FFTOcean->UpdateDrawSettings(drawSettings);
 				}
 
 				ImGui::PopStyleVar();
@@ -288,31 +289,32 @@ namespace EduEngine
 				ImGui::Spacing();
 				ImGui::SeparatorText("Water shading & BRDF");
 				{
+					FFTOceanDrawSettings drawSettings = m_FFTOceanDemo->m_FFTOcean->GetDrawSettings();
 					bool shadingChanged = false;
 
-					shadingChanged |= ImGui::DragFloat("Environment reflection", &m_FFTOceanDemo->m_ConstantsData.EnvironmentReflectionStrength, 0.01f, 0.0f, 4.0f);
+					shadingChanged |= ImGui::DragFloat("Environment reflection", &drawSettings.EnvironmentReflectionStrength, 0.01f, 0.0f, 4.0f);
 
-					shadingChanged |= ImGui::ColorEdit3("Subsurface scatter color", &m_FFTOceanDemo->m_ConstantsData.SubsurfaceScatteringColor.x);
-					shadingChanged |= ImGui::DragFloat("Subsurface scatter intensity", &m_FFTOceanDemo->m_ConstantsData.SubsurfaceScatteringIntensity, 0.001f, 0.0f, 1.0f);
+					shadingChanged |= ImGui::ColorEdit3("Subsurface scatter color", &drawSettings.SubsurfaceScatteringColor.x);
+					shadingChanged |= ImGui::DragFloat("Subsurface scatter intensity", &drawSettings.SubsurfaceScatteringIntensity, 0.001f, 0.0f, 1.0f);
 
-					shadingChanged |= ImGui::ColorEdit3("Deep water tint", &m_FFTOceanDemo->m_ConstantsData.DeepWaterColor.x);
-					shadingChanged |= ImGui::DragFloat("Water fog density", &m_FFTOceanDemo->m_ConstantsData.WaterFogDensity, 0.01f, 0.0f, 2.0f);
-					shadingChanged |= ImGui::DragFloat("Refraction strength", &m_FFTOceanDemo->m_ConstantsData.RefractionStrength, 0.01f, 0.0f, 1.0f);
+					shadingChanged |= ImGui::ColorEdit3("Deep water tint", &drawSettings.DeepWaterColor.x);
+					shadingChanged |= ImGui::DragFloat("Water fog density", &drawSettings.WaterFogDensity, 0.01f, 0.0f, 2.0f);
+					shadingChanged |= ImGui::DragFloat("Refraction strength", &drawSettings.RefractionStrength, 0.01f, 0.0f, 1.0f);
 
-					shadingChanged |= ImGui::DragFloat("Roughness", &m_FFTOceanDemo->m_ConstantsData.Roughness, 0.005f, 0.02f, 1.0f);
-					shadingChanged |= ImGui::DragFloat("Anisotropy EX", &m_FFTOceanDemo->m_ConstantsData.AnisoEX, 0.01f, 0.01f, 2.0f);
-					shadingChanged |= ImGui::DragFloat("Anisotropy EY", &m_FFTOceanDemo->m_ConstantsData.AnisoEY, 0.01f, 0.01f, 2.0f);
+					shadingChanged |= ImGui::DragFloat("Roughness", &drawSettings.Roughness, 0.005f, 0.02f, 1.0f);
+					shadingChanged |= ImGui::DragFloat("Anisotropy EX", &drawSettings.AnisoEX, 0.01f, 0.01f, 2.0f);
+					shadingChanged |= ImGui::DragFloat("Anisotropy EY", &drawSettings.AnisoEY, 0.01f, 0.01f, 2.0f);
 
-					shadingChanged |= ImGui::DragFloat("Foam blend", &m_FFTOceanDemo->m_ConstantsData.FoamBlending, 0.01f, 0.0f, 1.0f);
-					shadingChanged |= ImGui::DragFloat("Foam threshold", &m_FFTOceanDemo->m_ConstantsData.FoamThreshold, 0.01f, 0.0f, 2.0f);
-					shadingChanged |= ImGui::ColorEdit3("Foam color", &m_FFTOceanDemo->m_ConstantsData.FoamColor.x);
+					shadingChanged |= ImGui::DragFloat("Foam blend", &drawSettings.FoamBlending, 0.01f, 0.0f, 1.0f);
+					shadingChanged |= ImGui::DragFloat("Foam threshold", &drawSettings.FoamThreshold, 0.01f, 0.0f, 2.0f);
+					shadingChanged |= ImGui::ColorEdit3("Foam color", &drawSettings.FoamColor.x);
 
-					shadingChanged |= ImGui::ColorEdit3("Shadows tint", &m_FFTOceanDemo->m_ConstantsData.ShadowsColor.x);
-					shadingChanged |= ImGui::DragFloat("Shadows intensity", &m_FFTOceanDemo->m_ConstantsData.ShadowsIntensity, 0.01f, 0.0f, 1.0f);
-					shadingChanged |= ImGui::DragFloat("Sun reflection (specular)", &m_FFTOceanDemo->m_ConstantsData.SunReflectionStrength, 0.01f, 0.0f, 4.0f);
+					shadingChanged |= ImGui::ColorEdit3("Shadows tint", &drawSettings.ShadowsColor.x);
+					shadingChanged |= ImGui::DragFloat("Shadows intensity", &drawSettings.ShadowsIntensity, 0.01f, 0.0f, 1.0f);
+					shadingChanged |= ImGui::DragFloat("Sun reflection (specular)", &drawSettings.SunReflectionStrength, 0.01f, 0.0f, 4.0f);
 					
 					if (shadingChanged)
-						m_FFTOceanDemo->m_ConstantsBuffer->LoadData(m_FFTOceanDemo->GetMainContext(), &m_FFTOceanDemo->m_ConstantsData);
+						m_FFTOceanDemo->m_FFTOcean->UpdateDrawSettings(drawSettings);
 				}
 
 				ImGui::PopStyleVar();

@@ -1,12 +1,11 @@
 #pragma once
-
 #include "framework.h"
 
 #include <BufferD3D12.h>
 
 namespace EduEngine
 {
-	class MeshGenerator
+	class RENDERTECHNIQUES_API MeshGenerator
 	{
 	public:
 		MeshGenerator(RenderDeviceD3D12* device, DeviceContext* context, uint32 w, uint32 h, float scale = 100);

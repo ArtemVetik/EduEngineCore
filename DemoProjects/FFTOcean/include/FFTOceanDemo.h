@@ -1,7 +1,5 @@
 #pragma once
 
-#include "MeshGenerator.h"
-
 #include <RenderEngine.h>
 #include <FFTOcean.h>
 #include <Atmosphere.h>
@@ -57,29 +55,24 @@ namespace EduEngine
 		void OnResize() override;
 
 	private:
-		void RefreshOceanGpuConstants();
 		void RecreateFFTOceanPreservingSettings();
 		void FillMainLightPosFromSunAngles(XMFLOAT3& outMainLightPos) const;
 
 	private:
 		friend FFTOceanGUI;
 
-		PipelineState m_DrawPSO;
 		PipelineState m_PostProcPSO;
 
 		std::shared_ptr<TextureD3D12> m_AccumulationBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
-		std::shared_ptr<BufferD3D12> m_ConstantsBuffer;
-		std::shared_ptr<ShaderBinder> m_DrawBinder;
 		std::shared_ptr<ShaderBinder> m_PostProcBinder;
 
-		std::unique_ptr<MeshGenerator> m_MeshGenerator;
 		std::unique_ptr<FFTOcean> m_FFTOcean;
 		std::unique_ptr<Atmosphere> m_Atmosphere;
 
-		FFTOcean::InitialSettings m_OceanInitialSettings{};
-		ConstantsData m_ConstantsData;
 		FFTOceanGUI m_Gui;
+
+		FFTOcean::InitialSettings m_OceanInitialSettings;
 
 		float m_SunAzimuthDegrees = 84.29f;
 		float m_SunElevationDegrees = 5.69f;

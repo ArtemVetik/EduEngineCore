@@ -89,7 +89,7 @@ void ComputeSkyViewLUT(uint3 id : SV_DispatchThreadID)
     float latitude = v * 2.0 - 1.0;
     latitude *= latitude;
     
-#if 1
+#if 0
     if (v < 0.5)
         latitude = (1.0 - latitude) * zenithHorizonAngle;
     else

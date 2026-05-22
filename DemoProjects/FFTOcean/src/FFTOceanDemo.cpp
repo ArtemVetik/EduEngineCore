@@ -20,39 +20,30 @@ namespace EduEngine
 		outMainLightPos.z = cosEl * sinf(azRad) * kScale;
 	}
 
-	void FFTOceanDemo::RefreshOceanGpuConstants()
-	{
-		m_ConstantsData.NbCascades = m_OceanInitialSettings.CascadesCount;
-		m_ConstantsData.WavelengthsIdx = m_FFTOcean->GetWaveLengthSrvGpuBufferIdx();
-		m_ConstantsData.DisplacementsTexturesIdx = m_FFTOcean->GetDisplacementsTexSrvGpuBufferIdx();
-		m_ConstantsData.DerivativesTexturesIdx = m_FFTOcean->GetDerivativesTexSrvGpuBufferIdx();
-		m_ConstantsData.TurbulenceTexturesIdx = m_FFTOcean->GetTurbulenceTexSrvGpuBufferIdx();
-		m_ConstantsData.ReflectionCubeIdx = m_Atmosphere->GetReflectionCube()->GetSRVView()->GetGpuHeapIndex();
-
-		m_ConstantsBuffer->LoadData(GetMainContext(), &m_ConstantsData);
-	}
-
 	void FFTOceanDemo::RecreateFFTOceanPreservingSettings()
 	{
-		FFTOcean::Settings saved = m_FFTOcean->GetSettings();
+		FFTOceanComputeSettings computeSaved = m_FFTOcean->GetComputeSettings();
+		FFTOceanDrawSettings drawSaved = m_FFTOcean->GetDrawSettings();
+
 		m_FFTOcean = std::make_unique<FFTOcean>(GetDevice(), GetMainContext(), m_OceanInitialSettings);
-		m_FFTOcean->UpdateSettings(saved);
-		RefreshOceanGpuConstants();
+		m_FFTOcean->UpdateComputeSettings(computeSaved);
+		m_FFTOcean->UpdateDrawSettings(drawSaved);
 	}
 
 	void FFTOceanDemo::OnStartUp()
 	{
 		GetCamera()->UpdateNearFar(0.1f, 10000.f);
 
+		m_Atmosphere = std::make_unique<Atmosphere>(GetDevice(), GetMainContext());
+		
+		m_OceanInitialSettings.AtmosphereCube = m_Atmosphere->GetReflectionCube();
 		m_OceanInitialSettings.TextureSize = 512;
 		m_OceanInitialSettings.CascadesCount = 3;
 		m_OceanInitialSettings.Cascades[0] = { 1530, 1e12f, 1e-10f, 0.4f, 0.1f };
 		m_OceanInitialSettings.Cascades[1] = { 1000, 1e7f, 1e-7f, 0.3f, 0.2f };
 		m_OceanInitialSettings.Cascades[2] = { 201, 1000000.0f, 1e-5f, 0.1f, 0.1f };
 
-		m_MeshGenerator = std::make_unique<MeshGenerator>(GetDevice(), GetMainContext(), 512, 512, 5000);
 		m_FFTOcean = std::make_unique<FFTOcean>(GetDevice(), GetMainContext(), m_OceanInitialSettings);
-		m_Atmosphere = std::make_unique<Atmosphere>(GetDevice(), GetMainContext());
 
 		ShaderResourceDesc resDesc[] = 
 		{
@@ -64,38 +55,11 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(resDesc);
 		sDesc.ResourceDesc = resDesc;
 
-		auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto hs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Hull", L"hs_6_6", nullptr, sDesc);
-		auto ds = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Domain", L"ds_6_6", nullptr, sDesc);
-		auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
-
 		auto vsPostProc = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
 		auto psPostProc = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
-		dss.DepthEnable = TRUE;
-		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
-		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-
-		D3D12_INPUT_ELEMENT_DESC elementDesc[] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-		};
-		D3D12_INPUT_LAYOUT_DESC inputLayout = {};
-		inputLayout.NumElements = _countof(elementDesc);
-		inputLayout.pInputElementDescs = elementDesc;
-
-		m_DrawPSO.SetShader(vs);
-		m_DrawPSO.SetShader(ps);
-		m_DrawPSO.SetShader(hs);
-		m_DrawPSO.SetShader(ds);
-		m_DrawPSO.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH);
-		m_DrawPSO.SetRTVFormat(DXGI_FORMAT_R16G16B16A16_FLOAT);
-		m_DrawPSO.SetDepthStencilState(dss);
-		m_DrawPSO.SetInputLayout(inputLayout);
-		m_DrawPSO.Build(GetDevice());
-		
-		dss.DepthEnable = false;
+		dss.DepthEnable = FALSE;
 
 		m_PostProcPSO.SetShader(vsPostProc);
 		m_PostProcPSO.SetShader(psPostProc);
@@ -104,30 +68,6 @@ namespace EduEngine
 		m_PostProcPSO.Build(GetDevice());
 
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(GetDevice());
-
-		D3D12_RESOURCE_DESC buffDesc = {};
-		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		buffDesc.Alignment = 0;
-		buffDesc.Height = 1;
-		buffDesc.Width = sizeof(ConstantsData);
-		buffDesc.DepthOrArraySize = 1;
-		buffDesc.MipLevels = 1;
-		buffDesc.Format = DXGI_FORMAT_UNKNOWN;
-		buffDesc.SampleDesc.Count = 1;
-		buffDesc.SampleDesc.Quality = 0;
-		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-		m_ConstantsBuffer = std::make_shared<BufferD3D12>(GetDevice(), GetMainContext(), buffDesc, QueueId::Direct);
-
-		RefreshOceanGpuConstants();
-
-		m_DrawBinder = m_DrawPSO.CreateShaderBinder();
-		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
-		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_HULL, "cbPass", m_PassBuffer);
-		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_DOMAIN, "cbPass", m_PassBuffer);
-		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
-		m_DrawBinder->BindResource(EDU_SHADER_TYPE_HULL, "cbConstants", m_ConstantsBuffer);
-		m_DrawBinder->BindResource(EDU_SHADER_TYPE_DOMAIN, "cbConstants", m_ConstantsBuffer);
-		m_DrawBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbConstants", m_ConstantsBuffer);
 
 		m_PostProcBinder = m_PostProcPSO.CreateShaderBinder();
 		m_PostProcBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
@@ -140,25 +80,6 @@ namespace EduEngine
 	void FFTOceanDemo::OnUpdate(const Timer& timer)
 	{
 		FreeCameraUpdate(timer, GetCamera(), 50.0f);
-
-		struct PassData
-		{
-			XMFLOAT4X4 World;
-			XMFLOAT4X4 ViewProj;
-			XMFLOAT3 CameraPos;
-			UINT Padding0;
-			XMFLOAT3 MainLightPos;
-			UINT Padding1;
-			XMFLOAT4 MainLightColor;
-		} passData;
-
-		XMStoreFloat4x4(&passData.World, XMMatrixIdentity());
-		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
-		passData.CameraPos = GetCamera()->GetPosition();
-		FillMainLightPosFromSunAngles(passData.MainLightPos);
-		passData.MainLightColor = m_Atmosphere->GetSunColor();
-
-		m_PassBuffer->LoadData(GetMainContext(), passData);
 	}
 
 	void FFTOceanDemo::OnRender(const Timer& timer)
@@ -170,28 +91,21 @@ namespace EduEngine
 		ID3D12DescriptorHeap* heaps[]{ GetDevice()->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
 		GetMainContext()->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(heaps), heaps);
 
-		m_FFTOcean->Update(timer.GetTotalTime());
+		m_FFTOcean->Compute(timer.GetTotalTime());
 
 		const float clear[4] = { 0, 0, 0, 1 };
 
+		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &m_AccumulationBuffer->GetRTVView()->GetCpuHandle(), true, &GetSwapChain()->DepthStencilView());
 		GetMainContext()->GetCommandCtx()->SetViewports(&GetViewport(), 1);
 		GetMainContext()->GetCommandCtx()->SetScissorRects(&GetScissorRect(), 1);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearRenderTargetView(m_AccumulationBuffer->GetRTVView()->GetCpuHandle(), clear, 0, nullptr);
 		GetMainContext()->GetCommandCtx()->GetCmdList()->ClearDepthStencilView(GetSwapChain()->DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.0f, 0, 0, nullptr);
 
-		GetMainContext()->GetCommandCtx()->SetRenderTargets(1, &m_AccumulationBuffer->GetRTVView()->GetCpuHandle(), true, &GetSwapChain()->DepthStencilView());
-
-		m_DrawPSO.BeginPSOAndCommitResources(GetMainContext(), m_DrawBinder.get());
-		
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_MeshGenerator->GetVertexBufferView());
-		GetMainContext()->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_MeshGenerator->GetIndexBufferView());
-
-		GetMainContext()->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_MeshGenerator->GetIndexCount(), 1, 0, 0, 0);
-
+		XMFLOAT4 sunColor = m_Atmosphere->GetSunColor();
 		XMFLOAT3 sunDir{};
 		FillMainLightPosFromSunAngles(sunDir);
 
+		m_FFTOcean->Render(GetCamera(), sunDir, { sunColor.x, sunColor.y, sunColor.z });
 		m_Atmosphere->Render(GetCamera(), sunDir);
 
 		GetMainContext()->GetCommandCtx()->TransitionResource(m_AccumulationBuffer.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);

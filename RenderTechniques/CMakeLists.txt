@@ -22,6 +22,7 @@ add_library(RenderTechniques STATIC
     src/FFTOcean.cpp
     src/IFFT.cpp
     src/Atmosphere.cpp
+    src/MeshGenerator.cpp
 )
 
 target_include_directories(RenderTechniques

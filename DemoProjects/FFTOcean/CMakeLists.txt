@@ -5,7 +5,6 @@ add_executable(FFTOcean WIN32 src/main.cpp)
 target_sources(FFTOcean PRIVATE
     src/FFTOceanDemo.cpp
     src/FFTOceanDemoFactory.cpp
-    src/MeshGenerator.cpp
     src/FFTOceanGUI.cpp
 )
 

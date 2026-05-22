@@ -2,6 +2,9 @@
 
 #include <cmath>
 #include <random>
+#include <SimpleMath.h>
+
+using namespace DirectX;
 
 namespace EduEngine
 {
@@ -26,20 +29,55 @@ namespace EduEngine
 		UINT SwellsIdx;
 	};
 
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) ComputeConstantData
+	{
+		UINT NbCascades;
+		UINT TextureSize;
+	};
+
+	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) DrawConstantData
+	{
+		UINT MaxLODLevel;
+		UINT TesselationLevel;
+		float MaxTesselationDistance;
+		float TesselationDecayFactor;
+		float CullingTollerance;
+
+		UINT NbCascades;
+		UINT WavelengthsIdx;
+		UINT DisplacementsTexturesIdx;
+		UINT DerivativesTexturesIdx;
+		UINT TurbulenceTexturesIdx;
+		UINT ReflectionCubeIdx;
+
+		float EnvironmentReflectionStrength;
+		XMFLOAT3 SubsurfaceScatteringColor;
+		float SubsurfaceScatteringIntensity;
+		XMFLOAT3 DeepWaterColor;
+		float WaterFogDensity;
+		float RefractionStrength;
+		float Roughness;
+		float AnisoEX;
+		float AnisoEY;
+		float FoamBlending;
+		float FoamThreshold;
+		XMFLOAT2 FoamPadRow;
+		XMFLOAT3 FoamColor;
+		float FoamPad0;
+		XMFLOAT3 ShadowsColor;
+		float ShadowsIntensity;
+		float SunReflectionStrength;
+	};
+
 	FFTOcean::FFTOcean(RenderDeviceD3D12* device, DeviceContext* context, InitialSettings initialSettings) :
 		m_Context(context),
-		m_NbCascades(initialSettings.CascadesCount),
+		m_AtmosphereCube(initialSettings.AtmosphereCube),
+		m_CascadesCount(initialSettings.CascadesCount),
 		m_TextureSize(initialSettings.TextureSize)
 	{
-		struct ConstantData
-		{
-			UINT NbCascades;
-			UINT TextureSize;
-		};
-
 		D3D12_RESOURCE_DESC buffDesc = {};
 		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-		buffDesc.Width = sizeof(ConstantData);
+		buffDesc.Width = sizeof(ComputeConstantData);
 		buffDesc.Alignment = 0;
 		buffDesc.Height = 1;
 		buffDesc.DepthOrArraySize = 1;
@@ -49,14 +87,17 @@ namespace EduEngine
 		buffDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		buffDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-		ConstantData constantsData = {};
-		constantsData.NbCascades = m_NbCascades;
-		constantsData.TextureSize = m_TextureSize;
+		ComputeConstantData computeConstantsData = {};
+		computeConstantsData.NbCascades = m_CascadesCount;
+		computeConstantsData.TextureSize = m_TextureSize;
 
-		m_ConstantsBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
-		m_ConstantsBuffer->LoadData(context, &constantsData);
+		m_ComputeConstantsBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
+		m_ComputeConstantsBuffer->LoadData(context, &computeConstantsData);
 
-		m_IFFT = std::make_unique<IFFT>(device, context, m_TextureSize, m_NbCascades, m_ConstantsBuffer);
+		buffDesc.Width = sizeof(DrawConstantData);
+		m_DrawConstantsBuffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
+
+		m_IFFT = std::make_unique<IFFT>(device, context, m_TextureSize, m_CascadesCount, m_ComputeConstantsBuffer);
 
 		GenerateRandomNoiseTexture(device, context);
 
@@ -72,7 +113,7 @@ namespace EduEngine
 				texDesc.SampleDesc.Count = 1;
 				texDesc.SampleDesc.Quality = 0;
 				texDesc.Format = format;
-				texDesc.Layout= D3D12_TEXTURE_LAYOUT_UNKNOWN;
+				texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 				texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 				D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
@@ -102,22 +143,22 @@ namespace EduEngine
 				texture->SetName(name);
 			};
 
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_WavesDataTextures, L"WavesDataTextures", true);
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_InitialSpectrumTextures, L"InitialSpectrumTextures", true);
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_DisplacementsTextures, L"DisplacementsTextures", true);
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_DerivativesTextures, L"DerivativesTextures", true);
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32B32A32_FLOAT, m_TurbulenceTextures, L"TurbulenceTextures", true);
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32_FLOAT, m_DxDzTextures, L"DxDzTextures");
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32_FLOAT, m_DyDxzTextures, L"DyDxzTextures");
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32_FLOAT, m_DyxDyzTextures, L"DyxDyzTextures");
-		CreateTexture(m_NbCascades, DXGI_FORMAT_R32G32_FLOAT, m_DxxDzzTextures, L"DxxDzzTextures");
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32B32A32_FLOAT, m_WavesDataTextures, L"WavesDataTextures", true);
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32B32A32_FLOAT, m_InitialSpectrumTextures, L"InitialSpectrumTextures", true);
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32B32A32_FLOAT, m_DisplacementsTextures, L"DisplacementsTextures", true);
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32B32A32_FLOAT, m_DerivativesTextures, L"DerivativesTextures", true);
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32B32A32_FLOAT, m_TurbulenceTextures, L"TurbulenceTextures", true);
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32_FLOAT, m_DxDzTextures, L"DxDzTextures");
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32_FLOAT, m_DyDxzTextures, L"DyDxzTextures");
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32_FLOAT, m_DyxDyzTextures, L"DyxDyzTextures");
+		CreateTexture(m_CascadesCount, DXGI_FORMAT_R32G32_FLOAT, m_DxxDzzTextures, L"DxxDzzTextures");
 
 		float wavelengths[MaxCascades];
 		float cutoffs[MaxCascades * 2];
 		float swells[MaxCascades];
 		float fades[MaxCascades];
 
-		for (int i = 0; i < m_NbCascades; i++) {
+		for (int i = 0; i < m_CascadesCount; i++) {
 			wavelengths[i] = initialSettings.Cascades[i].Wavelength;
 			cutoffs[i * 2] = initialSettings.Cascades[i].CutoffLow;
 			cutoffs[i * 2 + 1] = initialSettings.Cascades[i].CutoffHigh;
@@ -154,10 +195,10 @@ namespace EduEngine
 				buffer->LoadData(context, data);
 			};
 
-		CreateBuffer(m_NbCascades, m_Wavelengths, wavelengths, L"Wavelengths");
-		CreateBuffer(m_NbCascades * 2, m_Cutoffs, cutoffs, L"Cutoffs");
-		CreateBuffer(m_NbCascades, m_Swells, swells, L"Swells");
-		CreateBuffer(m_NbCascades, m_Fades, fades, L"Fades");
+		CreateBuffer(m_CascadesCount, m_Wavelengths, wavelengths, L"Wavelengths");
+		CreateBuffer(m_CascadesCount * 2, m_Cutoffs, cutoffs, L"Cutoffs");
+		CreateBuffer(m_CascadesCount, m_Swells, swells, L"Swells");
+		CreateBuffer(m_CascadesCount, m_Fades, fades, L"Fades");
 
 		buffDesc = {};
 		buffDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -249,8 +290,11 @@ namespace EduEngine
 			m_ResultTexturesBuffer->LoadData(context, &inputTextures);
 		}
 
+		m_MeshGenerator = std::make_unique<MeshGenerator>(device, context, 512, 512, 5000);
+
 		ShaderResourceDesc resDesc[] =
 		{
+			{ "cbPass", SHADER_RESOURCE_TYPE_DYNAMIC },
 			{ "cbPassData", SHADER_RESOURCE_TYPE_DYNAMIC },
 		};
 
@@ -259,6 +303,11 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(resDesc);
 		sDesc.ResourceDesc = resDesc;
 
+		auto vsDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto hsDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Hull", L"hs_6_6", nullptr, sDesc);
+		auto dsDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Domain", L"ds_6_6", nullptr, sDesc);
+		auto psDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+
 		auto calculateInitialSpectrumTexturesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\InitialSpectrum.hlsl", L"CalculateInitialSpectrumTextures", L"cs_6_6", nullptr, sDesc);
 		auto calculateConjugatedInitialSpectrumTexturesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\InitialSpectrum.hlsl", L"CalculateConjugatedInitialSpectrumTextures", L"cs_6_6", nullptr, sDesc);
 
@@ -266,7 +315,31 @@ namespace EduEngine
 
 		auto calculateTimeDependentComplexAmplitudesAndDerivativesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\TimeDependentSpectrum.hlsl", L"CalculateTimeDependentComplexAmplitudesAndDerivatives", L"cs_6_6", nullptr, sDesc);
 
-		m_TimeBuffer = std::make_shared<DynamicUploadBuffer>(device);
+		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(device);
+
+		D3D12_DEPTH_STENCIL_DESC dss = {};
+		dss.DepthEnable = TRUE;
+		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+		D3D12_INPUT_ELEMENT_DESC elementDesc[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		};
+		D3D12_INPUT_LAYOUT_DESC inputLayout = {};
+		inputLayout.NumElements = _countof(elementDesc);
+		inputLayout.pInputElementDescs = elementDesc;
+
+		m_DrawPSO.SetShader(vsDraw);
+		m_DrawPSO.SetShader(psDraw);
+		m_DrawPSO.SetShader(hsDraw);
+		m_DrawPSO.SetShader(dsDraw);
+		m_DrawPSO.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH);
+		m_DrawPSO.SetRTVFormat(DXGI_FORMAT_R16G16B16A16_FLOAT);
+		m_DrawPSO.SetDepthStencilState(dss);
+		m_DrawPSO.SetInputLayout(inputLayout);
+		m_DrawPSO.Build(device);
+		m_DrawBinder = m_DrawPSO.CreateShaderBinder();
 
 		m_InitialSpectrumTexturesPSO = std::make_unique<ComputePipelineState>(QueueId::Direct);
 		m_InitialSpectrumTexturesPSO->SetShader(calculateInitialSpectrumTexturesCS);
@@ -292,25 +365,34 @@ namespace EduEngine
 		m_TimeDependentComplexAmplitudesAndDerivativesPSO->SetName(L"TimeDependentComplexAmplitudesAndDerivativesPSO");
 		m_TimeDependentComplexAmplitudesAndDerivativesBinder = m_TimeDependentComplexAmplitudesAndDerivativesPSO->CreateShaderBinder();
 
-		m_InitialSpectrumTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ConstantsBuffer);
+		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
+		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_HULL, "cbPass", m_PassBuffer);
+		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_DOMAIN, "cbPass", m_PassBuffer);
+		m_DrawBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
+		m_DrawBinder->BindResource(EDU_SHADER_TYPE_HULL, "cbConstants", m_DrawConstantsBuffer);
+		m_DrawBinder->BindResource(EDU_SHADER_TYPE_DOMAIN, "cbConstants", m_DrawConstantsBuffer);
+		m_DrawBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbConstants", m_DrawConstantsBuffer);
+
+		m_InitialSpectrumTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ComputeConstantsBuffer);
 		m_InitialSpectrumTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbInitSpectrumData", m_InitSpectrumBuffer);
 
-		m_ConjugatedInitialSpectrumTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ConstantsBuffer);
+		m_ConjugatedInitialSpectrumTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ComputeConstantsBuffer);
 		m_ConjugatedInitialSpectrumTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbInitSpectrumData", m_InitSpectrumBuffer);
 
-		m_FillResultTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ConstantsBuffer);
+		m_FillResultTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ComputeConstantsBuffer);
 		m_FillResultTexturesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbInputTextures", m_ResultTexturesBuffer);
 
-		m_TimeDependentComplexAmplitudesAndDerivativesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ConstantsBuffer);
+		m_TimeDependentComplexAmplitudesAndDerivativesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbConstants", m_ComputeConstantsBuffer);
 		m_TimeDependentComplexAmplitudesAndDerivativesBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbInputTextures", m_TimeDependentBuffer);
-		m_TimeDependentComplexAmplitudesAndDerivativesBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPassData", m_TimeBuffer);
+		m_TimeDependentComplexAmplitudesAndDerivativesBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPassData", m_PassBuffer);
 
-		CalculateInitialSpectrum(m_Settings);
+		CalculateInitialSpectrum();
+		UpdateDrawSettings(m_DrawSettings);
 	}
 
-	void FFTOcean::Update(float time)
+	void FFTOcean::Compute(float time)
 	{
-		m_TimeBuffer->LoadData(m_Context, time);
+		m_PassBuffer->LoadData(m_Context, time);
 
 		m_TimeDependentComplexAmplitudesAndDerivativesPSO->BeginPSOAndCommitResources(m_Context, m_TimeDependentComplexAmplitudesAndDerivativesBinder.get());
 		m_Context->GetCommandCtx()->GetCmdList()->Dispatch(m_TextureSize / LOCAL_WORK_GROUPS_X, m_TextureSize / LOCAL_WORK_GROUPS_Y, 1);
@@ -336,24 +418,91 @@ namespace EduEngine
 		m_Context->GetCommandCtx()->TransitionResource(m_DisplacementsTextures.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
 	}
 
-	void FFTOcean::UpdateSettings(Settings newSettings)
+	void FFTOcean::Render(Camera* camera, XMFLOAT3 sunPos, XMFLOAT3 sunColor)
 	{
-		if (memcmp(&newSettings, &m_Settings, sizeof(Settings)) != 0)
+		struct PassData
 		{
-			m_Settings = newSettings;
-			CalculateInitialSpectrum(m_Settings);
+			XMFLOAT4X4 World;
+			XMFLOAT4X4 ViewProj;
+			XMFLOAT3 CameraPos;
+			UINT Padding0;
+			XMFLOAT3 MainLightPos;
+			UINT Padding1;
+			XMFLOAT3 MainLightColor;
+		} passData;
+
+		XMStoreFloat4x4(&passData.World, XMMatrixIdentity());
+		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(camera->GetViewProjMatrix()));
+		passData.CameraPos = camera->GetPosition();
+		passData.MainLightPos = sunPos;
+		passData.MainLightColor = sunColor;
+
+		m_PassBuffer->LoadData(m_Context, passData);
+
+		m_DrawPSO.BeginPSOAndCommitResources(m_Context, m_DrawBinder.get());
+
+		m_Context->GetCommandCtx()->GetCmdList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+		m_Context->GetCommandCtx()->GetCmdList()->IASetVertexBuffers(0, 1, &m_MeshGenerator->GetVertexBufferView());
+		m_Context->GetCommandCtx()->GetCmdList()->IASetIndexBuffer(&m_MeshGenerator->GetIndexBufferView());
+
+		m_Context->GetCommandCtx()->GetCmdList()->DrawIndexedInstanced(m_MeshGenerator->GetIndexCount(), 1, 0, 0, 0);
+	}
+
+	void FFTOcean::UpdateComputeSettings(FFTOceanComputeSettings newSettings)
+	{
+		if (memcmp(&newSettings, &m_ComputeSettings, sizeof(FFTOceanComputeSettings)) != 0)
+		{
+			m_ComputeSettings = newSettings;
+			CalculateInitialSpectrum();
 		}
 	}
 
-	void FFTOcean::CalculateInitialSpectrum(Settings settings)
+	void FFTOcean::UpdateDrawSettings(FFTOceanDrawSettings newSettings)
+	{
+		m_DrawSettings = newSettings;
+		DrawConstantData drawData = {};
+
+		drawData.NbCascades = m_CascadesCount;
+		drawData.WavelengthsIdx = m_Wavelengths->GetSRVView()->GetGpuHeapIndex();
+		drawData.DisplacementsTexturesIdx = m_DisplacementsTextures->GetSRVView()->GetGpuHeapIndex();
+		drawData.DerivativesTexturesIdx = m_DerivativesTextures->GetSRVView()->GetGpuHeapIndex();
+		drawData.TurbulenceTexturesIdx = m_TurbulenceTextures->GetSRVView()->GetGpuHeapIndex();
+		drawData.ReflectionCubeIdx = m_AtmosphereCube->GetSRVView()->GetGpuHeapIndex();
+
+		drawData.MaxLODLevel = newSettings.MaxLODLevel;
+		drawData.TesselationLevel = newSettings.TesselationLevel;
+		drawData.MaxTesselationDistance = newSettings.MaxTesselationDistance;
+		drawData.TesselationDecayFactor = newSettings.TesselationDecayFactor;
+		drawData.CullingTollerance = newSettings.CullingTollerance;
+
+		drawData.EnvironmentReflectionStrength = newSettings.EnvironmentReflectionStrength;
+		drawData.SubsurfaceScatteringColor = newSettings.SubsurfaceScatteringColor;
+		drawData.SubsurfaceScatteringIntensity = newSettings.SubsurfaceScatteringIntensity;
+		drawData.DeepWaterColor = newSettings.DeepWaterColor;
+		drawData.WaterFogDensity = newSettings.WaterFogDensity;
+		drawData.RefractionStrength = newSettings.RefractionStrength;
+		drawData.Roughness = newSettings.Roughness;
+		drawData.AnisoEX = newSettings.AnisoEX;
+		drawData.AnisoEY = newSettings.AnisoEY;
+		drawData.FoamBlending = newSettings.FoamBlending;
+		drawData.FoamThreshold = newSettings.FoamThreshold;
+		drawData.FoamColor = newSettings.FoamColor;
+		drawData.ShadowsColor = newSettings.ShadowsColor;
+		drawData.ShadowsIntensity = newSettings.ShadowsIntensity;
+		drawData.SunReflectionStrength = newSettings.SunReflectionStrength;
+
+		m_DrawConstantsBuffer->LoadData(m_Context, &drawData);
+	}
+
+	void FFTOcean::CalculateInitialSpectrum()
 	{
 		InitialSpectrumData initialSpectrumData = {};
-		initialSpectrumData.WindSpeed = settings.WindSpeed;
-		initialSpectrumData.WindDirectionX = settings.WindDirectionX;
-		initialSpectrumData.WindDirectionY = settings.WindDirectionY;
-		initialSpectrumData.Gravity = settings.Gravity;
-		initialSpectrumData.Fetch = settings.Fetch;
-		initialSpectrumData.Depth = settings.Depth;
+		initialSpectrumData.WindSpeed = m_ComputeSettings.WindSpeed;
+		initialSpectrumData.WindDirectionX = m_ComputeSettings.WindDirectionX;
+		initialSpectrumData.WindDirectionY = m_ComputeSettings.WindDirectionY;
+		initialSpectrumData.Gravity = m_ComputeSettings.Gravity;
+		initialSpectrumData.Fetch = m_ComputeSettings.Fetch;
+		initialSpectrumData.Depth = m_ComputeSettings.Depth;
 
 		initialSpectrumData.RandomNoiseTextureIdx = m_RandomNoiseTexture->GetSRVView()->GetGpuHeapIndex();
 		initialSpectrumData.InitialSpectrumTexturesIdx = m_InitialSpectrumTextures->GetUAVView()->GetGpuHeapIndex();
@@ -423,7 +572,7 @@ namespace EduEngine
 			float g;
 		};
 
-		std::vector<Pixel> data(m_TextureSize* m_TextureSize);
+		std::vector<Pixel> data(m_TextureSize * m_TextureSize);
 		for (int i = 0; i < m_TextureSize; i++)
 		{
 			for (int j = 0; j < m_TextureSize; j++)
