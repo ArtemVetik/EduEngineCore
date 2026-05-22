@@ -144,8 +144,6 @@ void ComputeSkyViewLUT(uint3 id : SV_DispatchThreadID)
         currentDistance += stepSize;
         transmittance = nextTransmittance;
     }
-
-    luminance = pow(abs(luminance), 1.0 / 2.2);
-
+    
     gSkyViewLUT[id.xy] = float4(luminance, 1.0);
 }

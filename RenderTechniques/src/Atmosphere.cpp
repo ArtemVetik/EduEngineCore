@@ -207,7 +207,7 @@ namespace EduEngine
 			m_DrawPso.SetInputLayout({ mInputLayout.data(), (UINT)mInputLayout.size() });
 			m_DrawPso.SetShader(vs);
 			m_DrawPso.SetShader(ps);
-			m_DrawPso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+			m_DrawPso.SetRTVFormat(DXGI_FORMAT_R16G16B16A16_FLOAT);
 			m_DrawPso.Build(device);
 			m_DrawPso.SetName(L"SkyDrawPso");
 

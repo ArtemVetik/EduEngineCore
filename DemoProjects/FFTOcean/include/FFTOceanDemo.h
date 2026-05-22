@@ -54,6 +54,7 @@ namespace EduEngine
 		void OnStartUp() override;
 		void OnUpdate(const Timer& timer) override;
 		void OnRender(const Timer& timer) override;
+		void OnResize() override;
 
 	private:
 		void RefreshOceanGpuConstants();
@@ -64,10 +65,13 @@ namespace EduEngine
 		friend FFTOceanGUI;
 
 		PipelineState m_DrawPSO;
+		PipelineState m_PostProcPSO;
 
+		std::shared_ptr<TextureD3D12> m_AccumulationBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 		std::shared_ptr<BufferD3D12> m_ConstantsBuffer;
 		std::shared_ptr<ShaderBinder> m_DrawBinder;
+		std::shared_ptr<ShaderBinder> m_PostProcBinder;
 
 		std::unique_ptr<MeshGenerator> m_MeshGenerator;
 		std::unique_ptr<FFTOcean> m_FFTOcean;
