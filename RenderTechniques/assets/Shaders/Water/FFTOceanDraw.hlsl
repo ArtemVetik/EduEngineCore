@@ -89,7 +89,7 @@ struct VertexOutput
 TessellationControlPoint VS(VertexInput input)
 {
     TessellationControlPoint output;
-    output.PositionWS = mul(float4(input.PosL, 1.0f), gWorld);
+    output.PositionWS = mul(float4(input.PosL, 1.0f), gWorld).xyz;
     output.PositionCS = mul(float4(output.PositionWS, 1.0f), gViewProj);
     return output;
 }
@@ -124,7 +124,7 @@ float3 EnvironmentReflections(float3 viewDir, float3 normalWS)
     //float3 reflectionDir = -reflect(viewDir, normalWS);
     //float3 reflectionDir = normalWS;
     
-    float3 environment = reflectionCube.Sample(gsamAnisotropicWrap, reflectionDir);
+    float3 environment = reflectionCube.Sample(gsamAnisotropicWrap, reflectionDir).xyz;
     return environment * gEnvironmentReflectionStrength;
 }
 

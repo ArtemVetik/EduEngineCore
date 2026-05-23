@@ -439,12 +439,13 @@ namespace EduEngine
 
 			sunColorsReadback.CopyTexture(m_Context, m_TransmittanceLut.get());
 
-			m_Device->FlushQueues();
 			auto& queue = m_Device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 			CommandContext* ctx[]{ m_Context->GetCommandCtx() };
 			queue.CloseAndExecuteCommandContexts(ctx, 1);
-			m_Context->FinishFrame();
+
 			m_Device->FlushQueues();
+			m_Context->FinishFrame();
+			m_Device->FinishFrame();
 
 			ID3D12DescriptorHeap* descriptorHeaps[] = { m_Device->GetD3D12DescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) };
 			m_Context->GetCommandCtx()->GetCmdList()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
