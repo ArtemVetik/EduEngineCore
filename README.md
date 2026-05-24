@@ -30,6 +30,8 @@ A high-performance, modern graphics engine built in C++ and DirectX 12, designed
 - **Volumetric Lighting** with shadow integration
 - **Reflection Probes** system (up to 16 probes with box-projected reflections)
 - **Skybox Rendering** with HDR support
+- **Atmospheric Scattering** with transmittance, multiscattering & sky-view LUTs and reflection cube
+- **FFT Ocean** with GPU IFFT simulation, up to 8 wave cascades, and adaptive tessellation
 - **Temporal Anti-Aliasing (TAA)** with motion vectors and history accumulation
 
 ---
@@ -93,6 +95,19 @@ A high-performance, modern graphics engine built in C++ and DirectX 12, designed
   
   <video src="https://github.com/user-attachments/assets/426c3b04-69ae-4e7d-b777-2fe3ad4414fd" controls width="600"></video>
 </details>
+
+- ### **FFT Ocean & Atmosphere**  
+  _Real-time FFT ocean with multi-cascade waves and physically based atmospheric sky rendering_  
+<table>
+  <tr>
+    <td><img src="docs/FFTOcean_01.png" width="350"/></td>
+    <td><img src="docs/FFTOcean_02.png" width="350"/></td>
+  </tr>
+  <tr>
+    <td><img src="docs/FFTOcean_03.png" width="350"/></td>
+    <td><img src="docs/FFTOcean_04.png" width="350"/></td>
+  </tr>
+</table>
 
 - ### **Mesh Shaders**  
   _Culling and dynamic LODs for efficient rendering of complex geometry_  
