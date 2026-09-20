@@ -20,7 +20,8 @@ namespace EduEngine
 
 	void AsyncComputeDemo::OnStartUp()
 	{
-		GetDevice()->GetD3D12Device()->SetStablePowerState(TRUE);
+		// Requires developer mode to be enabled in Windows Settings
+		//GetDevice()->GetD3D12Device()->SetStablePowerState(TRUE);
 
 		m_MaxParticles = 1000000;
 		m_PingPongCounter = 0;
