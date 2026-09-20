@@ -1,6 +1,7 @@
 #include "ReflectionProbe.h"
 
 #include <Asserts.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -16,8 +17,8 @@ namespace EduEngine
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
 		sDesc.ResourceNum = 0;
 
-		auto VS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ReflectionProbe.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto PS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ReflectionProbe.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		auto VS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ReflectionProbe.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto PS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ReflectionProbe.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
 		dss.DepthEnable = true;

@@ -1,5 +1,7 @@
 #include "Atmosphere.h"
 
+#include <ShaderCache.h>
+
 namespace EduEngine
 {
 	// TODO: Change naming style
@@ -65,9 +67,9 @@ namespace EduEngine
 		sDesc.ResourceDesc = resDesc;
 		sDesc.ResourceNum = _countof(resDesc);
 
-		auto computeMultiscatteringLUTCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\MultiscatteringLUT.hlsl", L"ComputeMultiscatteringLUT", L"cs_6_6", nullptr, sDesc);
-		auto computeSkyViewLUTCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\SkyViewLUT.hlsl", L"ComputeSkyViewLUT", L"cs_6_6", nullptr, sDesc);
-		auto computeTransmittanceLUTCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\TransmittanceLUT.hlsl", L"ComputeTransmittanceLUT", L"cs_6_6", nullptr, sDesc);
+		auto computeMultiscatteringLUTCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Atmosphere\\MultiscatteringLUT.hlsl", L"ComputeMultiscatteringLUT", L"cs_6_6", nullptr, sDesc);
+		auto computeSkyViewLUTCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Atmosphere\\SkyViewLUT.hlsl", L"ComputeSkyViewLUT", L"cs_6_6", nullptr, sDesc);
+		auto computeTransmittanceLUTCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Atmosphere\\TransmittanceLUT.hlsl", L"ComputeTransmittanceLUT", L"cs_6_6", nullptr, sDesc);
 
 		m_MultiscatteringLUTPso = std::make_unique<ComputePipelineState>(QueueId::Direct);
 		m_MultiscatteringLUTPso->SetShader(computeMultiscatteringLUTCS);
@@ -198,8 +200,8 @@ namespace EduEngine
 			dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 			dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 
-			auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\AtmosphereDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-			auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Atmosphere\\AtmosphereDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+			auto vs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Atmosphere\\AtmosphereDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+			auto ps = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Atmosphere\\AtmosphereDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
 
 			m_DrawPassBuffer = std::make_shared<DynamicUploadBuffer>(device);
 

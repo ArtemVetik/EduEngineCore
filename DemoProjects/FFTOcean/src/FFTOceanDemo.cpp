@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -55,8 +56,8 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(resDesc);
 		sDesc.ResourceDesc = resDesc;
 
-		auto vsPostProc = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto psPostProc = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		auto vsPostProc = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto psPostProc = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
 		dss.DepthEnable = FALSE;

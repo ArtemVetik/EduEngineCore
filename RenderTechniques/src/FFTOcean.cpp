@@ -3,6 +3,7 @@
 #include <cmath>
 #include <random>
 #include <SimpleMath.h>
+#include <ShaderCache.h>
 
 using namespace DirectX;
 
@@ -303,17 +304,17 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(resDesc);
 		sDesc.ResourceDesc = resDesc;
 
-		auto vsDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto hsDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Hull", L"hs_6_6", nullptr, sDesc);
-		auto dsDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Domain", L"ds_6_6", nullptr, sDesc);
-		auto psDraw = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		auto vsDraw = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto hsDraw = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Hull", L"hs_6_6", nullptr, sDesc);
+		auto dsDraw = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"Domain", L"ds_6_6", nullptr, sDesc);
+		auto psDraw = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\FFTOceanDraw.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
 
-		auto calculateInitialSpectrumTexturesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\InitialSpectrum.hlsl", L"CalculateInitialSpectrumTextures", L"cs_6_6", nullptr, sDesc);
-		auto calculateConjugatedInitialSpectrumTexturesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\InitialSpectrum.hlsl", L"CalculateConjugatedInitialSpectrumTextures", L"cs_6_6", nullptr, sDesc);
+		auto calculateInitialSpectrumTexturesCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\InitialSpectrum.hlsl", L"CalculateInitialSpectrumTextures", L"cs_6_6", nullptr, sDesc);
+		auto calculateConjugatedInitialSpectrumTexturesCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\InitialSpectrum.hlsl", L"CalculateConjugatedInitialSpectrumTextures", L"cs_6_6", nullptr, sDesc);
 
-		auto fillResultTexturesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\ResultTexturesFiller.hlsl", L"FillResultTextures", L"cs_6_6", nullptr, sDesc);
+		auto fillResultTexturesCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\ResultTexturesFiller.hlsl", L"FillResultTextures", L"cs_6_6", nullptr, sDesc);
 
-		auto calculateTimeDependentComplexAmplitudesAndDerivativesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\TimeDependentSpectrum.hlsl", L"CalculateTimeDependentComplexAmplitudesAndDerivatives", L"cs_6_6", nullptr, sDesc);
+		auto calculateTimeDependentComplexAmplitudesAndDerivativesCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\TimeDependentSpectrum.hlsl", L"CalculateTimeDependentComplexAmplitudesAndDerivatives", L"cs_6_6", nullptr, sDesc);
 
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(device);
 

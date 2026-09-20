@@ -1,6 +1,7 @@
 #include "TemporalAADemo.h"
 
 #include <DemoHelpers.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -58,13 +59,13 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(sRes);
 		sDesc.ResourceDesc = sRes;
 
-		auto drawVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Draw.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto drawPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Draw.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		auto drawVS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Draw.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto drawPS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Draw.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
 
-		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto fsQuadVS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
 
-		auto resolvePS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Resolve.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
-		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		auto resolvePS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Resolve.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		auto postProcPS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
 
 		D3D12_INPUT_ELEMENT_DESC inputLayout[]
 		{
@@ -113,8 +114,8 @@ namespace EduEngine
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		};
 
-		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SkyboxTAA.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto ps_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SkyboxTAA.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		auto vs_Skybox = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\SkyboxTAA.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto ps_Skybox = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\SkyboxTAA.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
 
 		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
 		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;

@@ -1,6 +1,7 @@
 #include "HZBGenerator.h"
 
 #include <SimpleMath.h>
+#include <ShaderCache.h>
 
 using namespace DirectX;
 
@@ -35,7 +36,7 @@ namespace EduEngine
 				NULL, NULL,
 			};
 
-			auto cs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\HZBGenerator.hlsl", L"CS", L"cs_6_6", macros, sDesc);
+			auto cs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\HZBGenerator.hlsl", L"CS", L"cs_6_6", macros, sDesc);
 
 			m_Pso[i].SetShader(cs);
 			m_Pso[i].Build(m_Device);

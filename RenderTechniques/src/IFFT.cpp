@@ -1,4 +1,5 @@
 #include "IFFT.h"
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -22,10 +23,10 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(resDesc);
 		sDesc.ResourceDesc = resDesc;
 
-		auto precomputeTwiddleFactorsAndInputIndicesCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\IFFT.hlsl", L"PrecomputeTwiddleFactorsAndInputIndices", L"cs_6_6", nullptr, sDesc);
-		auto horizontalStepIFFTCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\IFFT.hlsl", L"HorizontalStepIFFT", L"cs_6_6", nullptr, sDesc);
-		auto verticalStepIFFTCSW = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\IFFT.hlsl", L"VerticalStepIFFT", L"cs_6_6", nullptr, sDesc);
-		auto permuteCS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Water\\IFFT.hlsl", L"Permute", L"cs_6_6", nullptr, sDesc);
+		auto precomputeTwiddleFactorsAndInputIndicesCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\IFFT.hlsl", L"PrecomputeTwiddleFactorsAndInputIndices", L"cs_6_6", nullptr, sDesc);
+		auto horizontalStepIFFTCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\IFFT.hlsl", L"HorizontalStepIFFT", L"cs_6_6", nullptr, sDesc);
+		auto verticalStepIFFTCSW = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\IFFT.hlsl", L"VerticalStepIFFT", L"cs_6_6", nullptr, sDesc);
+		auto permuteCS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Water\\IFFT.hlsl", L"Permute", L"cs_6_6", nullptr, sDesc);
 
 		struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) FFTData
 		{

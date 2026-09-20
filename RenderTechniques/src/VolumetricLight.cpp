@@ -1,4 +1,5 @@
 #include "VolumetricLight.h"
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -9,8 +10,8 @@ namespace EduEngine
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
 		sDesc.ResourceNum = 0;
 
-		auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\VolumetricLight.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		auto vs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto ps = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VolumetricLight.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
 		dss.DepthEnable = false;

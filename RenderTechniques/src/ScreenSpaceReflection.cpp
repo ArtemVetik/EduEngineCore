@@ -1,6 +1,7 @@
 #include "ScreenSpaceReflection.h"
 
 #include <SimpleMath.h>
+#include <ShaderCache.h>
 
 using namespace DirectX;
 
@@ -248,7 +249,7 @@ namespace EduEngine
 		};
 
 		const wchar_t* pass = blurPso ? L"CS_Blur" : L"CS_Main";
-		auto cs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ScreenSpaceReflection.hlsl", pass, L"cs_6_6", macros, sDesc);
+		auto cs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ScreenSpaceReflection.hlsl", pass, L"cs_6_6", macros, sDesc);
 
 		auto pso = std::make_unique<ComputePipelineState>(QueueId::Direct);
 		pso->SetShader(cs);

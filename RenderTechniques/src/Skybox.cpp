@@ -1,6 +1,7 @@
 #include "Skybox.h"
 
 #include <stb_image.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -190,9 +191,9 @@ namespace EduEngine
 			NULL, NULL
 		};
 
-		auto vs_Skybox = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto ps_SkyboxLDR = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
-		auto ps_SkyboxHDR = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_6", macros, sDesc);
+		auto vs_Skybox = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Skybox.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto ps_SkyboxLDR = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_6", nullptr, sDesc);
+		auto ps_SkyboxHDR = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Skybox.hlsl", L"PS", L"ps_6_6", macros, sDesc);
 
 		m_SkyboxPassBuff = std::make_shared<DynamicUploadBuffer>(device);
 

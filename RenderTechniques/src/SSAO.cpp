@@ -4,6 +4,7 @@
 #include <array>
 #include <RandomUtils.h>
 #include <DirectXPackedVector.h>
+#include <ShaderCache.h>
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;
@@ -377,8 +378,8 @@ namespace EduEngine
 
 		const wchar_t* psEntry = blurPso ? L"PS_Blur" : L"PS_SSAO";
 
-		auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", L"VS", L"vs_6_6", defines, sDesc);
-		auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\SSAO.hlsl", psEntry, L"ps_6_6", defines, sDesc);
+		auto vs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\SSAO.hlsl", L"VS", L"vs_6_6", defines, sDesc);
+		auto ps = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\SSAO.hlsl", psEntry, L"ps_6_6", defines, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;

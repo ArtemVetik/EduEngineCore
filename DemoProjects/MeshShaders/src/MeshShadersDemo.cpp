@@ -3,6 +3,7 @@
 #include <InputManager.h>
 #include <fstream>
 #include <DemoHelpers.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -114,9 +115,9 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(res);
 		sDesc.ResourceDesc = res;
 
-		auto as = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\DrawMeshlet.hlsl", L"AS", L"as_6_5", nullptr, sDesc);
-		auto ms = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\DrawMeshlet.hlsl", L"MS", L"ms_6_5", nullptr, sDesc);
-		auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\DrawMeshlet.hlsl", L"PS", L"ps_6_5", nullptr, sDesc);
+		auto as = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\DrawMeshlet.hlsl", L"AS", L"as_6_5", nullptr, sDesc);
+		auto ms = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\DrawMeshlet.hlsl", L"MS", L"ms_6_5", nullptr, sDesc);
+		auto ps = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\DrawMeshlet.hlsl", L"PS", L"ps_6_5", nullptr, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dsDesc = {};
 		dsDesc.DepthEnable = true;

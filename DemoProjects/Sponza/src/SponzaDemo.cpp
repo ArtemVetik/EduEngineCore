@@ -2,6 +2,7 @@
 
 #include <DemoHelpers.h>
 #include <DirectXPackedVector.h>
+#include <ShaderCache.h>
 
 using namespace DirectX::PackedVector;
 
@@ -380,8 +381,8 @@ namespace EduEngine
 			NULL, NULL,
 		};
 
-		auto drawVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"VS", L"vs_6_6", macrosBuff, sDesc);
-		auto drawPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\GeometryPass.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
+		auto drawVS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\GeometryPass.hlsl", L"VS", L"vs_6_6", macrosBuff, sDesc);
+		auto drawPS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\GeometryPass.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
 
 		D3D12_INPUT_ELEMENT_DESC inputLayout[]
 		{
@@ -418,8 +419,8 @@ namespace EduEngine
 			NULL, NULL,
 		};
 
-		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", macrosBuff, sDesc);
-		auto postProcPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
+		auto fsQuadVS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto postProcPS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\PostProc.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;

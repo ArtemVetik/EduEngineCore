@@ -42,13 +42,17 @@ namespace EduEngine::EduBinding
 
 		m_Type = GetTypeFromTarget(target);
 
-		CComPtr<IDxcUtils> pUtils;
-		CComPtr<IDxcCompiler3> pCompiler;
-		DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&pUtils));
-		DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&pCompiler));
+		// DXC objects are not thread-safe, so every thread keeps its own instances
+		thread_local CComPtr<IDxcUtils> pUtils;
+		thread_local CComPtr<IDxcCompiler3> pCompiler;
+		thread_local CComPtr<IDxcIncludeHandler> pIncludeHandler;
 
-		CComPtr<IDxcIncludeHandler> pIncludeHandler;
-		pUtils->CreateDefaultIncludeHandler(&pIncludeHandler);
+		if (pUtils == nullptr)
+		{
+			DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&pUtils));
+			DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&pCompiler));
+			pUtils->CreateDefaultIncludeHandler(&pIncludeHandler);
+		}
 
 		std::vector<LPCWSTR> pszArgs =
 		{
@@ -59,7 +63,6 @@ namespace EduEngine::EduBinding
 			L"-Zi",
 			L"-Qembed_debug",
 #else
-			L"-Fo",
 			L"-O3",
 			L"-Qstrip_debug",
 #endif

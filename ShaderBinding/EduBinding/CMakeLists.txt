@@ -4,6 +4,7 @@ add_library(EduBinding STATIC
     src/PipelineStateBase.cpp
     src/RootSignature.cpp
     src/ShaderBinder.cpp
+    src/ShaderCache.cpp
     src/ShaderD3D12.cpp
     src/ShaderResources.cpp
     src/MeshPipelineState.cpp

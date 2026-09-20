@@ -2,6 +2,7 @@
 
 #include <DynamicUploadBuffer.h>
 #include <Asserts.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -19,7 +20,7 @@ namespace EduEngine
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
 		sDesc.ResourceNum = 0;
 
-		std::shared_ptr<ShaderD3D12> VS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ShadowPass.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		std::shared_ptr<ShaderD3D12> VS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ShadowPass.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
 
 		D3D12_INPUT_ELEMENT_DESC inputLayout[] // TODO: take into account only POSITION
 		{

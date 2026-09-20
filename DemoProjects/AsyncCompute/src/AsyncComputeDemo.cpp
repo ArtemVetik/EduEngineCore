@@ -2,6 +2,7 @@
 
 #include <InputManager.h>
 #include <DemoHelpers.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -40,11 +41,11 @@ namespace EduEngine
 		shaderDesc.ResourceDesc = resDesc;
 		shaderDesc.ResourceNum = _countof(resDesc);
 
-		auto csEmit = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ParticlesCS.hlsl", L"CS_Emit", L"cs_6_0", nullptr, shaderDesc);
-		auto csUpdate = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ParticlesCS.hlsl", L"CS_Update", L"cs_6_0", nullptr, shaderDesc);
-		auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ParticlesDraw.hlsl", L"VS", L"vs_6_0", nullptr, shaderDesc);
-		auto gs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ParticlesDraw.hlsl", L"GS", L"gs_6_0", nullptr, shaderDesc);
-		auto ps = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ParticlesDraw.hlsl", L"PS", L"ps_6_0", nullptr, shaderDesc);
+		auto csEmit = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ParticlesCS.hlsl", L"CS_Emit", L"cs_6_0", nullptr, shaderDesc);
+		auto csUpdate = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ParticlesCS.hlsl", L"CS_Update", L"cs_6_0", nullptr, shaderDesc);
+		auto vs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ParticlesDraw.hlsl", L"VS", L"vs_6_0", nullptr, shaderDesc);
+		auto gs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ParticlesDraw.hlsl", L"GS", L"gs_6_0", nullptr, shaderDesc);
+		auto ps = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ParticlesDraw.hlsl", L"PS", L"ps_6_0", nullptr, shaderDesc);
 
 		m_EmitPSO->SetShader(csEmit);
 		m_EmitPSO->Build(GetDevice());

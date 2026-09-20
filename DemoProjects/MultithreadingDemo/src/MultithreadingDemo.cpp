@@ -2,6 +2,7 @@
 
 #include <InputManager.h>
 #include <DemoHelpers.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -102,8 +103,8 @@ namespace EduEngine
 		sDesc.ResourceDesc = resDesc;
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
 
-		auto vertexShader = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Color.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
-		auto pixelShader = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Color.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
+		auto vertexShader = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Color.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto pixelShader = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Color.hlsl", L"PS", L"ps_6_0", nullptr, sDesc);
 
 		D3D12_INPUT_ELEMENT_DESC inputLayout[]
 		{

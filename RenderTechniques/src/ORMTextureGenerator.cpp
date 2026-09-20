@@ -2,6 +2,7 @@
 
 #include <Asserts.h>
 #include <SimpleMath.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -99,7 +100,7 @@ namespace EduEngine
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
 		sDesc.ResourceNum = 0;
 
-		auto cs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\ORMTextureGen.hlsl", L"CSMain", L"cs_6_6", nullptr, sDesc);
+		auto cs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\ORMTextureGen.hlsl", L"CSMain", L"cs_6_6", nullptr, sDesc);
 
 		auto pso = std::make_shared<ComputePipelineState>(m_QueueMask);
 		pso->SetShader(cs);

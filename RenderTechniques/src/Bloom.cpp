@@ -1,5 +1,7 @@
 #include "Bloom.h"
 
+#include <ShaderCache.h>
+
 namespace EduEngine
 {
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) ConstantsData
@@ -23,11 +25,11 @@ namespace EduEngine
 		sDesc.ResourceNum = _countof(resDesc);
 		sDesc.ResourceDesc = resDesc;
 
-		auto vs = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto psThreshold = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Bloom.hlsl", L"PSThreshold", L"ps_6_6", nullptr, sDesc);
-		auto psBlurH = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Bloom.hlsl", L"PSBlurH", L"ps_6_6", nullptr, sDesc);
-		auto psBlurV = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Bloom.hlsl", L"PSBlurV", L"ps_6_6", nullptr, sDesc);
-		auto psUpscale = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\Bloom.hlsl", L"PSUpscale", L"ps_6_6", nullptr, sDesc);
+		auto vs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto psThreshold = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Bloom.hlsl", L"PSThreshold", L"ps_6_6", nullptr, sDesc);
+		auto psBlurH = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Bloom.hlsl", L"PSBlurH", L"ps_6_6", nullptr, sDesc);
+		auto psBlurV = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Bloom.hlsl", L"PSBlurV", L"ps_6_6", nullptr, sDesc);
+		auto psUpscale = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\Bloom.hlsl", L"PSUpscale", L"ps_6_6", nullptr, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
 		dss.DepthEnable = false;

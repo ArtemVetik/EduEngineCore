@@ -3,6 +3,7 @@
 #include "Asserts.h"
 
 #include <SimpleMath.h>
+#include <ShaderCache.h>
 
 using namespace EduEngine::EduBinding;
 
@@ -23,11 +24,11 @@ namespace EduEngine
 		sDesc.DefaultType = SHADER_RESOURCE_TYPE_DYNAMIC;
 		sDesc.ResourceNum = 0;
 
-		auto vs_Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\IBL_Pass.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto ps_HDR2Cube = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_HDR2Cube", L"ps_6_6", nullptr, sDesc);
-		auto ps_GenIrradianceMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_GenIrradianceMap", L"ps_6_6", nullptr, sDesc);
-		auto ps_GenPrefilteredMap = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_GenPrefilteredMap", L"ps_6_6", nullptr, sDesc);
+		auto vs_Cube = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\IBL_Pass.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto vs_Plane = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto ps_HDR2Cube = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_HDR2Cube", L"ps_6_6", nullptr, sDesc);
+		auto ps_GenIrradianceMap = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_GenIrradianceMap", L"ps_6_6", nullptr, sDesc);
+		auto ps_GenPrefilteredMap = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_GenPrefilteredMap", L"ps_6_6", nullptr, sDesc);
 
 		std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout =
 		{
@@ -180,8 +181,8 @@ namespace EduEngine
 		dss.DepthEnable = false;
 		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
-		auto vs_Plane = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
-		auto ps_GenBrdfLut = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_GenBrdfLut", L"ps_6_6", nullptr, sDesc);
+		auto vs_Plane = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, sDesc);
+		auto ps_GenBrdfLut = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\IBL_Pass.hlsl", L"PS_GenBrdfLut", L"ps_6_6", nullptr, sDesc);
 
 		PipelineState psoGenBrdfLut;
 		psoGenBrdfLut.SetDepthStencilState(dss);

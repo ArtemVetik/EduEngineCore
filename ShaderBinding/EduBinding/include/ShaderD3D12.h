@@ -23,6 +23,9 @@ namespace EduEngine::EduBinding
 		EDU_SHADER_TYPE GetType() const { return m_Type; };
 		ShaderResources* GetResources() const { return m_Resources.get(); }
 
+		/// False if the compilation failed
+		bool IsValid() const { return m_ShaderBlob != nullptr && m_Resources != nullptr; }
+
 		D3D12_SHADER_BYTECODE GetShaderBytecode() const;
 
 #ifdef EDUBINDINGDEBUG

@@ -2,6 +2,7 @@
 
 #include <IBLRendering.h>
 #include <StringUtils.h>
+#include <ShaderCache.h>
 
 namespace EduEngine
 {
@@ -126,8 +127,8 @@ namespace EduEngine
 			NULL, NULL,
 		};
 
-		auto fsQuadVS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", macrosBuff, sDesc);
-		auto lightPS = std::make_shared<ShaderD3D12>(L"assets\\Shaders\\PBR_LightingDeferred.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
+		auto fsQuadVS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_0", nullptr, sDesc);
+		auto lightPS = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\PBR_LightingDeferred.hlsl", L"PS", L"ps_6_6", macrosBuff, sDesc);
 
 		D3D12_DEPTH_STENCIL_DESC dssOff = {};
 		dssOff.DepthEnable = false;
