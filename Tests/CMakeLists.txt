@@ -4,6 +4,7 @@ add_executable(EngineTests
     src/main.cpp
     src/TestAsserts.cpp
     src/ShaderCacheTests.cpp
+    src/ShaderResourcesTests.cpp
     src/VariableSizeMemoryAllocatorTests.cpp
 )
 
