@@ -31,7 +31,14 @@ namespace EduEngine
 	{
 	public:
 		static std::wstring GetHRError(HRESULT hr, const std::wstring& message, const std::wstring& functionName, const std::wstring& filename, int lineNumber);
+		typedef void (*AssertHandler)(const std::string& message, const std::string& functionName, const std::string& filename, int lineNumber);
+
 		static void AssertError(const std::string& message, const std::string& functionName, const std::string& filename, int lineNumber);
 		static std::string LogError(const std::string& message, const std::string& functionName, const std::string& filename, int lineNumber);
+
+		static AssertHandler SetAssertHandler(AssertHandler handler);
+
+	private:
+		static AssertHandler s_AssertHandler;
 	};
 }

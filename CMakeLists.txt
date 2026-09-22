@@ -33,3 +33,5 @@ add_subdirectory(ThirdParty/ImGui)
 add_subdirectory(ThirdParty/meshoptimizer)
 
 add_subdirectory(Tools/MeshletConverter)
+
+add_subdirectory(Tests)

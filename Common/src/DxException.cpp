@@ -13,8 +13,16 @@ namespace EduEngine
         return L"DX EXCEPTION: " + functionName + L" failed in " + filename + L"; line " + std::to_wstring(lineNumber) + L"; message: " + message + L". Error: " + msg + L"\n";
     }
 
+    DxException::AssertHandler DxException::s_AssertHandler = nullptr;
+
     void DxException::AssertError(const std::string& message, const std::string& functionName, const std::string& filename, int lineNumber)
     {
+        if (s_AssertHandler != nullptr)
+        {
+            s_AssertHandler(message, functionName, filename, lineNumber);
+            return;
+        }
+
         MsgStream mss;
         FormatMsg(mss, "Debug assertion failed in ", functionName, "(), file ", filename, ", line ", lineNumber, ":\n");
 
@@ -42,6 +50,13 @@ namespace EduEngine
 
         if (nCode == IDIGNORE)
             return;
+    }
+
+    DxException::AssertHandler DxException::SetAssertHandler(AssertHandler handler)
+    {
+        AssertHandler previous = s_AssertHandler;
+        s_AssertHandler = handler;
+        return previous;
     }
 
     std::string DxException::LogError(const std::string & message, const std::string & functionName, const std::string & filename, int lineNumber)
