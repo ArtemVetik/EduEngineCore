@@ -11,10 +11,5 @@ target_include_directories(Allocators
 
 target_compile_definitions(Allocators PUBLIC ALLOCATORS_DEBUG)
 
-add_test(
-    NAME AllocatorsTests
-    COMMAND Google_Tests_run
-)
-
 add_subdirectory(google-tests)
 add_subdirectory(benchmarks)

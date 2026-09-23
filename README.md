@@ -1,5 +1,7 @@
 # EduEngineCore
 
+[![CI](https://github.com/ArtemVetik/EduEngineCore/actions/workflows/ci.yml/badge.svg)](https://github.com/ArtemVetik/EduEngineCore/actions/workflows/ci.yml)
+
 A high-performance, modern graphics engine built in C++ and DirectX 12, designed for real-time rendering and experimentation with advanced rendering techniques.
 
 ---

@@ -16,18 +16,34 @@ target_link_libraries(EngineTests PRIVATE
     gtest
 )
 
-add_custom_command(TARGET EngineTests POST_BUILD
+# A fixed output directory, so that the asset target below can name it without
+# depending on the executable, which would make the two targets depend on each other
+set(TESTS_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
+set_target_properties(EngineTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${TESTS_OUTPUT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${TESTS_OUTPUT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${TESTS_OUTPUT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${TESTS_OUTPUT_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${TESTS_OUTPUT_DIR}"
+)
+
+# A separate target, so that editing a test shader alone is enough for the tests to see the change
+add_custom_target(EngineTestsAssets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_LIST_DIR}/assets"
-        "$<TARGET_FILE_DIR:EngineTests>/assets"
+        "${TESTS_OUTPUT_DIR}/assets"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${LIBS_ROOT}/lib/dxcompiler.dll"
         "${LIBS_ROOT}/lib/dxil.dll"
-        "$<TARGET_FILE_DIR:EngineTests>"
+        "${TESTS_OUTPUT_DIR}"
+    COMMENT "Copying assets for EngineTests"
 )
+
+add_dependencies(EngineTests EngineTestsAssets)
 
 add_test(
     NAME EngineTests
     COMMAND EngineTests
-    WORKING_DIRECTORY "$<TARGET_FILE_DIR:EngineTests>"
+    WORKING_DIRECTORY "${TESTS_OUTPUT_DIR}"
 )
