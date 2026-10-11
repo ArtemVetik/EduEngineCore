@@ -1,5 +1,4 @@
 #include "Mesh.h"
-#include "MeshData.h"
 
 #include <StringUtils.h>
 #include <filesystem>
@@ -42,6 +41,8 @@ namespace EduEngine
 			return;
 		}
 
+		VERIFY_EXPR(loadDesc.VertexInput != 0, "MeshLoadDesc::VertexInput can not be zero");
+
 		UINT flags = aiProcessPreset_TargetRealtime_Fast | aiProcess_ConvertToLeftHanded | aiProcess_PreTransformVertices;
 
 		if (loadDesc.Flags & MESH_LOAD_FLAG_GEN_BOUNDING_BOX)
@@ -60,50 +61,87 @@ namespace EduEngine
 
 		LoadMaterials(loadDesc);
 
-		for (uint32 i = 0; i < m_Scene->mNumMeshes; i++)
+		std::vector<BYTE> vertBuff;
+
+		for (uint32 mi = 0; mi < m_Scene->mNumMeshes; mi++)
 		{
-			aiMesh* mesh = m_Scene->mMeshes[i];
+			aiMesh* mesh = m_Scene->mMeshes[mi];
 			aiMaterial* material = m_Scene->mMaterials[mesh->mMaterialIndex];
 
 			float transmissionFactor = 0;
 			if (material->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmissionFactor) == AI_SUCCESS && transmissionFactor > 0)
-				m_TransmissionIndexes.push_back(i);
+				m_TransmissionIndexes.push_back(mi);
 			else
-				m_OpaqueIndexes.push_back(i);
+				m_OpaqueIndexes.push_back(mi);
 
 			if (loadDesc.Flags & MESH_LOAD_FLAG_LOAD_TEXTURES)
-				LoadPBRTextures(i, loadDesc);
+				LoadPBRTextures(mi, loadDesc);
 
-			MeshData meshData;
-			for (int i = 0; i < mesh->mNumVertices; i++)
+			uint32 vertexSize = 0;
+			UINT vertexInput = loadDesc.VertexInput;
+			UINT input = 1;
+
+			while (vertexInput != 0)
 			{
-				auto aiVertex = mesh->mVertices[i];
-				auto aiNormal = mesh->mNormals[i];
-				auto aiTangents = mesh->mTangents ? mesh->mTangents[i] : aiVector3D();
-				auto aiTexC = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][i] : aiVector3D();
+				if (loadDesc.VertexInput & input)
+					vertexSize += GetVertexInputSize((MESH_LOAD_VERTEX_INPUT)input);
 
-				meshData.Vertices.push_back(Vertex(
-					{ aiVertex.x, aiVertex.y, aiVertex.z },
-					{ aiNormal.x, aiNormal.y, aiNormal.z },
-					{ aiTangents.x, aiTangents.y, aiTangents.z },
-					{ aiTexC.x, aiTexC.y }
-				));
+				input <<= 1;
+				vertexInput >>= 1;
 			}
 
-			for (size_t i = 0; i < mesh->mNumFaces; i++)
+			vertBuff.resize(vertexSize * mesh->mNumVertices);
+			std::vector<uint32> indices32;
+
+			for (uint32 vi = 0; vi < mesh->mNumVertices; vi++)
 			{
-				for (size_t k = 0; k < mesh->mFaces[i].mNumIndices; k += 3)
+				uint32 offset = vi * vertexSize;
+				if (loadDesc.VertexInput & MESH_LOAD_VERTEX_INPUT_POSITION)
 				{
-					meshData.Indices32.push_back(mesh->mFaces[i].mIndices[k + 2]);
-					meshData.Indices32.push_back(mesh->mFaces[i].mIndices[k]);
-					meshData.Indices32.push_back(mesh->mFaces[i].mIndices[k + 1]);
+					auto aiVertex = mesh->mVertices[vi];
+					memcpy(vertBuff.data() + offset, &aiVertex, sizeof(aiVertex));
+					offset += sizeof(aiVertex);
+				}
+				if (loadDesc.VertexInput & MESH_LOAD_VERTEX_INPUT_NORMAL)
+				{
+					auto aiNormal = mesh->mNormals[vi];
+					memcpy(vertBuff.data() + offset, &aiNormal, sizeof(aiNormal));
+					offset += sizeof(aiNormal);
+				}
+				if (loadDesc.VertexInput & MESH_LOAD_VERTEX_INPUT_TANGENT)
+				{
+					auto aiTangents = mesh->mTangents ? mesh->mTangents[vi] : aiVector3D();
+					memcpy(vertBuff.data() + offset, &aiTangents, sizeof(aiTangents));
+					offset += sizeof(aiTangents);
+				}
+				if (loadDesc.VertexInput & MESH_LOAD_VERTEX_INPUT_TEXCOORD)
+				{
+					auto aiTexC = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][vi] : aiVector3D();
+					auto aiTexC2D = aiVector2D(aiTexC.x, aiTexC.y);
+					memcpy(vertBuff.data() + offset, &aiTexC2D, sizeof(aiTexC2D));
+					offset += sizeof(aiTexC2D);
+				}
+				if (loadDesc.VertexInput & MESH_LOAD_VERTEX_INPUT_COLOR)
+				{
+					auto aiColor = mesh->mColors[0] ? mesh->mColors[0][vi] : aiColor4D(1, 1, 1, 1);
+					memcpy(vertBuff.data() + offset, &aiColor, sizeof(aiColor));
 				}
 			}
 
-			m_VertexBuffers[i] = std::make_shared<VertexBufferD3D12>(m_Device, m_Context, meshData.Vertices.data(),
-				sizeof(Vertex), (UINT)meshData.Vertices.size());
-			m_IndexBuffers[i] = std::make_shared<IndexBufferD3D12>(m_Device, m_Context, meshData.GetIndices16().data(),
-				sizeof(uint16), (UINT)meshData.GetIndices16().size(), DXGI_FORMAT_R16_UINT);
+			for (size_t fi = 0; fi < mesh->mNumFaces; fi++)
+			{
+				for (size_t k = 0; k < mesh->mFaces[fi].mNumIndices; k += 3)
+				{
+					indices32.push_back(mesh->mFaces[fi].mIndices[k + 2]);
+					indices32.push_back(mesh->mFaces[fi].mIndices[k]);
+					indices32.push_back(mesh->mFaces[fi].mIndices[k + 1]);
+				}
+			}
+
+			m_VertexBuffers[mi] = std::make_shared<VertexBufferD3D12>(m_Device, m_Context, vertBuff.data(),
+				vertexSize, mesh->mNumVertices);
+			m_IndexBuffers[mi] = std::make_shared<IndexBufferD3D12>(m_Device, m_Context, indices32.data(),
+				sizeof(uint32), (UINT)indices32.size(), DXGI_FORMAT_R32_UINT);
 
 			if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_VERTEX_SRV)
 			{
@@ -111,10 +149,10 @@ namespace EduEngine
 				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 				srvDesc.Buffer.FirstElement = 0;
-				srvDesc.Buffer.NumElements = meshData.Vertices.size();
-				srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
+				srvDesc.Buffer.NumElements = mesh->mNumVertices;
+				srvDesc.Buffer.StructureByteStride = vertexSize;
 
-				m_VertexBuffers[i]->CreateSRV(&srvDesc);
+				m_VertexBuffers[mi]->CreateSRV(&srvDesc);
 			}
 
 			if (loadDesc.Flags & MESH_LOAD_FLAG_CREATE_INDEX_SRV)
@@ -123,10 +161,10 @@ namespace EduEngine
 				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 				srvDesc.Buffer.FirstElement = 0;
-				srvDesc.Buffer.NumElements = meshData.GetIndices16().size();
-				srvDesc.Buffer.StructureByteStride = sizeof(uint16);
+				srvDesc.Buffer.NumElements = indices32.size();
+				srvDesc.Buffer.StructureByteStride = sizeof(uint32);
 
-				m_IndexBuffers[i]->CreateSRV(&srvDesc);
+				m_IndexBuffers[mi]->CreateSRV(&srvDesc);
 			}
 		}
 
@@ -314,6 +352,24 @@ namespace EduEngine
 			{
 				CreateTexture(texPath, PBR_TEXTURE_TRANSMISSION);
 			}
+		}
+	}
+
+	uint32 Mesh::GetVertexInputSize(MESH_LOAD_VERTEX_INPUT input)
+	{
+		switch (input)
+		{
+		case EduEngine::MESH_LOAD_VERTEX_INPUT_COLOR:
+			return sizeof(float) * 4;
+		case EduEngine::MESH_LOAD_VERTEX_INPUT_POSITION:
+		case EduEngine::MESH_LOAD_VERTEX_INPUT_NORMAL:
+		case EduEngine::MESH_LOAD_VERTEX_INPUT_TANGENT:
+			return sizeof(float) * 3;
+		case EduEngine::MESH_LOAD_VERTEX_INPUT_TEXCOORD:
+			return sizeof(float) * 2;
+		default:
+			ASSERT_FAILED("MESH_LOAD_VERTEX_INPUT [", input ,"] does not exist");
+			return 0;
 		}
 	}
 }

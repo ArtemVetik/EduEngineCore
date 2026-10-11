@@ -13,25 +13,35 @@ namespace EduEngine
 {
 	enum MESH_LOAD_FLAGS : UINT
 	{
-		MESH_LOAD_FLAG_CREATE_VERTEX_SRV = 1 << 0,
-		MESH_LOAD_FLAG_CREATE_INDEX_SRV = 1 << 1,
-		MESH_LOAD_FLAG_GEN_BOUNDING_BOX = 1 << 2,
-		MESH_LOAD_FLAG_LOAD_TEXTURES = 1 << 3,
-		MESH_LOAD_FLAG_CPU_MATERIALS_SRV = 1 << 4,
+		MESH_LOAD_FLAG_CREATE_VERTEX_SRV	= 1 << 0,
+		MESH_LOAD_FLAG_CREATE_INDEX_SRV		= 1 << 1,
+		MESH_LOAD_FLAG_GEN_BOUNDING_BOX		= 1 << 2,
+		MESH_LOAD_FLAG_LOAD_TEXTURES		= 1 << 3,
+		MESH_LOAD_FLAG_CPU_MATERIALS_SRV	= 1 << 4,
 	};
 
 	enum PBR_TEXTURE_TYPE : UINT
 	{
-		PBR_TEXTURE_BASE_COLOR = 0,
-		PBR_TEXTURE_NORMAL_MAP = 1,
-		PBR_TEXTURE_ORM = 2,
-		PBR_TEXTURE_TRANSMISSION = 3,
-		PBR_TEXTURE_NUM = 4,
+		PBR_TEXTURE_BASE_COLOR		= 0,
+		PBR_TEXTURE_NORMAL_MAP		= 1,
+		PBR_TEXTURE_ORM				= 2,
+		PBR_TEXTURE_TRANSMISSION	= 3,
+		PBR_TEXTURE_NUM				= 4,
+	};
+
+	enum MESH_LOAD_VERTEX_INPUT : UINT
+	{
+		MESH_LOAD_VERTEX_INPUT_POSITION = 1 << 0,
+		MESH_LOAD_VERTEX_INPUT_NORMAL	= 1 << 1,
+		MESH_LOAD_VERTEX_INPUT_TANGENT	= 1 << 2,
+		MESH_LOAD_VERTEX_INPUT_TEXCOORD = 1 << 3,
+		MESH_LOAD_VERTEX_INPUT_COLOR	= 1 << 4,
 	};
 
 	struct MeshLoadDesc
 	{
 		UINT Flags = 0;
+		UINT VertexInput = MESH_LOAD_VERTEX_INPUT_POSITION | MESH_LOAD_VERTEX_INPUT_NORMAL | MESH_LOAD_VERTEX_INPUT_TANGENT | MESH_LOAD_VERTEX_INPUT_TEXCOORD;
 		TextureLoadDesc TextureLoadDesc = {};
 		const char* TextureBasePath = nullptr;
 		const char* TextureExt = nullptr;
@@ -83,6 +93,7 @@ namespace EduEngine
 	private:
 		void LoadMaterials(const MeshLoadDesc& loadDesc);
 		void LoadPBRTextures(uint32 meshIdx, const MeshLoadDesc& loadDesc);
+		uint32 GetVertexInputSize(MESH_LOAD_VERTEX_INPUT input);
 
 	private:
 		RenderDeviceD3D12* m_Device;
