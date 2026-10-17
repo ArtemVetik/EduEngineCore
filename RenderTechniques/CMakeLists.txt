@@ -23,6 +23,7 @@ add_library(RenderTechniques STATIC
     src/IFFT.cpp
     src/Atmosphere.cpp
     src/MeshGenerator.cpp
+    src/VirtualShadowMap.cpp
 )
 
 target_include_directories(RenderTechniques
