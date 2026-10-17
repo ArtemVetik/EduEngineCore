@@ -64,11 +64,18 @@ VertexOut VS(VertexIn vIn)
 
 PSOut PS(VertexOut vOut)
 {
-    Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
-    
     PSOut psOut;
-    psOut.Albedo = albedoTex.Sample(gsamLinearWrap, vOut.TexC);
-    
+
+    if (gAlbedoTexIdx != -1)
+    {
+        Texture2D albedoTex = ResourceDescriptorHeap[gAlbedoTexIdx];
+        psOut.Albedo = albedoTex.Sample(gsamLinearWrap, vOut.TexC);
+    }
+    else
+    {
+        psOut.Albedo = float4(0.8f, 0.8f, 0.8f, 1.0f);
+    }
+
     clip(psOut.Albedo.a - 0.1f);
     
     vOut.NormalW = normalize(vOut.NormalW);
