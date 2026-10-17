@@ -79,11 +79,7 @@ namespace EduEngine
 			swprintf(bufferName, 32, L"AccumulationBuffer-%d", i);
 			m_AccumBuffer[i]->SetName(bufferName);
 
-			commandContext->ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Transition(
-				m_AccumBuffer[i]->GetD3D12Resource(),
-				D3D12_RESOURCE_STATE_COMMON,
-				D3D12_RESOURCE_STATE_RENDER_TARGET
-			));
+			commandContext->TransitionResource(m_AccumBuffer[i].get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 	}
 
