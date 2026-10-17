@@ -9,7 +9,7 @@ namespace EduEngine::EduBinding
 	public:
 		PipelineState();
 
-		void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology);
+		void SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology, bool strip = false);
 		void SetBlendState(D3D12_BLEND_DESC blendState);
 		void SetRTBlendState(int rtIndex, D3D12_RENDER_TARGET_BLEND_DESC blendState);
 		void SetInputLayout(D3D12_INPUT_LAYOUT_DESC inputLayout);

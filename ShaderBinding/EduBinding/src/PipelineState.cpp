@@ -23,7 +23,7 @@ namespace EduEngine::EduBinding
 		m_Topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	}
 
-	void PipelineState::SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology)
+	void PipelineState::SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology, bool strip)
 	{
 		m_Desc.PrimitiveTopologyType = topology;
 
@@ -33,10 +33,10 @@ namespace EduEngine::EduBinding
 			m_Topology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
 			break;
 		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE:
-			m_Topology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+			m_Topology = strip ? D3D_PRIMITIVE_TOPOLOGY_LINESTRIP : D3D_PRIMITIVE_TOPOLOGY_LINELIST;
 			break;
 		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE:
-			m_Topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			m_Topology = strip ? D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP : D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			break;
 		case D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH:
 			m_Topology = D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST;
