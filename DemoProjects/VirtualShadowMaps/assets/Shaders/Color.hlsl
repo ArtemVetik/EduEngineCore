@@ -14,6 +14,8 @@ cbuffer cbPass : register(b1)
 {
     float4x4 gViewProj;
     float3 gLightDirection;
+    float gAmbientStrength;
+    float3 gLightColor;
 }
 
 cbuffer cbBuffers : register(b2)
@@ -85,10 +87,10 @@ float4 PS_Lighting(VertexOutFS vOut) : SV_TARGET
     float3 L = normalize(-gLightDirection);
     float3 N = normalize(normalTex.Sample(gsamPointClamp, vOut.TexC).xyz);
     
-    float4 ambient = 0.3f * albedo;
+    float4 ambient = gAmbientStrength * albedo;
     float shadowFactor = shadowMask.Sample(gsamPointClamp, vOut.TexC);
-    
-    float4 color = ambient + albedo * saturate(dot(N, L)) * shadowFactor;
+
+    float4 color = ambient + albedo * float4(gLightColor, 1) * saturate(dot(N, L)) * shadowFactor;
     
     return color;
 }

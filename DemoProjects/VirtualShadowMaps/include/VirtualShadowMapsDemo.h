@@ -22,6 +22,10 @@ namespace EduEngine
 		void OnResize() override;
 
 	private:
+		void RenderImGui();
+		void UpdateLightDirection();
+
+	private:
 		std::shared_ptr<Mesh> m_Mesh;
 
 		PipelineState m_GeometryPso;
@@ -43,6 +47,10 @@ namespace EduEngine
 		DescriptorHeapAllocation m_GpuSSDepth;
 
 		Light m_Light;
+		float m_SunAzimuthDegrees = 45.0f;
+		float m_SunElevationDegrees = 70.5f;
+		float m_AmbientStrength = 0.3f;
+
 		RenderObject m_RenderObjects[1];
 	};
 }

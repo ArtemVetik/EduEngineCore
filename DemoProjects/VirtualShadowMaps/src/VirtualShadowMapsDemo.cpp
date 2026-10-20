@@ -120,6 +120,13 @@ namespace EduEngine
 		m_VSM = std::make_unique<VirtualShadowMap>(GetDevice(), GetMainContext());
 		m_VSM->BuildCommandSignature(GetDevice(), GetMainContext(), m_RenderObjects, 1);
 
+		//
+		// Setup light
+		//
+		m_Light.Color = { 1.0f, 1.0f, 1.0f };
+		m_Light.Strength = 1.0f;
+		UpdateLightDirection();
+
 		OnResize();
 	}
 
@@ -131,10 +138,18 @@ namespace EduEngine
 		{
 			XMFLOAT4X4 ViewProj;
 			XMFLOAT3 LightDirection;
+			float AmbientStrength;
+			XMFLOAT3 LightColor;
 		} passData;
 
 		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
 		passData.LightDirection = m_Light.Direction;
+		passData.AmbientStrength = m_AmbientStrength;
+		passData.LightColor = {
+			m_Light.Color.x * m_Light.Strength,
+			m_Light.Color.y * m_Light.Strength,
+			m_Light.Color.z * m_Light.Strength
+		};
 
 		m_PassBuffer->LoadData(GetMainContext(), passData);
 
@@ -238,7 +253,56 @@ namespace EduEngine
 			ctx->GetCmdList()->DrawInstanced(3, 1, 0, 0);
 		}
 
+		RenderImGui();
+
 		ctx->TransitionResource(GetSwapChain()->GetDepthStencilTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	}
+
+	void VirtualShadowMapsDemo::RenderImGui()
+	{
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::SetNextWindowPos({ 10, 10 }, ImGuiCond_FirstUseEver);
+		ImGui::Begin("Light Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+		ImGui::SeparatorText("Direction");
+		{
+			bool dirChanged = false;
+
+			dirChanged |= ImGui::SliderFloat("Azimuth (deg)", &m_SunAzimuthDegrees, 0.0f, 360.0f, "%.1f");
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Horizontal angle: 0 deg = +X, 90 deg = +Z (Y is up).");
+
+			dirChanged |= ImGui::SliderFloat("Elevation (deg)", &m_SunElevationDegrees, 1.0f, 90.0f, "%.1f");
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Angle above horizon: 0 at horizon, 90 at zenith.");
+
+			if (dirChanged)
+				UpdateLightDirection();
+
+			ImGui::TextDisabled("Light direction: %.3f, %.3f, %.3f", m_Light.Direction.x, m_Light.Direction.y, m_Light.Direction.z);
+		}
+
+		ImGui::SeparatorText("Intensity");
+		ImGui::ColorEdit3("Color", &m_Light.Color.x);
+		ImGui::SliderFloat("Strength", &m_Light.Strength, 0.0f, 10.0f, "%.2f");
+		ImGui::SliderFloat("Ambient", &m_AmbientStrength, 0.0f, 1.0f, "%.2f");
+
+		ImGui::End();
+
+		ImGui::Render();
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), GetMainContext()->GetCommandCtx()->GetCmdList());
+	}
+
+	void VirtualShadowMapsDemo::UpdateLightDirection()
+	{
+		const float azimuth = XMConvertToRadians(m_SunAzimuthDegrees);
+		const float elevation = XMConvertToRadians(m_SunElevationDegrees);
+
+		XMVECTOR toSun = XMVectorSet(cosf(elevation) * cosf(azimuth), sinf(elevation), cosf(elevation) * sinf(azimuth), 0.0f);
+		XMStoreFloat3(&m_Light.Direction, XMVectorNegate(XMVector3Normalize(toSun)));
 	}
 
 	void VirtualShadowMapsDemo::OnResize()
