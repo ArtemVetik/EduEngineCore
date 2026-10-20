@@ -17,17 +17,16 @@ namespace EduEngine
 {
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) CbBuffers
 	{
-		UINT PhysPool;
 		UINT PhysMeta;
+		UINT PageRequest;
 		UINT PageTable;
-		UINT FreeList;
 		UINT RenderList;
 		UINT RenderCount;
-		UINT AllocCount;
 		UINT SSDepthTexture;
 		UINT QuadDrawArgs;
 		UINT DrawArgs;
 		UINT DrawCount;
+		UINT PhysPool;
 	};
 
 	class VirtualShadowMap
@@ -49,20 +48,24 @@ namespace EduEngine
 		static constexpr uint32 POOL_SIZE = 64;
 
 	private:
-		ComputePipelineState m_ClearPso;
-		std::shared_ptr<ShaderBinder> m_ClearBinder;
-		
-		ComputePipelineState m_UpdatePso;
-		std::shared_ptr<ShaderBinder> m_UpdateBinder;
+		struct CSPso
+		{
+			ComputePipelineState PSO;
+			std::shared_ptr<ShaderBinder> Binder;
 
-		ComputePipelineState m_MarkPso;
-		std::shared_ptr<ShaderBinder> m_MarkBinder;
+			CSPso(QueueId queueId = QueueId::Direct) :
+				PSO(queueId)
+			{ }
+		};
 
-		ComputePipelineState m_AllocatePso;
-		std::shared_ptr<ShaderBinder> m_AllocateBinder;
-
-		ComputePipelineState m_DrawArgsPso;
-		std::shared_ptr<ShaderBinder> m_DrawArgsBinder;
+		CSPso m_ClearPso;
+		CSPso m_RemapPso;
+		CSPso m_MarkPso;
+		CSPso m_UpdatePso;
+		CSPso m_PackPso;
+		CSPso m_AllocatePso;
+		CSPso m_FinalizePso;
+		CSPso m_DrawArgsPso;
 
 		PipelineState m_ClearSlotsPso;
 		std::shared_ptr<ShaderBinder> m_ClearSlotsBinder;
@@ -75,15 +78,15 @@ namespace EduEngine
 
 		std::shared_ptr<TextureD3D12> m_PhysPool;
 		std::shared_ptr<BufferD3D12> m_PhysMeta;
+		std::shared_ptr<TextureD3D12> m_PageRequest;
 		std::shared_ptr<TextureD3D12> m_PageTable;
-		std::shared_ptr<BufferD3D12> m_FreeList;
+		std::shared_ptr<BufferD3D12> m_PageLists[2];
 		std::shared_ptr<BufferD3D12> m_RenderList;
 		std::shared_ptr<BufferD3D12> m_RenderCount;
-		std::shared_ptr<BufferD3D12> m_AllocCount;
+
 		std::shared_ptr<BufferD3D12> m_QuadDrawArgs;
 		std::shared_ptr<BufferD3D12> m_DrawArgs;
 		std::shared_ptr<TextureD3D12> m_ShadowMask;
-		
 		
 		std::shared_ptr<BufferD3D12> m_ConstantsBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
@@ -97,5 +100,7 @@ namespace EduEngine
 		XMINT2 m_PrevPage;
 		XMFLOAT3 m_PrevLightDir;
 		UINT m_Frame;
+		UINT m_CurListIdx;
+		UINT m_PrevListIdx;
 	};
 }

@@ -118,11 +118,6 @@ namespace EduEngine
 	}
 
 	VirtualShadowMap::VirtualShadowMap(RenderDeviceD3D12* device, DeviceContext* context) :
-		m_ClearPso(QueueId::Direct),
-		m_UpdatePso(QueueId::Direct),
-		m_MarkPso(QueueId::Direct),
-		m_AllocatePso(QueueId::Direct),
-		m_DrawArgsPso(QueueId::Direct),
 		m_Frame(0)
 	{
 		VSM::CreateBuffer(device, context, m_ConstantsBuffer, 1, sizeof(CbBuffers), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE,
@@ -152,6 +147,13 @@ namespace EduEngine
 		VSM::CreateBuffer(device, context, m_PhysMeta, POOL_SIZE * POOL_SIZE, sizeof(PhysMetaEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PhysMeta");
 
+		VSM::CreateTexture(device, m_PageRequest, PAGES_XY, PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ false, DXGI_FORMAT_UNKNOWN },	// clear
+			{ false, DXGI_FORMAT_UNKNOWN }, // srv
+			{ false, DXGI_FORMAT_UNKNOWN },	// dsv
+			{ true, DXGI_FORMAT_R32_UINT },	// uav
+			L"m_PageRequest");
+
 		VSM::CreateTexture(device, m_PageTable, PAGES_XY, PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ false, DXGI_FORMAT_UNKNOWN },	// clear
 			{ false, DXGI_FORMAT_UNKNOWN }, // srv
@@ -159,8 +161,11 @@ namespace EduEngine
 			{ true, DXGI_FORMAT_R32_UINT },	// uav
 			L"m_PageTable");
 
-		VSM::CreateBuffer(device, context, m_FreeList, POOL_SIZE * POOL_SIZE + 1, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_FreeList");
+		VSM::CreateBuffer(device, context, m_PageLists[0], 4 * (POOL_SIZE * POOL_SIZE + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PageLists[0]");
+
+		VSM::CreateBuffer(device, context, m_PageLists[1], 4 * (POOL_SIZE * POOL_SIZE + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PageLists[1]");
 
 		VSM::CreateBuffer(device, context, m_RenderList, POOL_SIZE * POOL_SIZE, sizeof(RenderListEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_RenderList");
@@ -168,18 +173,14 @@ namespace EduEngine
 		VSM::CreateBuffer(device, context, m_RenderCount, 1, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_RenderCount");
 
-		VSM::CreateBuffer(device, context, m_AllocCount, 1, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_AllocCount");
-
 		context->GetCommandCtx()->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-		m_CbBuffers.PhysPool = m_PhysPool->GetSRVView()->GetGpuHeapIndex();
 		m_CbBuffers.PhysMeta = m_PhysMeta->GetUAVView()->GetGpuHeapIndex();
+		m_CbBuffers.PageRequest = m_PageRequest->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PageTable = m_PageTable->GetUAVView()->GetGpuHeapIndex();
-		m_CbBuffers.FreeList = m_FreeList->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.RenderList = m_RenderList->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.RenderCount = m_RenderCount->GetUAVView()->GetGpuHeapIndex();
-		m_CbBuffers.AllocCount = m_AllocCount->GetUAVView()->GetGpuHeapIndex();
+		m_CbBuffers.PhysPool = m_PhysPool->GetSRVView()->GetGpuHeapIndex();
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(device);
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(device);
@@ -195,55 +196,36 @@ namespace EduEngine
 		shaderDesc.ResourceDesc = resDesc;
 		shaderDesc.ResourceNum = _countof(resDesc);
 
-		auto csClear = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"CS_Clear", L"cs_6_6", nullptr, shaderDesc);
-		auto csUpdatePhysicalPages = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"CS_UpdatePhysicalPages", L"cs_6_6", nullptr, shaderDesc);
-		auto csMark = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"CS_Mark", L"cs_6_6", nullptr, shaderDesc);
-		auto csAllocate = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"CS_Allocate", L"cs_6_6", nullptr, shaderDesc);
-		auto csDrawArgs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"CS_DrawArgs", L"cs_6_6", nullptr, shaderDesc);
-		
 		auto vsClearSlots = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"VS_ClearSlots", L"vs_6_6", nullptr, shaderDesc);
 		auto vsGeometry = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"VS_Geometry", L"vs_6_6", nullptr, shaderDesc);
 		auto vsFSQuad = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, shaderDesc);
-		
 		auto psDrawShadow = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"PS_DrawShadow", L"ps_6_6", nullptr, shaderDesc);
 
-		m_ClearPso.SetShader(csClear);
-		m_ClearPso.Build(device);
-		m_ClearPso.SetName(L"m_ClearPso");
+		UINT CS_BIND_PASS = 1 << 0;
+		UINT CS_BIND_BUFFERS = 1 << 1;
 
-		m_ClearBinder = m_ClearPso.CreateShaderBinder();
-		m_ClearBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbBuffers", m_ConstantsBuffer);
+		auto CreateCSPso = [&](CSPso& pso, const wchar_t* csEntry, const wchar_t* name, UINT bindRes = 0)
+			{
+				auto cs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", csEntry, L"cs_6_6", nullptr, shaderDesc);
+				pso.PSO.SetShader(cs);
+				pso.PSO.Build(device);
+				pso.PSO.SetName(name);
 
-		m_UpdatePso.SetShader(csUpdatePhysicalPages);
-		m_UpdatePso.Build(device);
-		m_UpdatePso.SetName(L"m_UpdatePso");
+				pso.Binder = pso.PSO.CreateShaderBinder();
+				if (bindRes & CS_BIND_PASS)
+					pso.Binder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
+				if (bindRes & CS_BIND_BUFFERS)
+					pso.Binder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbBuffers", m_ConstantsBuffer);
+			};
 
-		m_UpdateBinder = m_UpdatePso.CreateShaderBinder();
-		m_UpdateBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
-		m_UpdateBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbBuffers", m_ConstantsBuffer);
-
-		m_MarkPso.SetShader(csMark);
-		m_MarkPso.Build(device);
-		m_MarkPso.SetName(L"m_MarkPso");
-
-		m_MarkBinder = m_MarkPso.CreateShaderBinder();
-		m_MarkBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
-		m_MarkBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbBuffers", m_ConstantsBuffer);
-
-		m_AllocatePso.SetShader(csAllocate);
-		m_AllocatePso.Build(device);
-		m_AllocatePso.SetName(L"m_AllocatePso");
-
-		m_AllocateBinder = m_AllocatePso.CreateShaderBinder();
-		m_AllocateBinder->BindDynamicResource(EDU_SHADER_TYPE_COMPUTE, "cbPass", m_PassBuffer);
-		m_AllocateBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbBuffers", m_ConstantsBuffer);
-
-		m_DrawArgsPso.SetShader(csDrawArgs);
-		m_DrawArgsPso.Build(device);
-		m_DrawArgsPso.SetName(L"m_DrawArgsPso");
-
-		m_DrawArgsBinder = m_DrawArgsPso.CreateShaderBinder();
-		m_DrawArgsBinder->BindResource(EDU_SHADER_TYPE_COMPUTE, "cbBuffers", m_ConstantsBuffer);
+		CreateCSPso(m_ClearPso, L"CS_Clear", L"m_ClearPso", CS_BIND_PASS | CS_BIND_BUFFERS);
+		CreateCSPso(m_RemapPso, L"CS_RemapPhysicalPages", L"m_RemapPso", CS_BIND_PASS | CS_BIND_BUFFERS);
+		CreateCSPso(m_MarkPso, L"CS_Mark", L"m_MarkPso", CS_BIND_PASS | CS_BIND_BUFFERS);
+		CreateCSPso(m_UpdatePso, L"CS_UpdatePhysicalPages", L"m_UpdatePso", CS_BIND_PASS | CS_BIND_BUFFERS);
+		CreateCSPso(m_PackPso, L"CS_PackAvailablePages", L"m_PackPso", CS_BIND_PASS);
+		CreateCSPso(m_AllocatePso, L"CS_Allocate", L"m_AllocatePso", CS_BIND_PASS | CS_BIND_BUFFERS);
+		CreateCSPso(m_FinalizePso, L"CS_FinalizeLists", L"m_FinalizePso", CS_BIND_PASS);
+		CreateCSPso(m_DrawArgsPso, L"CS_DrawArgs", L"m_DrawArgsPso", CS_BIND_BUFFERS);
 
 		D3D12_INPUT_ELEMENT_DESC inputLayout[] // TODO: take into account only POSITION
 		{
@@ -445,6 +427,9 @@ namespace EduEngine
 			UINT Frame;
 			UINT InvalidateAll;
 			XMINT2 WindowOriginPage;
+			UINT CurList;
+			UINT PrevList;
+			UINT HasHistory;
 		} passData;
 
 		XMMATRIX ligthView;
@@ -511,9 +496,15 @@ namespace EduEngine
 
 		bool lightRotChanged = memcmp(&m_PrevLightDir, &(light->Direction), sizeof(XMFLOAT3));
 
+		m_CurListIdx = m_Frame & 1;
+		m_PrevListIdx = m_CurListIdx ^ 1;
+
 		passData.ScreenSize = m_ScreenSize;
 		passData.Frame = m_Frame;
 		passData.InvalidateAll = (m_Frame == 0) || lightRotChanged;
+		passData.CurList = m_PageLists[m_CurListIdx]->GetUAVView()->GetGpuHeapIndex();
+		passData.PrevList = m_PageLists[m_PrevListIdx]->GetUAVView()->GetGpuHeapIndex();
+		passData.HasHistory = m_Frame > 0;
 
 		m_PassBuffer->LoadData(context, passData);
 
@@ -531,53 +522,78 @@ namespace EduEngine
 		auto* cmd = ctx->GetCmdList();
 
 		ctx->TransitionResource(m_PhysMeta.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_PageRequest.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PageTable.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		ctx->TransitionResource(m_FreeList.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_PageLists[0].get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_PageLists[1].get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_RenderList.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_RenderCount.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		ctx->TransitionResource(m_AllocCount.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_DrawArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_QuadDrawArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->FlushResourceBarriers();
 
-		// Clear
+		// CS_Clear
 		{
 			UINT groupCount = static_cast<UINT>(ceil(PAGES_XY / 8.0f));
-			m_ClearPso.BeginPSOAndCommitResources(context, m_ClearBinder.get());
+			m_ClearPso.PSO.BeginPSOAndCommitResources(context, m_ClearPso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount, 1);
 		}
 
-		ctx->InsertUAVBarrier(m_PageTable.get());
-		ctx->InsertUAVBarrier(m_FreeList.get(), true);
-
-		// UpdateMeta
+		// CS_RemapPhysicalPages
 		{
 			UINT groupCount = static_cast<UINT>(ceil(POOL_SIZE * POOL_SIZE / 32.0f));
-			m_UpdatePso.BeginPSOAndCommitResources(context, m_UpdateBinder.get());
+			m_RemapPso.PSO.BeginPSOAndCommitResources(context, m_RemapPso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, 1, 1);
 		}
 
-		ctx->InsertUAVBarrier(m_PageTable.get(), true);
+		ctx->InsertUAVBarrier(m_PageRequest.get(), true);
 
-		// Mark
+		// CS_Mark
 		{
 			UINT groupCountX = static_cast<UINT>(ceil(m_ScreenSize.x / 8.0f));
 			UINT groupCountY = static_cast<UINT>(ceil(m_ScreenSize.y / 8.0f));
-			m_MarkPso.BeginPSOAndCommitResources(context, m_MarkBinder.get());
+			m_MarkPso.PSO.BeginPSOAndCommitResources(context, m_MarkPso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCountX, groupCountY, 1);
 		}
 
-		ctx->InsertUAVBarrier(m_AllocCount.get());
-		ctx->InsertUAVBarrier(m_FreeList.get());
+		ctx->InsertUAVBarrier(m_PageLists[m_CurListIdx].get());
 		ctx->InsertUAVBarrier(m_PhysMeta.get());
-		ctx->InsertUAVBarrier(m_RenderCount.get());
+		ctx->InsertUAVBarrier(m_PageRequest.get());
 		ctx->InsertUAVBarrier(m_PageTable.get(), true);
 
-		// Allocate
+		// CS_UpdatePhysicalPages
+		{
+			UINT groupCount = static_cast<UINT>(ceil(POOL_SIZE * POOL_SIZE / 32.0f));
+			m_UpdatePso.PSO.BeginPSOAndCommitResources(context, m_UpdatePso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, 1, 1);
+		}
+
+		ctx->InsertUAVBarrier(m_PageLists[m_CurListIdx].get(), true);
+
+		// CS_PackAvailablePages
+		{
+			m_PackPso.PSO.BeginPSOAndCommitResources(context, m_PackPso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(1, 1, 1);
+		}
+
+		ctx->InsertUAVBarrier(m_PageLists[m_CurListIdx].get());
+		ctx->InsertUAVBarrier(m_RenderCount.get());
+		ctx->InsertUAVBarrier(m_PhysMeta.get());
+		ctx->InsertUAVBarrier(m_PageTable.get(), true);
+
+		// CS_Allocate
 		{
 			UINT groupCount = static_cast<UINT>(ceil(PAGES_XY / 8.0f));
-			m_AllocatePso.BeginPSOAndCommitResources(context, m_AllocateBinder.get());
+			m_AllocatePso.PSO.BeginPSOAndCommitResources(context, m_AllocatePso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount, 1);
+		}
+
+		ctx->InsertUAVBarrier(m_PageLists[m_CurListIdx].get(), true);
+
+		// CS_FinalizeLists
+		{
+			m_FinalizePso.PSO.BeginPSOAndCommitResources(context, m_FinalizePso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(1, 1, 1);
 		}
 
 		ctx->InsertUAVBarrier(m_RenderList.get());
@@ -586,7 +602,7 @@ namespace EduEngine
 		// DrawArgs
 		{
 			UINT groupCount = static_cast<UINT>(ceil(m_CbBuffers.DrawCount / 32.0f));
-			m_DrawArgsPso.BeginPSOAndCommitResources(context, m_DrawArgsBinder.get());
+			m_DrawArgsPso.PSO.BeginPSOAndCommitResources(context, m_DrawArgsPso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, 1, 1);
 		}
 		
