@@ -1,5 +1,6 @@
 #include "CommonTransforms.hlsli"
 #include "VirtualShadowMap.hlsli"
+#include "VirtualShadowMapDebug.hlsli"
 
 #define PACK_GROUP_SIZE 1024
 
@@ -30,6 +31,7 @@ cbuffer cbPass : register(b1)
     uint gCurList;  // UAV heap undex
     uint gPrevList; // UAV heap undex
     uint gHasHistory;
+    uint gDebugMode;
 }
 
 cbuffer cbBuffers : register(b2)
@@ -413,4 +415,41 @@ float PS_DrawShadow(VertexOut pin) : SV_Target
     p.Bias = 0.0f;
     
     return VSM_ShadowFactor(p, worldPos.xyz);
+}
+
+float4 PS_DrawDebug(VertexOut pin) : SV_Target
+{
+    Texture2D depthTex = ResourceDescriptorHeap[gSSDepthTexture];
+    
+    float depth = depthTex.Sample(gsamPointClamp, pin.TexC).r;
+    
+    if (depth <= 0.0)
+        return 0;
+    
+    float4 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView);
+    
+    VSMParams p;
+    p.LightViewProj = gLightViewProj;
+    p.PageTable = gPageTable;
+    p.PhysPool = gPhysPool;
+    p.Bias = 0.0f;
+    
+    VSMAddress a = VSM_WorldToVirtual(p, worldPos.xyz);
+    
+    if (!a.InWindow)
+        return 0;
+    
+    float4 color = 0;
+    
+    if (gDebugMode == 1)
+    {
+        color = float4(VSM_DebugPageGrid(p, a, gWindowOriginPage), 1);
+    }
+    else if (gDebugMode == 2)
+    {
+        VSMSample s = VSM_Sample(p, worldPos.xyz);
+        color = float4(VSM_DebugCacheState(s, gFrame, gPhysMeta), 1);
+    }
+    
+    return color;
 }

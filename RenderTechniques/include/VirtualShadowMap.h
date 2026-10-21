@@ -29,6 +29,18 @@ namespace EduEngine
 		UINT PhysPool;
 	};
 
+	enum class VSMDebugMode : uint32
+	{
+		None = 0,
+		PageGrid = 1,
+		CacheState = 2,
+	};
+
+	inline static const char* VSMDebugModeStr[]
+	{
+		"None", "PageGrid", "CacheState"
+	};
+
 	class VirtualShadowMap
 	{
 	public:
@@ -36,11 +48,15 @@ namespace EduEngine
 
 		void SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, XMUINT2 screenSize);
 		void BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context, RenderObject* objects, uint32 objectsNum);
+		
+		void SetDebugMode(VSMDebugMode mode) { m_DebugMode = mode; }
+		VSMDebugMode GetDebugMode() const { return m_DebugMode; }
 
 		void Update(DeviceContext* context, Camera* camera, Light* light);
 		void Compute(DeviceContext* context, RenderObject* objects, uint32 objectsNum);
 
 		TextureD3D12* GetShadowMask() const { return m_ShadowMask.get(); }
+		TextureD3D12* GetDebugMask() const { return m_DebugMask.get(); }
 
 	private:
 		static constexpr uint32 PAGE_SIZE = 128;
@@ -76,6 +92,9 @@ namespace EduEngine
 		PipelineState m_DrawShadowPso;
 		std::shared_ptr<ShaderBinder> m_DrawShadowBinder;
 
+		PipelineState m_DrawDebugPso;
+		std::shared_ptr<ShaderBinder> m_DrawDebugBinder;
+
 		std::shared_ptr<TextureD3D12> m_PhysPool;
 		std::shared_ptr<BufferD3D12> m_PhysMeta;
 		std::shared_ptr<TextureD3D12> m_PageRequest;
@@ -87,6 +106,7 @@ namespace EduEngine
 		std::shared_ptr<BufferD3D12> m_QuadDrawArgs;
 		std::shared_ptr<BufferD3D12> m_DrawArgs;
 		std::shared_ptr<TextureD3D12> m_ShadowMask;
+		std::shared_ptr<TextureD3D12> m_DebugMask;
 		
 		std::shared_ptr<BufferD3D12> m_ConstantsBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
@@ -102,5 +122,6 @@ namespace EduEngine
 		UINT m_Frame;
 		UINT m_CurListIdx;
 		UINT m_PrevListIdx;
+		VSMDebugMode m_DebugMode;
 	};
 }

@@ -15,6 +15,7 @@ namespace EduEngine
 		UINT NormalTex;
 		UINT AccumTex;
 		UINT ShadowMask;
+		UINT DebugMask;
 	};
 
 	void VirtualShadowMapsDemo::OnStartUp()
@@ -108,6 +109,7 @@ namespace EduEngine
 		m_PostProcPso.Build(GetDevice());
 
 		m_PostProcBinder = m_PostProcPso.CreateShaderBinder();
+		m_PostProcBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
 		m_PostProcBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbBuffers", m_ConstantsBuffer);
 
 		//
@@ -140,6 +142,7 @@ namespace EduEngine
 			XMFLOAT3 LightDirection;
 			float AmbientStrength;
 			XMFLOAT3 LightColor;
+			UINT DebugMode;
 		} passData;
 
 		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(GetCamera()->GetViewProjMatrix()));
@@ -150,6 +153,7 @@ namespace EduEngine
 			m_Light.Color.y * m_Light.Strength,
 			m_Light.Color.z * m_Light.Strength
 		};
+		passData.DebugMode = (UINT)m_VSM->GetDebugMode();
 
 		m_PassBuffer->LoadData(GetMainContext(), passData);
 
@@ -265,9 +269,9 @@ namespace EduEngine
 		ImGui::NewFrame();
 
 		ImGui::SetNextWindowPos({ 10, 10 }, ImGuiCond_FirstUseEver);
-		ImGui::Begin("Light Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-		ImGui::SeparatorText("Direction");
+		ImGui::SeparatorText("Light Direction");
 		{
 			bool dirChanged = false;
 
@@ -285,11 +289,29 @@ namespace EduEngine
 			ImGui::TextDisabled("Light direction: %.3f, %.3f, %.3f", m_Light.Direction.x, m_Light.Direction.y, m_Light.Direction.z);
 		}
 
-		ImGui::SeparatorText("Intensity");
+		ImGui::SeparatorText("Light Intensity");
 		ImGui::ColorEdit3("Color", &m_Light.Color.x);
 		ImGui::SliderFloat("Strength", &m_Light.Strength, 0.0f, 10.0f, "%.2f");
 		ImGui::SliderFloat("Ambient", &m_AmbientStrength, 0.0f, 1.0f, "%.2f");
 
+		ImGui::SeparatorText("VSM Debug");
+		{
+			int debugMode = (int)m_VSM->GetDebugMode();
+
+			if (ImGui::Combo("Debug Mode", &debugMode, VSMDebugModeStr, IM_ARRAYSIZE(VSMDebugModeStr)))
+				m_VSM->SetDebugMode((VSMDebugMode)debugMode);
+
+			if ((VSMDebugMode)debugMode == VSMDebugMode::PageGrid)
+			{
+				ImGui::TextDisabled("Color per virtual page, black lines = page borders");
+			}
+			else if ((VSMDebugMode)debugMode == VSMDebugMode::CacheState)
+			{
+				ImGui::TextDisabled("Red -> green: page age (new -> cached 60+ frames)");
+				ImGui::TextDisabled("Purple: overflow, black: not mapped");
+				ImGui::TextDisabled("Yellow / white: bug");
+			}
+		}
 		ImGui::End();
 
 		ImGui::Render();
@@ -326,6 +348,7 @@ namespace EduEngine
 		{
 			ConstantsData constData = {};
 			constData.ShadowMask = m_VSM->GetShadowMask()->GetSRVView()->GetGpuHeapIndex();
+			constData.DebugMask = m_VSM->GetDebugMask()->GetSRVView()->GetGpuHeapIndex();
 			constData.AlbedoTex = m_GBuffer->GetGBuffer(0)->GetSRVView()->GetGpuHeapIndex();
 			constData.NormalTex = m_GBuffer->GetGBuffer(1)->GetSRVView()->GetGpuHeapIndex();
 			constData.AccumTex = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();

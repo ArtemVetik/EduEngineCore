@@ -16,6 +16,7 @@ cbuffer cbPass : register(b1)
     float3 gLightDirection;
     float gAmbientStrength;
     float3 gLightColor;
+    uint gDebugMode;
 }
 
 cbuffer cbBuffers : register(b2)
@@ -24,6 +25,7 @@ cbuffer cbBuffers : register(b2)
     uint gNormalTex;
     uint gAccumTex;
     uint gShadowMask;
+    uint gDebugMask;
 }
 
 struct VertexIn
@@ -100,10 +102,15 @@ float4 PS_PostProc(VertexOutFS vOut) : SV_TARGET
     Texture2D<float4> accumTex = ResourceDescriptorHeap[gAccumTex];
     
     float3 color = accumTex.Sample(gsamPointClamp, vOut.TexC).xyz;
-    
     color = color / (color + 1);
     color = pow(color, 1.0f / 2.2f);
     
+    if (gDebugMode != 0)
+    {
+        Texture2D<float4> debugMask = ResourceDescriptorHeap[gDebugMask];
+        float4 d = debugMask.Sample(gsamPointClamp, vOut.TexC);
+        color = lerp(color, d.rgb, 0.5f * d.a);
+    }
+    
     return float4(color, 1);
-
 }

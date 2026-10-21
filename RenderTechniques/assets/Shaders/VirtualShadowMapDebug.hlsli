@@ -1,3 +1,6 @@
+#ifndef VIRTUAL_SHADOW_MAP_DEBUG_HLSLI
+#define VIRTUAL_SHADOW_MAP_DEBUG_HLSLI
+
 #include "VirtualShadowMap.hlsli"
 
 float3 HashColor(uint id)
@@ -13,7 +16,7 @@ float3 HashColor(uint id)
     ) / 255.0;
 }
 
-float3 VSM_DebugCacheState(VSMSample s, float3 baseColor, uint frame, uint physMetaBuff)
+float3 VSM_DebugCacheState(VSMSample s, uint frame, uint physMetaUAV)
 {
     float3 c;
     
@@ -23,7 +26,7 @@ float3 VSM_DebugCacheState(VSMSample s, float3 baseColor, uint frame, uint physM
     }
     else if (s.Entry & PT_MAPPED)
     {
-        RWStructuredBuffer<PhysMetaEntry> physMeta = ResourceDescriptorHeap[physMetaBuff]; // TODO: create SRV index
+        RWStructuredBuffer<PhysMetaEntry> physMeta = ResourceDescriptorHeap[physMetaUAV]; // TODO: create SRV index
         
         uint slot = s.Entry & PT_SLOT_MASK;
         uint age = frame - physMeta[slot].AllocFrame;
@@ -38,10 +41,7 @@ float3 VSM_DebugCacheState(VSMSample s, float3 baseColor, uint frame, uint physM
     if (!(s.Entry & PT_REQUESTED) && (s.Entry & PT_MAPPED))
         c = float3(1, 1, 1); // White: Bug
 
-    if (!s.Valid)
-        c = 0;
-
-    return lerp(baseColor, c, 0.5);
+    return c;
 }
 
 float3 VSM_DebugPageGrid(VSMParams p, VSMAddress a, int2 windowOrigin)
@@ -54,3 +54,5 @@ float3 VSM_DebugPageGrid(VSMParams p, VSMAddress a, int2 windowOrigin)
         
     return c;
 }
+
+#endif // VIRTUAL_SHADOW_MAP_DEBUG_HLSLI

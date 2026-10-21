@@ -118,7 +118,8 @@ namespace EduEngine
 	}
 
 	VirtualShadowMap::VirtualShadowMap(RenderDeviceD3D12* device, DeviceContext* context) :
-		m_Frame(0)
+		m_Frame(0),
+		m_DebugMode(VSMDebugMode::None)
 	{
 		VSM::CreateBuffer(device, context, m_ConstantsBuffer, 1, sizeof(CbBuffers), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE,
 			{ false, DXGI_FORMAT_UNKNOWN }, L"m_ConstantsBuffer");
@@ -195,11 +196,12 @@ namespace EduEngine
 		shaderDesc.DefaultType = SHADER_RESOURCE_TYPE_MUTABLE;
 		shaderDesc.ResourceDesc = resDesc;
 		shaderDesc.ResourceNum = _countof(resDesc);
-
+		
 		auto vsClearSlots = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"VS_ClearSlots", L"vs_6_6", nullptr, shaderDesc);
 		auto vsGeometry = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"VS_Geometry", L"vs_6_6", nullptr, shaderDesc);
 		auto vsFSQuad = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, shaderDesc);
 		auto psDrawShadow = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"PS_DrawShadow", L"ps_6_6", nullptr, shaderDesc);
+		auto psDrawDebug = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"PS_DrawDebug", L"ps_6_6", nullptr, shaderDesc);
 
 		UINT CS_BIND_PASS = 1 << 0;
 		UINT CS_BIND_BUFFERS = 1 << 1;
@@ -293,6 +295,20 @@ namespace EduEngine
 			m_DrawShadowBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
 			m_DrawShadowBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbBuffers", m_ConstantsBuffer);
 		}
+
+		// Debug Mask PSO
+		{
+			m_DrawDebugPso.SetRTVFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
+			m_DrawDebugPso.SetDepthStencilState(dss);
+			m_DrawDebugPso.SetShader(vsFSQuad);
+			m_DrawDebugPso.SetShader(psDrawDebug);
+			m_DrawDebugPso.Build(device);
+			m_DrawDebugPso.SetName(L"m_DrawDebugPso");
+
+			m_DrawDebugBinder = m_DrawDebugPso.CreateShaderBinder();
+			m_DrawDebugBinder->BindDynamicResource(EDU_SHADER_TYPE_PIXEL, "cbPass", m_PassBuffer);
+			m_DrawDebugBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbBuffers", m_ConstantsBuffer);
+		}
 	}
 
 	void VirtualShadowMap::SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, XMUINT2 screenSize)
@@ -336,7 +352,17 @@ namespace EduEngine
 		m_ShadowMask->CreateSRV(&srvDesc, false);
 		m_ShadowMask->SetName(L"m_ShadowMask");
 
+		buffDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		optClear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		m_DebugMask = std::make_shared<TextureD3D12>(device, buffDesc, &optClear, QueueId::Direct);
+		m_DebugMask->CreateRTV(nullptr);
+		m_DebugMask->CreateSRV(&srvDesc, false);
+		m_DebugMask->SetName(L"m_DebugMask");
+
 		context->GetCommandCtx()->TransitionResource(m_ShadowMask.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		context->GetCommandCtx()->TransitionResource(m_DebugMask.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
 	void VirtualShadowMap::BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context, RenderObject* objects, uint32 objectsNum)
@@ -430,6 +456,7 @@ namespace EduEngine
 			UINT CurList;
 			UINT PrevList;
 			UINT HasHistory;
+			UINT DebugMode;
 		} passData;
 
 		XMMATRIX ligthView;
@@ -505,6 +532,7 @@ namespace EduEngine
 		passData.CurList = m_PageLists[m_CurListIdx]->GetUAVView()->GetGpuHeapIndex();
 		passData.PrevList = m_PageLists[m_PrevListIdx]->GetUAVView()->GetGpuHeapIndex();
 		passData.HasHistory = m_Frame > 0;
+		passData.DebugMode = (UINT)m_DebugMode;
 
 		m_PassBuffer->LoadData(context, passData);
 
@@ -659,6 +687,7 @@ namespace EduEngine
 			}
 		}
 
+		ctx->InsertUAVBarrier(m_PageTable.get());
 		ctx->TransitionResource(m_ShadowMask.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		ctx->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
 
@@ -672,6 +701,18 @@ namespace EduEngine
 
 			m_DrawShadowPso.BeginPSOAndCommitResources(context, m_DrawShadowBinder.get());
 			context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
+		}
+
+		// Draw DebugMask
+		if (m_DebugMode != VSMDebugMode::None)
+		{
+			ctx->TransitionResource(m_DebugMask.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+			ctx->SetRenderTargets(1, &m_DebugMask->GetRTVView()->GetCpuHandle(), false, nullptr);
+
+			m_DrawDebugPso.BeginPSOAndCommitResources(context, m_DrawDebugBinder.get());
+			context->GetCommandCtx()->GetCmdList()->DrawInstanced(3, 1, 0, 0);
+			
+			ctx->TransitionResource(m_DebugMask.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 
 		ctx->TransitionResource(m_ShadowMask.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
