@@ -312,6 +312,29 @@ namespace EduEngine
 				ImGui::TextDisabled("Yellow / white: bug");
 			}
 		}
+
+#if VSM_GENERATE_STATS
+		const auto& s = m_VSM->GetStats();
+
+		ImGui::SeparatorText("VSM pages");
+		ImGui::Text("Requested       %5u", s[VSM_STAT_REQUESTED_PAGES]);
+		ImGui::Text("  cached hits   %5u (%.0f%%)", s[VSM_STAT_CACHED_HITS],
+			100.0f * s[VSM_STAT_CACHED_HITS] / std::max(1u, s[VSM_STAT_REQUESTED_PAGES]));
+		ImGui::Text("  new           %5u", s[VSM_STAT_ALLOCATED_NEW]);
+		ImGui::Text("  overflow      %5u", s[VSM_STAT_OVERFLOW]);
+		ImGui::Text("Evicted cached  %5u", s[VSM_STAT_EVICTED_CACHED]);
+		ImGui::Text("Resident idle   %5u", s[VSM_STAT_CACHED_UNREQUESTED]);
+		ImGui::Text("Empty           %5u", s[VSM_STAT_EMPTY_PAGES]);
+		ImGui::Text("Pool usage      %5u / %u", s[VSM_STAT_REQUESTED_PAGES] - s[VSM_STAT_OVERFLOW], VSM_MAX_PHYS_PAGES);
+
+		if (s[VSM_STAT_REQUESTED_LIST_FINAL] != VSM_MAX_PHYS_PAGES || s[VSM_STAT_LIST_DUPLICATES] != 0)
+			ImGui::TextColored({ 1, 0, 0, 1 }, "LIST INVARIANT BROKEN: %u slots, %u dups",
+				s[VSM_STAT_REQUESTED_LIST_FINAL], s[VSM_STAT_LIST_DUPLICATES]);
+
+		if (s[VSM_STAT_OVERFLOW] > 0)
+			ImGui::TextColored({ 1, 0, 1, 1 }, "Page pool overflow!");
+#endif
+
 		ImGui::End();
 
 		ImGui::Render();

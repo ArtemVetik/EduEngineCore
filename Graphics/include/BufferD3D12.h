@@ -112,6 +112,7 @@ namespace EduEngine
 			m_d3d12Resource->Unmap(0, nullptr);
 		}
 
+		void CopyBuffer(DeviceContext* context, ResourceD3D12* src, UINT64 srcOffset, UINT64 dstOffset, UINT64 size);
 		void CopyTexture(DeviceContext* context, ResourceD3D12* texture);
 
 	private:

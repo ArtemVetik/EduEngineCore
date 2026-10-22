@@ -4,8 +4,6 @@
 
 #define PACK_GROUP_SIZE 1024
 
-groupshared uint gsWaveSums[PACK_GROUP_SIZE / 4]; // 4 = minimum wave size allowed by the spec
-
 struct RenderListEntry
 {
     uint Slot;
@@ -46,7 +44,35 @@ cbuffer cbBuffers : register(b2)
     uint gDrawArgs;
     uint gDrawCount;
     uint gPhysPool;
+    uint gStatsBuffer;
 }
+
+// ------------------------------
+// ---------- Stats -------------
+// ------------------------------
+
+void StatsInc(uint index, bool condition = true)
+{
+#if VSM_GENERATE_STATS
+    uint count = WaveActiveCountBits(condition);
+    
+    if (count > 0 && WaveIsFirstLane())
+    {
+        RWStructuredBuffer<uint> stats = ResourceDescriptorHeap[gStatsBuffer];
+        InterlockedAdd(stats[index], count);
+    }
+#endif
+}
+
+void StatsWrite(uint index, uint value)
+{
+#if VSM_GENERATE_STATS
+    RWStructuredBuffer<uint> stats = ResourceDescriptorHeap[gStatsBuffer];
+    stats[index] = value;
+#endif
+}
+
+// ------------------------------
 
 [numthreads(8, 8, 1)]
 void CS_Clear(uint3 dtId : SV_DispatchThreadID)
@@ -67,6 +93,9 @@ void CS_Clear(uint3 dtId : SV_DispatchThreadID)
         lists[ListCounter(LIST_EMPTY)] = 0;
         lists[ListCounter(LIST_REQUESTED)] = 0;
         renderCount[0] = 0;
+        
+        for (uint i = 0; i < VSM_STAT_NUM; ++i)
+            StatsWrite(i, 0);
     }
 }
 
@@ -136,6 +165,8 @@ void CS_UpdatePhysicalPages(uint3 dtId : SV_DispatchThreadID)
     PhysMetaEntry m = physMeta[slot];
     uint nextFlags = 0;
     bool removed = false;
+    bool requested = false;
+    bool keptUnrequested = false;
     
     if (m.Flags & PM_ALLOCATED)
     {
@@ -147,11 +178,13 @@ void CS_UpdatePhysicalPages(uint3 dtId : SV_DispatchThreadID)
             PushList(lists, LIST_REQUESTED, slot);
             removed = true;
             nextFlags = PM_ALLOCATED;
+            requested = true;
         }
         else if (gFrame - m.LastRequestedFrame <= VSM_MAX_PAGE_AGE)
         {
             // Keep the data but do not map it: it stays in LRU as an eviction candidate
             nextFlags = PM_ALLOCATED;
+            keptUnrequested = true;
         }
     }
     
@@ -163,7 +196,13 @@ void CS_UpdatePhysicalPages(uint3 dtId : SV_DispatchThreadID)
     
     physMeta[slot].Flags = nextFlags;
     lists[ListStart(LIST_LRU) + listIndex] = removed ? -1 : slot;
+    
+    StatsInc(VSM_STAT_CACHED_HITS, requested);
+    StatsInc(VSM_STAT_CACHED_UNREQUESTED, keptUnrequested);
+    StatsInc(VSM_STAT_EMPTY_PAGES, nextFlags == 0);
 }
+
+groupshared uint gsWaveSums[PACK_GROUP_SIZE / 4]; // 4 = minimum wave size allowed by the spec
 
 // Exclusive prefix sum over the whole group; 'total' receives the group sum
 uint GroupPrefixSum(uint value, uint gi, out uint total)
@@ -219,7 +258,10 @@ void CS_PackAvailablePages(uint gi : SV_GroupIndex)
         lists[ListStart(LIST_AVAILABLE) + total + j] = lists[ListStart(LIST_EMPTY) + j];
     
     if (gi == 0)
+    {
         lists[ListCounter(LIST_AVAILABLE)] = total + emptyCount;
+        StatsWrite(VSM_STAT_AVAILABLE_AFTER_PACK, total + emptyCount);
+    }
 }
 
 [numthreads(8, 8, 1)]
@@ -228,45 +270,57 @@ void CS_Allocate(uint3 dtId : SV_DispatchThreadID)
     RWTexture2D<uint> pageRequest = ResourceDescriptorHeap[gPageRequest];
     RWTexture2D<uint> pageTable = ResourceDescriptorHeap[gPageTable];
     
-    if (pageRequest[dtId.xy] == 0)
-        return;
+    bool requested = pageRequest[dtId.xy] != 0;
+    bool needAlloc = false;
+    if (requested)
+        needAlloc = !(pageTable[dtId.xy] & PT_MAPPED);
     
-    if (pageTable[dtId.xy] & PT_MAPPED)
-        return;
+    int slot = -1;
+    bool evicted = false;
     
-    RWStructuredBuffer<int> lists = ResourceDescriptorHeap[gCurList];
-    int slot = PopList(lists, LIST_AVAILABLE);
-    
-    if (slot < 0)
+    if (needAlloc)
     {
-        pageTable[dtId.xy] = PT_REQUESTED | PT_OVERFLOW; // now means "really out of pages"
-        return;
+        RWStructuredBuffer<int> lists = ResourceDescriptorHeap[gCurList];
+        slot = PopList(lists, LIST_AVAILABLE);
+        
+        if (slot < 0)
+        {
+            pageTable[dtId.xy] = PT_REQUESTED | PT_OVERFLOW;
+        }
+        else
+        {
+            RWStructuredBuffer<PhysMetaEntry> physMeta = ResourceDescriptorHeap[gPhysMeta];
+            
+            // Evicting a cached page: it is unrequested, so it is not in the page table and no
+            // other thread touches it. UE still clears its entry defensively (AllocateNewPageMappings)
+            PhysMetaEntry old = physMeta[slot];
+            evicted = (old.Flags & PM_ALLOCATED) != 0;
+            if (evicted)
+                pageTable[old.PageAddr] = 0;
+            
+            physMeta[slot].Flags = PM_ALLOCATED;
+            physMeta[slot].PageAddr = dtId.xy;
+            physMeta[slot].AllocFrame = gFrame;
+            physMeta[slot].LastRequestedFrame = gFrame;
+            
+            pageTable[dtId.xy] = PT_REQUESTED | PT_MAPPED | slot;
+            PushList(lists, LIST_REQUESTED, slot);
+            
+            RWStructuredBuffer<RenderListEntry> renderList = ResourceDescriptorHeap[gRenderList];
+            RWStructuredBuffer<uint> renderCount = ResourceDescriptorHeap[gRenderCount];
+            
+            uint r;
+            InterlockedAdd(renderCount[0], 1, r);
+            
+            renderList[r].Slot = slot;
+            renderList[r].PageAddr = dtId.xy;
+        }
     }
     
-    RWStructuredBuffer<PhysMetaEntry> physMeta = ResourceDescriptorHeap[gPhysMeta];
-    
-    // Evicting a cached page: it is unrequested, so it is not in the page table and no
-    // other thread touches it. UE still clears its entry defensively (AllocateNewPageMappings)
-    PhysMetaEntry old = physMeta[slot];
-    if (old.Flags & PM_ALLOCATED)
-        pageTable[old.PageAddr] = 0;
-    
-    physMeta[slot].Flags = PM_ALLOCATED;
-    physMeta[slot].PageAddr = dtId.xy;
-    physMeta[slot].AllocFrame = gFrame;
-    physMeta[slot].LastRequestedFrame = gFrame;
-    
-    pageTable[dtId.xy] = PT_REQUESTED | PT_MAPPED | slot;
-    PushList(lists, LIST_REQUESTED, slot);
-    
-    RWStructuredBuffer<RenderListEntry> renderList = ResourceDescriptorHeap[gRenderList];
-    RWStructuredBuffer<uint> renderCount = ResourceDescriptorHeap[gRenderCount];
-    
-    uint r;
-    InterlockedAdd(renderCount[0], 1, r);
-    
-    renderList[r].Slot = slot;
-    renderList[r].PageAddr = dtId.xy;
+    StatsInc(VSM_STAT_REQUESTED_PAGES, requested);
+    StatsInc(VSM_STAT_ALLOCATED_NEW, slot >= 0);
+    StatsInc(VSM_STAT_EVICTED_CACHED, evicted);
+    StatsInc(VSM_STAT_OVERFLOW, needAlloc && slot < 0);
 }
 
 [numthreads(PACK_GROUP_SIZE, 1, 1)]
@@ -288,6 +342,31 @@ void CS_FinalizeLists(uint gi : SV_GroupIndex)
     {
         lists[ListCounter(LIST_REQUESTED)] = requested + copyCount; // invariant: == VSM_MAX_PHYS_PAGES
         lists[ListCounter(LIST_AVAILABLE)] = 0;
+        StatsWrite(VSM_STAT_REQUESTED_LIST_FINAL, requested + copyCount);
+    }
+}
+
+groupshared uint gsSeen[VSM_MAX_PHYS_PAGES / 32];
+
+[numthreads(PACK_GROUP_SIZE, 1, 1)]
+void CS_ValidateLists(uint gi : SV_GroupIndex)
+{
+    RWStructuredBuffer<int> lists = ResourceDescriptorHeap[gCurList];
+    
+    for (uint w = gi; w < VSM_MAX_PHYS_PAGES / 32; w += PACK_GROUP_SIZE)
+        gsSeen[w] = 0;
+    
+    GroupMemoryBarrierWithGroupSync();
+
+    uint count = min((uint) lists[ListCounter(LIST_REQUESTED)], VSM_MAX_PHYS_PAGES);
+    for (uint i = gi; i < count; i += PACK_GROUP_SIZE)
+    {
+        uint slot = lists[ListStart(LIST_REQUESTED) + i];
+        bool valid = slot < VSM_MAX_PHYS_PAGES;
+        uint prev = 0;
+        if (valid)
+            InterlockedOr(gsSeen[slot >> 5], 1u << (slot & 31), prev);
+        StatsInc(VSM_STAT_LIST_DUPLICATES, !valid || (prev & (1u << (slot & 31))) != 0);
     }
 }
 
@@ -305,12 +384,12 @@ void CS_DrawArgs(uint3 id : SV_DispatchThreadID)
     //[2] StartIndexLocation;
     //[3] BaseVertexLocation;
     //[4] StartInstanceLocation;
-    drawArgs[id.x * 5 + 1] = min(renderCount[0], VSM_POOL_SIZE * VSM_POOL_SIZE); // InstanceCount
+    drawArgs[id.x * 5 + 1] = min(renderCount[0], VSM_MAX_PHYS_PAGES); // InstanceCount
     
     if (id.x == 0)
     {
         RWStructuredBuffer<uint> quadDrawArgs = ResourceDescriptorHeap[gQuadDrawArgs];
-        quadDrawArgs[1] = min(renderCount[0], VSM_POOL_SIZE * VSM_POOL_SIZE); // InstanceCount
+        quadDrawArgs[1] = min(renderCount[0], VSM_MAX_PHYS_PAGES); // InstanceCount
     }
 }
 

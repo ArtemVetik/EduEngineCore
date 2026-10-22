@@ -10,6 +10,8 @@
 #include <Light.h>
 #include <CommandSignatureD3D12.h>
 #include <RenderObject.h>
+#include <VirtualShadowMapDefinitions.h>
+#include <array>
 
 using namespace EduEngine::EduBinding;
 
@@ -27,9 +29,10 @@ namespace EduEngine
 		UINT DrawArgs;
 		UINT DrawCount;
 		UINT PhysPool;
+		UINT StatsBuffer;
 	};
 
-	enum class VSMDebugMode : uint32
+	enum class VSMDebugMode : uint32 // TODO: Move to PSOEntry
 	{
 		None = 0,
 		PageGrid = 1,
@@ -52,6 +55,10 @@ namespace EduEngine
 		void SetDebugMode(VSMDebugMode mode) { m_DebugMode = mode; }
 		VSMDebugMode GetDebugMode() const { return m_DebugMode; }
 
+#if VSM_GENERATE_STATS
+		const std::array<uint32, VSM_STAT_NUM>& GetStats() const { return m_StatsData; }
+#endif
+
 		void Update(DeviceContext* context, Camera* camera, Light* light);
 		void Compute(DeviceContext* context, RenderObject* objects, uint32 objectsNum);
 
@@ -59,9 +66,9 @@ namespace EduEngine
 		TextureD3D12* GetDebugMask() const { return m_DebugMask.get(); }
 
 	private:
-		static constexpr uint32 PAGE_SIZE = 128;
-		static constexpr uint32 PAGES_XY = 128;
-		static constexpr uint32 POOL_SIZE = 64;
+#if VSM_GENERATE_STATS
+		static constexpr uint32 STATS_RING = 8;
+#endif
 
 	private:
 		struct CSPso
@@ -82,6 +89,9 @@ namespace EduEngine
 		CSPso m_AllocatePso;
 		CSPso m_FinalizePso;
 		CSPso m_DrawArgsPso;
+#if VSM_GENERATE_STATS
+		CSPso m_ValidatePso;
+#endif
 
 		PipelineState m_ClearSlotsPso;
 		std::shared_ptr<ShaderBinder> m_ClearSlotsBinder;
@@ -102,6 +112,10 @@ namespace EduEngine
 		std::shared_ptr<BufferD3D12> m_PageLists[2];
 		std::shared_ptr<BufferD3D12> m_RenderList;
 		std::shared_ptr<BufferD3D12> m_RenderCount;
+#if VSM_GENERATE_STATS
+		std::shared_ptr<BufferD3D12> m_StatsBuffer;
+		std::unique_ptr<ReadBackBufferD3D12> m_StatsReadbackBuffer;
+#endif
 
 		std::shared_ptr<BufferD3D12> m_QuadDrawArgs;
 		std::shared_ptr<BufferD3D12> m_DrawArgs;
@@ -123,5 +137,8 @@ namespace EduEngine
 		UINT m_CurListIdx;
 		UINT m_PrevListIdx;
 		VSMDebugMode m_DebugMode;
+#if VSM_GENERATE_STATS
+		std::array<uint32, VSM_STAT_NUM> m_StatsData = {};
+#endif
 	};
 }

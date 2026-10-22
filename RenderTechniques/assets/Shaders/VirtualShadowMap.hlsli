@@ -1,13 +1,7 @@
 #ifndef VIRTUAL_SHADOW_MAP_HLSLI
 #define VIRTUAL_SHADOW_MAP_HLSLI
 
-#define VSM_PAGE_SIZE       128
-#define VSM_LOG2_PAGE_SIZE  7
-#define VSM_PAGES_XY        128
-#define VSM_VIRTUAL_SIZE    (VSM_PAGE_SIZE * VSM_PAGES_XY)
-#define VSM_POOL_SIZE       64
-#define VSM_MAX_PHYS_PAGES  (VSM_POOL_SIZE * VSM_POOL_SIZE)
-#define VSM_MAX_PAGE_AGE    1000
+#include "Shared/VirtualShadowMapDefinitions.h"
 
 #define PM_ALLOCATED 0x1
 
@@ -29,21 +23,9 @@ struct PhysMetaEntry
     uint2 PageAddr;
 };
 
-struct VSMParams
-{
-    float4x4 LightViewProj; // [0,1]^2
-    uint PageTable;
-    uint PhysPool;
-    float Bias;
-};
-
-struct VSMAddress
-{
-    bool InWindow;
-    uint2 VirtualTexel; // 0..(VSM_SIZE-1)
-    uint2 Page;         // 0..(VSM_SIZE/PAGE_SIZE-1)
-    float Depth;
-};
+// ---------------------------
+// ---------- Lists ----------
+// ---------------------------
 
 // Layout: VSM_MAX_PHYS_PAGES items followed by a counter
 // [ i0, i1, i2, i3, ..., Counter ]
@@ -60,7 +42,7 @@ uint ListCounter(uint list)
 bool PushList(RWStructuredBuffer<int> lists, uint list, int slot)
 {
     int offset;
-    InterlockedAdd(lists[ListCounter(list)], 1, offset);
+    InterlockedAdd(lists[ListCounter(list)], 1, offset); // TODO: use wave intrinsics
     
     // Overflow here means a physical page is lost forever - must never happen
     // If that happened, it means something went wrong before that
@@ -78,6 +60,26 @@ int PopList(RWStructuredBuffer<int> lists, uint list)
     offset -= 1; // index after decrement; counter may go negative on overflow
     return offset < 0 ? -1 : lists[ListStart(list) + offset];
 }
+
+// ---------------------------------------
+// ---------- Building VSM Data ----------
+// ---------------------------------------
+
+struct VSMParams
+{
+    float4x4 LightViewProj; // [0,1]^2
+    uint PageTable;
+    uint PhysPool;
+    float Bias;
+};
+
+struct VSMAddress
+{
+    bool InWindow;
+    uint2 VirtualTexel; // 0..(VSM_SIZE-1)
+    uint2 Page; // 0..(VSM_SIZE/PAGE_SIZE-1)
+    float Depth;
+};
 
 VSMAddress VSM_WorldToVirtual(VSMParams p, float3 worldPos)
 {
@@ -101,7 +103,9 @@ uint2 VSM_SlotToPhysTexel(VSMParams p, uint slot, uint2 virtualTexel)
     return slotXY * VSM_PAGE_SIZE + (virtualTexel & (VSM_PAGE_SIZE - 1));
 }
 
+// ------------------------------
 // ---------- Sampling ----------
+// ------------------------------
 
 struct VSMSample
 {

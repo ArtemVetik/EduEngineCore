@@ -96,8 +96,22 @@ namespace EduEngine
 		m_d3d12Resource->SetName(L"ReadBackBufferD3D12");
 	}
 
+	void ReadBackBufferD3D12::CopyBuffer(DeviceContext* context, ResourceD3D12* src, UINT64 srcOffset, UINT64 dstOffset, UINT64 size)
+	{
+		VERIFY_EXPR(src->GetD3D12Resource()->GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_BUFFER, "Expecting buffer resource");
+
+		auto* ctx = context->GetCommandCtx();
+		D3D12_RESOURCE_STATES srcState = src->GetState();
+
+		ctx->TransitionResource(src, D3D12_RESOURCE_STATE_COPY_SOURCE, true);
+		ctx->GetCmdList()->CopyBufferRegion(m_d3d12Resource.Get(), dstOffset, src->GetD3D12Resource(), srcOffset, size);
+		ctx->TransitionResource(src, srcState, true);
+	}
+
 	void ReadBackBufferD3D12::CopyTexture(DeviceContext* context, ResourceD3D12* texture)
 	{
+		VERIFY_EXPR(texture->GetD3D12Resource()->GetDesc().Dimension >= D3D12_RESOURCE_DIMENSION_TEXTURE1D, "Expecting texture resource");
+
 		D3D12_RESOURCE_STATES textureState = texture->GetState();
 
 		context->GetCommandCtx()->TransitionResource(texture, D3D12_RESOURCE_STATE_COPY_SOURCE);

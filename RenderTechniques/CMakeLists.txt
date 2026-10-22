@@ -28,6 +28,7 @@ add_library(RenderTechniques STATIC
 
 target_include_directories(RenderTechniques
     PUBLIC 
+        ${CMAKE_CURRENT_LIST_DIR}/assets/Shaders/Shared
         ${CMAKE_CURRENT_LIST_DIR}/include
         ${LIBS_ROOT}/include
 )

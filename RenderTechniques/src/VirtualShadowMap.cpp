@@ -138,41 +138,48 @@ namespace EduEngine
 			XMUINT2 PageAddr;
 		};
 
-		VSM::CreateTexture(device, m_PhysPool, POOL_SIZE * PAGE_SIZE, POOL_SIZE * PAGE_SIZE, DXGI_FORMAT_R24G8_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+		VSM::CreateTexture(device, m_PhysPool, VSM_POOL_SIZE * VSM_PAGE_SIZE, VSM_POOL_SIZE * VSM_PAGE_SIZE, DXGI_FORMAT_R24G8_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 			{ true, DXGI_FORMAT_D24_UNORM_S8_UINT },	 // clear
 			{ true, DXGI_FORMAT_R24_UNORM_X8_TYPELESS }, // srv
 			{ true, DXGI_FORMAT_D24_UNORM_S8_UINT },	 // dsv
 			{ false, DXGI_FORMAT_UNKNOWN },				 // uav
 			L"m_PhysPool");
 
-		VSM::CreateBuffer(device, context, m_PhysMeta, POOL_SIZE * POOL_SIZE, sizeof(PhysMetaEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateBuffer(device, context, m_PhysMeta, VSM_MAX_PHYS_PAGES, sizeof(PhysMetaEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PhysMeta");
 
-		VSM::CreateTexture(device, m_PageRequest, PAGES_XY, PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateTexture(device, m_PageRequest, VSM_PAGES_XY, VSM_PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ false, DXGI_FORMAT_UNKNOWN },	// clear
 			{ false, DXGI_FORMAT_UNKNOWN }, // srv
 			{ false, DXGI_FORMAT_UNKNOWN },	// dsv
 			{ true, DXGI_FORMAT_R32_UINT },	// uav
 			L"m_PageRequest");
 
-		VSM::CreateTexture(device, m_PageTable, PAGES_XY, PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateTexture(device, m_PageTable, VSM_PAGES_XY, VSM_PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ false, DXGI_FORMAT_UNKNOWN },	// clear
 			{ false, DXGI_FORMAT_UNKNOWN }, // srv
 			{ false, DXGI_FORMAT_UNKNOWN },	// dsv
 			{ true, DXGI_FORMAT_R32_UINT },	// uav
 			L"m_PageTable");
 
-		VSM::CreateBuffer(device, context, m_PageLists[0], 4 * (POOL_SIZE * POOL_SIZE + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateBuffer(device, context, m_PageLists[0], 4 * (VSM_MAX_PHYS_PAGES + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PageLists[0]");
 
-		VSM::CreateBuffer(device, context, m_PageLists[1], 4 * (POOL_SIZE * POOL_SIZE + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateBuffer(device, context, m_PageLists[1], 4 * (VSM_MAX_PHYS_PAGES + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PageLists[1]");
 
-		VSM::CreateBuffer(device, context, m_RenderList, POOL_SIZE * POOL_SIZE, sizeof(RenderListEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateBuffer(device, context, m_RenderList, VSM_MAX_PHYS_PAGES, sizeof(RenderListEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_RenderList");
 
 		VSM::CreateBuffer(device, context, m_RenderCount, 1, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_RenderCount");
+
+#if VSM_GENERATE_STATS
+		VSM::CreateBuffer(device, context, m_StatsBuffer, VSM_STAT_NUM, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ true, DXGI_FORMAT_UNKNOWN }, L"m_StatsBuffer");
+
+		m_StatsReadbackBuffer = std::make_unique<ReadBackBufferD3D12>(device, STATS_RING * VSM_STAT_NUM * sizeof(uint32), QueueId::Direct);
+#endif
 
 		context->GetCommandCtx()->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
@@ -182,6 +189,9 @@ namespace EduEngine
 		m_CbBuffers.RenderList = m_RenderList->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.RenderCount = m_RenderCount->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PhysPool = m_PhysPool->GetSRVView()->GetGpuHeapIndex();
+#if VSM_GENERATE_STATS
+		m_CbBuffers.StatsBuffer = m_StatsBuffer->GetUAVView()->GetGpuHeapIndex();
+#endif
 
 		m_ObjBuffer = std::make_shared<DynamicUploadBuffer>(device);
 		m_PassBuffer = std::make_shared<DynamicUploadBuffer>(device);
@@ -206,9 +216,9 @@ namespace EduEngine
 		UINT CS_BIND_PASS = 1 << 0;
 		UINT CS_BIND_BUFFERS = 1 << 1;
 
-		auto CreateCSPso = [&](CSPso& pso, const wchar_t* csEntry, const wchar_t* name, UINT bindRes = 0)
+		auto CreateCSPso = [&](CSPso& pso, const wchar_t* csEntry, const wchar_t* name, UINT bindRes = 0, const wchar_t* defines[] = nullptr)
 			{
-				auto cs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", csEntry, L"cs_6_6", nullptr, shaderDesc);
+				auto cs = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", csEntry, L"cs_6_6", defines, shaderDesc);
 				pso.PSO.SetShader(cs);
 				pso.PSO.Build(device);
 				pso.PSO.SetName(name);
@@ -224,10 +234,14 @@ namespace EduEngine
 		CreateCSPso(m_RemapPso, L"CS_RemapPhysicalPages", L"m_RemapPso", CS_BIND_PASS | CS_BIND_BUFFERS);
 		CreateCSPso(m_MarkPso, L"CS_Mark", L"m_MarkPso", CS_BIND_PASS | CS_BIND_BUFFERS);
 		CreateCSPso(m_UpdatePso, L"CS_UpdatePhysicalPages", L"m_UpdatePso", CS_BIND_PASS | CS_BIND_BUFFERS);
-		CreateCSPso(m_PackPso, L"CS_PackAvailablePages", L"m_PackPso", CS_BIND_PASS);
+		CreateCSPso(m_PackPso, L"CS_PackAvailablePages", L"m_PackPso", CS_BIND_PASS | CS_BIND_BUFFERS);
 		CreateCSPso(m_AllocatePso, L"CS_Allocate", L"m_AllocatePso", CS_BIND_PASS | CS_BIND_BUFFERS);
-		CreateCSPso(m_FinalizePso, L"CS_FinalizeLists", L"m_FinalizePso", CS_BIND_PASS);
+		CreateCSPso(m_FinalizePso, L"CS_FinalizeLists", L"m_FinalizePso", CS_BIND_PASS | CS_BIND_BUFFERS);
 		CreateCSPso(m_DrawArgsPso, L"CS_DrawArgs", L"m_DrawArgsPso", CS_BIND_BUFFERS);
+#if VSM_GENERATE_STATS
+		const wchar_t* defines[] = { L"VSM_GENERATE_STATS", L"1", NULL };
+		CreateCSPso(m_ValidatePso, L"CS_ValidateLists", L"m_ValidatePso", CS_BIND_PASS | CS_BIND_BUFFERS, defines);
+#endif
 
 		D3D12_INPUT_ELEMENT_DESC inputLayout[] // TODO: take into account only POSITION
 		{
@@ -483,7 +497,7 @@ namespace EduEngine
 		// Projection
 		{
 			const float halfSize = 1024;
-			const float pageWorld = 2 * halfSize / PAGES_XY;
+			const float pageWorld = 2 * halfSize / VSM_PAGES_XY;
 
 			XMFLOAT3 camLS;
 			XMStoreFloat3(&camLS, XMVector3TransformCoord(XMLoadFloat3(&camera->GetPosition()), ligthView));
@@ -558,22 +572,28 @@ namespace EduEngine
 		ctx->TransitionResource(m_RenderCount.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_DrawArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_QuadDrawArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+#if VSM_GENERATE_STATS
+		ctx->TransitionResource(m_StatsBuffer.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+#endif
 		ctx->FlushResourceBarriers();
 
 		// CS_Clear
 		{
-			UINT groupCount = static_cast<UINT>(ceil(PAGES_XY / 8.0f));
+			UINT groupCount = static_cast<UINT>(ceil(VSM_PAGES_XY / 8.0f));
 			m_ClearPso.PSO.BeginPSOAndCommitResources(context, m_ClearPso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount, 1);
 		}
 
 		// CS_RemapPhysicalPages
 		{
-			UINT groupCount = static_cast<UINT>(ceil(POOL_SIZE * POOL_SIZE / 32.0f));
+			UINT groupCount = static_cast<UINT>(ceil(VSM_MAX_PHYS_PAGES / 32.0f));
 			m_RemapPso.PSO.BeginPSOAndCommitResources(context, m_RemapPso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, 1, 1);
 		}
 
+#if VSM_GENERATE_STATS
+		ctx->InsertUAVBarrier(m_StatsBuffer.get());
+#endif
 		ctx->InsertUAVBarrier(m_PageRequest.get(), true);
 
 		// CS_Mark
@@ -591,7 +611,7 @@ namespace EduEngine
 
 		// CS_UpdatePhysicalPages
 		{
-			UINT groupCount = static_cast<UINT>(ceil(POOL_SIZE * POOL_SIZE / 32.0f));
+			UINT groupCount = static_cast<UINT>(ceil(VSM_MAX_PHYS_PAGES / 32.0f));
 			m_UpdatePso.PSO.BeginPSOAndCommitResources(context, m_UpdatePso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, 1, 1);
 		}
@@ -611,7 +631,7 @@ namespace EduEngine
 
 		// CS_Allocate
 		{
-			UINT groupCount = static_cast<UINT>(ceil(PAGES_XY / 8.0f));
+			UINT groupCount = static_cast<UINT>(ceil(VSM_PAGES_XY / 8.0f));
 			m_AllocatePso.PSO.BeginPSOAndCommitResources(context, m_AllocatePso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount, 1);
 		}
@@ -623,6 +643,16 @@ namespace EduEngine
 			m_FinalizePso.PSO.BeginPSOAndCommitResources(context, m_FinalizePso.Binder.get());
 			context->GetCommandCtx()->GetCmdList()->Dispatch(1, 1, 1);
 		}
+
+#if VSM_GENERATE_STATS
+		ctx->InsertUAVBarrier(m_PageLists[m_CurListIdx].get(), true);
+
+		// CS_ValidateLists
+		{
+			m_ValidatePso.PSO.BeginPSOAndCommitResources(context, m_ValidatePso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(1, 1, 1);
+		}
+#endif
 
 		ctx->InsertUAVBarrier(m_RenderList.get());
 		ctx->InsertUAVBarrier(m_RenderCount.get(), true);
@@ -639,7 +669,7 @@ namespace EduEngine
 		ctx->TransitionResource(m_DrawArgs.get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		ctx->FlushResourceBarriers();
 
-		D3D12_VIEWPORT vp = { 0, 0, POOL_SIZE * PAGE_SIZE, POOL_SIZE * PAGE_SIZE, 0, 1 };
+		D3D12_VIEWPORT vp = { 0, 0, VSM_POOL_SIZE * VSM_PAGE_SIZE, VSM_POOL_SIZE * VSM_PAGE_SIZE, 0, 1 };
 		D3D12_RECT sc = { 0, 0, vp.Width, vp.Height };
 		cmd->RSSetViewports(1, &vp);
 		cmd->RSSetScissorRects(1, &sc);
@@ -716,5 +746,20 @@ namespace EduEngine
 		}
 
 		ctx->TransitionResource(m_ShadowMask.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+#if VSM_GENERATE_STATS
+		//
+		// Read Stats
+		//
+		const uint32 size = VSM_STAT_NUM * sizeof(uint32);
+		const uint32 slot = m_Frame % STATS_RING;
+		m_StatsReadbackBuffer->CopyBuffer(context, m_StatsBuffer.get(), 0, slot * size, size);
+
+		if (m_Frame >= STATS_RING)
+		{
+			const uint32 readSlot = (m_Frame + 1) % STATS_RING;
+			m_StatsReadbackBuffer->ReadData(m_StatsData.data(), size, readSlot * size);
+		}
+#endif
 	}
 }
