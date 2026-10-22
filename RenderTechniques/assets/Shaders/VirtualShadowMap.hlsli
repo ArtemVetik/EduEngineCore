@@ -23,6 +23,19 @@ struct PhysMetaEntry
     uint2 PageAddr;
 };
 
+// Wave-aggregated InterlockedAdd: one atomic per wave, returns this lane's original value
+int WaveInterlockedAddScalar(RWStructuredBuffer<int> buf, uint index, int value)
+{
+    int waveTotal = int(WaveActiveCountBits(true)) * value;
+    
+    int origin = 0;
+    if (WaveIsFirstLane())
+        InterlockedAdd(buf[index], waveTotal, origin);
+    
+    origin = WaveReadLaneFirst(origin) + int(WavePrefixCountBits(true)) * value;
+    return origin;
+}
+
 // ---------------------------
 // ---------- Lists ----------
 // ---------------------------
@@ -41,8 +54,7 @@ uint ListCounter(uint list)
 
 bool PushList(RWStructuredBuffer<int> lists, uint list, int slot)
 {
-    int offset;
-    InterlockedAdd(lists[ListCounter(list)], 1, offset); // TODO: use wave intrinsics
+    int offset = WaveInterlockedAddScalar(lists, ListCounter(list), 1);
     
     // Overflow here means a physical page is lost forever - must never happen
     // If that happened, it means something went wrong before that
@@ -55,8 +67,8 @@ bool PushList(RWStructuredBuffer<int> lists, uint list, int slot)
 
 int PopList(RWStructuredBuffer<int> lists, uint list)
 {
-    int offset;
-    InterlockedAdd(lists[ListCounter(list)], -1, offset);
+    int offset = WaveInterlockedAddScalar(lists, ListCounter(list), -1);
+    
     offset -= 1; // index after decrement; counter may go negative on overflow
     return offset < 0 ? -1 : lists[ListStart(list) + offset];
 }
