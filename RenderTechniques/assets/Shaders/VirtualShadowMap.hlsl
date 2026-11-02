@@ -8,6 +8,7 @@ struct RenderListEntry
 {
     uint Slot;
     uint2 PageAddr;
+    uint LevelIndex;
 };
 
 cbuffer cbObject : register(b0)
@@ -19,13 +20,11 @@ cbuffer cbPass : register(b1)
 {
     float4x4 gInvView;
     float4x4 gInvProj;
-    float4x4 gLightViewProj;
-    float4x4 gLightViewProjNDC;
+    float3 gCameraWorldPos;
+    float gResolutionLodBias;
     uint2 gScreenSize;
-    int2 gPageOffset;
     uint gFrame;
     uint gInvalidateAll;
-    int2 gWindowOriginPage;
     uint gCurList;  // UAV heap undex
     uint gPrevList; // UAV heap undex
     uint gHasHistory;
@@ -34,6 +33,7 @@ cbuffer cbPass : register(b1)
 
 cbuffer cbBuffers : register(b2)
 {
+    uint gClipmapBuffer;
     uint gPhysMeta;
     uint gPageRequest;
     uint gPageTable;
@@ -113,7 +113,14 @@ void CS_RemapPhysicalPages(uint3 dtId : SV_DispatchThreadID)
     if (!(m.Flags & PM_ALLOCATED))
         return;
     
-    int2 a = int2(m.PageAddr) + gPageOffset;
+    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    if (gInvalidateAll || m.LevelIndex >= VSM_NUM_CLIPMAPS)
+    {
+        physMeta[slot].Flags = 0;
+        return;
+    }
+    
+    int2 a = int2(m.PageAddr) + levels[m.LevelIndex].PageOffset;
     
     if (any(a < 0) || any(a >= VSM_PAGES_XY) || gInvalidateAll)
         physMeta[slot].Flags = 0; // cached data is gone
@@ -137,12 +144,17 @@ void CS_Mark(uint3 dtId : SV_DispatchThreadID)
     
     float2 texUV = (dtId.xy + 0.5) / gScreenSize;
     float4 worldPos = ReconstructWorldPosFromDepth(depth, texUV, gInvProj, gInvView);
-    float2 uv = mul(float4(worldPos.xyz, 1.0f), gLightViewProj).xy;
+    uint level = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
+    if (level >= VSM_NUM_CLIPMAPS)
+        return;
+    
+    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    float2 uv = mul(float4(worldPos.xyz, 1.0f), levels[level].WorldToShadowUV).xy;
     
     if (any(uv < 0) || any(uv >= 1))
         return;
     
-    pageRequest[uint2(uv * VSM_VIRTUAL_SIZE) >> VSM_LOG2_PAGE_SIZE] = 1;
+    pageRequest[VSM_PageTableAddress(uint2(uv * VSM_VIRTUAL_SIZE) >> VSM_LOG2_PAGE_SIZE, level)] = 1;
 }
 
 [numthreads(32, 1, 1)]
@@ -170,10 +182,10 @@ void CS_UpdatePhysicalPages(uint3 dtId : SV_DispatchThreadID)
     
     if (m.Flags & PM_ALLOCATED)
     {
-        if (pageRequest[m.PageAddr] != 0)
+        if (pageRequest[VSM_PageTableAddress(m.PageAddr, m.LevelIndex)] != 0)
         {
             // Cached hit: map it, no need to render
-            pageTable[m.PageAddr] = PT_REQUESTED | PT_MAPPED | slot;
+            pageTable[VSM_PageTableAddress(m.PageAddr, m.LevelIndex)] = PT_REQUESTED | PT_MAPPED | slot;
             physMeta[slot].LastRequestedFrame = gFrame;
             PushList(lists, LIST_REQUESTED, slot);
             removed = true;
@@ -296,10 +308,11 @@ void CS_Allocate(uint3 dtId : SV_DispatchThreadID)
             PhysMetaEntry old = physMeta[slot];
             evicted = (old.Flags & PM_ALLOCATED) != 0;
             if (evicted)
-                pageTable[old.PageAddr] = 0;
+                pageTable[VSM_PageTableAddress(old.PageAddr, old.LevelIndex)] = 0;
             
             physMeta[slot].Flags = PM_ALLOCATED;
-            physMeta[slot].PageAddr = dtId.xy;
+            physMeta[slot].PageAddr = uint2(dtId.x, dtId.y % VSM_PAGES_XY);
+            physMeta[slot].LevelIndex = dtId.y / VSM_PAGES_XY;
             physMeta[slot].AllocFrame = gFrame;
             physMeta[slot].LastRequestedFrame = gFrame;
             
@@ -313,7 +326,8 @@ void CS_Allocate(uint3 dtId : SV_DispatchThreadID)
             InterlockedAdd(renderCount[0], 1, r);
             
             renderList[r].Slot = slot;
-            renderList[r].PageAddr = dtId.xy;
+            renderList[r].PageAddr = uint2(dtId.x, dtId.y % VSM_PAGES_XY);
+            renderList[r].LevelIndex = dtId.y / VSM_PAGES_XY;
         }
     }
     
@@ -439,7 +453,8 @@ VSOut_G VS_Geometry(VertexIn vIn, uint inst : SV_InstanceID)
     uint slot = e.Slot;
     
     // 1. World pos -> virtual pixel (0..VSM_VIRTUAL_SIZE)
-    float4 p = mul(mul(float4(vIn.PosL, 1), gWorld), gLightViewProjNDC);
+    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    float4 p = mul(mul(float4(vIn.PosL, 1), gWorld), levels[e.LevelIndex].WorldToShadowClip);
     float2 vUV = p.xy * float2(0.5, -0.5) + 0.5; // [-1; 1] -> [0; 1]
     float2 vPix = vUV * VSM_VIRTUAL_SIZE;
 
@@ -488,7 +503,11 @@ float PS_DrawShadow(VertexOut pin) : SV_Target
     float4 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView);
     
     VSMParams p;
-    p.LightViewProj = gLightViewProj;
+    p.LevelIndex = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
+    if (p.LevelIndex >= VSM_NUM_CLIPMAPS)
+        return 1;
+    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    p.LightViewProj = levels[p.LevelIndex].WorldToShadowUV;
     p.PageTable = gPageTable;
     p.PhysPool = gPhysPool;
     p.Bias = 0.0f;
@@ -508,7 +527,11 @@ float4 PS_DrawDebug(VertexOut pin) : SV_Target
     float4 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView);
     
     VSMParams p;
-    p.LightViewProj = gLightViewProj;
+    p.LevelIndex = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
+    if (p.LevelIndex >= VSM_NUM_CLIPMAPS)
+        return 1;
+    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    p.LightViewProj = levels[p.LevelIndex].WorldToShadowUV;
     p.PageTable = gPageTable;
     p.PhysPool = gPhysPool;
     p.Bias = 0.0f;
@@ -522,7 +545,7 @@ float4 PS_DrawDebug(VertexOut pin) : SV_Target
     
     if (gDebugMode == 1)
     {
-        color = float4(VSM_DebugPageGrid(p, a, gWindowOriginPage), 1);
+        color = float4(VSM_DebugPageGrid(p, a, levels[p.LevelIndex].WindowOriginPage), 1);
     }
     else if (gDebugMode == 2)
     {
@@ -530,5 +553,13 @@ float4 PS_DrawDebug(VertexOut pin) : SV_Target
         color = float4(VSM_DebugCacheState(s, gFrame, gPhysMeta), 1);
     }
     
+    if (gDebugMode == 3)
+    {
+        const float3 palette[4] = {
+            float3(0.9, 0.2, 0.15), float3(0.2, 0.8, 0.25),
+            float3(0.15, 0.45, 1.0), float3(1.0, 0.75, 0.1)
+        };
+        color = float4(palette[p.LevelIndex % 4], 1);
+    }
     return color;
 }

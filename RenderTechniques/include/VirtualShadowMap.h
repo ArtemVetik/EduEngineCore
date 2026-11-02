@@ -19,6 +19,7 @@ namespace EduEngine
 {
 	struct alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) CbBuffers
 	{
+		UINT ClipmapBuffer;
 		UINT PhysMeta;
 		UINT PageRequest;
 		UINT PageTable;
@@ -37,11 +38,12 @@ namespace EduEngine
 		None = 0,
 		PageGrid = 1,
 		CacheState = 2,
+		ClipmapLevel = 3,
 	};
 
 	inline static const char* VSMDebugModeStr[]
 	{
-		"None", "PageGrid", "CacheState"
+		"None", "PageGrid", "CacheState", "ClipmapLevel"
 	};
 
 	class VirtualShadowMap
@@ -105,6 +107,7 @@ namespace EduEngine
 		PipelineState m_DrawDebugPso;
 		std::shared_ptr<ShaderBinder> m_DrawDebugBinder;
 
+		std::shared_ptr<BufferD3D12> m_ClipmapBuffer;
 		std::shared_ptr<TextureD3D12> m_PhysPool;
 		std::shared_ptr<BufferD3D12> m_PhysMeta;
 		std::shared_ptr<TextureD3D12> m_PageRequest;
@@ -131,7 +134,7 @@ namespace EduEngine
 
 		CbBuffers m_CbBuffers;
 		XMUINT2 m_ScreenSize;
-		XMINT2 m_PrevPage;
+		std::array<XMINT2, VSM_NUM_CLIPMAPS> m_PrevSnap = {};
 		XMFLOAT3 m_PrevLightDir;
 		UINT m_Frame;
 		UINT m_CurListIdx;

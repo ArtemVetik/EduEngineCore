@@ -130,13 +130,18 @@ namespace EduEngine
 			UINT LastUsedFrame;
 			UINT AllocFrame;
 			XMUINT2 PageAddr;
+			UINT LevelIndex;
 		};
 
 		struct RenderListEntry
 		{
 			UINT Slot;
 			XMUINT2 PageAddr;
+			UINT LevelIndex;
 		};
+
+		VSM::CreateBuffer(device, context, m_ClipmapBuffer, VSM_NUM_CLIPMAPS, sizeof(ClipmapLevelGPU), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ true, DXGI_FORMAT_UNKNOWN }, L"m_ClipmapBuffer");
 
 		VSM::CreateTexture(device, m_PhysPool, VSM_POOL_SIZE * VSM_PAGE_SIZE, VSM_POOL_SIZE * VSM_PAGE_SIZE, DXGI_FORMAT_R24G8_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 			{ true, DXGI_FORMAT_D24_UNORM_S8_UINT },	 // clear
@@ -148,14 +153,14 @@ namespace EduEngine
 		VSM::CreateBuffer(device, context, m_PhysMeta, VSM_MAX_PHYS_PAGES, sizeof(PhysMetaEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PhysMeta");
 
-		VSM::CreateTexture(device, m_PageRequest, VSM_PAGES_XY, VSM_PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateTexture(device, m_PageRequest, VSM_PAGES_XY, VSM_PAGES_XY * VSM_NUM_CLIPMAPS, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ false, DXGI_FORMAT_UNKNOWN },	// clear
 			{ false, DXGI_FORMAT_UNKNOWN }, // srv
 			{ false, DXGI_FORMAT_UNKNOWN },	// dsv
 			{ true, DXGI_FORMAT_R32_UINT },	// uav
 			L"m_PageRequest");
 
-		VSM::CreateTexture(device, m_PageTable, VSM_PAGES_XY, VSM_PAGES_XY, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		VSM::CreateTexture(device, m_PageTable, VSM_PAGES_XY, VSM_PAGES_XY * VSM_NUM_CLIPMAPS, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ false, DXGI_FORMAT_UNKNOWN },	// clear
 			{ false, DXGI_FORMAT_UNKNOWN }, // srv
 			{ false, DXGI_FORMAT_UNKNOWN },	// dsv
@@ -183,6 +188,7 @@ namespace EduEngine
 
 		context->GetCommandCtx()->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
+		m_CbBuffers.ClipmapBuffer = m_ClipmapBuffer->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PhysMeta = m_PhysMeta->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PageRequest = m_PageRequest->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PageTable = m_PageTable->GetUAVView()->GetGpuHeapIndex();
@@ -460,18 +466,16 @@ namespace EduEngine
 		{
 			XMFLOAT4X4 InvView;
 			XMFLOAT4X4 InvProj;
-			XMFLOAT4X4 LightViewProj;
-			XMFLOAT4X4 LightViewProjNDC;
+			XMFLOAT3 CameraWorldPos;
+			float ResolutionLodBias;
 			XMUINT2 ScreenSize;
-			XMINT2 PageOffset;
 			UINT Frame;
 			UINT InvalidateAll;
-			XMINT2 WindowOriginPage;
 			UINT CurList;
 			UINT PrevList;
 			UINT HasHistory;
 			UINT DebugMode;
-		} passData;
+		} passData = {};
 
 		XMMATRIX ligthView;
 		XMMATRIX ligthProj;
@@ -494,43 +498,49 @@ namespace EduEngine
 			ligthView = XMMatrixLookAtLH(lightPos, XMVectorAdd(lightPos, lightDir), upVector);
 		}
 
-		// Projection
-		{
-			const float halfSize = 1024;
-			const float pageWorld = 2 * halfSize / VSM_PAGES_XY;
-
-			XMFLOAT3 camLS;
-			XMStoreFloat3(&camLS, XMVector3TransformCoord(XMLoadFloat3(&camera->GetPosition()), ligthView));
-
-			XMINT2 camPage = { (int)floor(camLS.x / pageWorld), (int)floor(camLS.y / pageWorld) };
-
-			if (m_Frame == 0)
-				m_PrevPage = camPage;
-
-			float l = -halfSize + camPage.x * pageWorld;
-			float r = halfSize + camPage.x * pageWorld;
-			float b = -halfSize + camPage.y * pageWorld;
-			float t = halfSize + camPage.y * pageWorld;
-			float n = -500;
-			float f = 500;
-
-			ligthProj = DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, f, n);
-
-			XMINT2 d = { camPage.x - m_PrevPage.x, camPage.y - m_PrevPage.y };
-			passData.PageOffset = XMINT2(-d.x, +d.y);
-			passData.WindowOriginPage = XMINT2(camPage.x, -camPage.y);
-
-			m_PrevPage = camPage;
-		}
-
-		DirectX::XMMATRIX T(
-			0.5f, 0.0f, 0.0f, 0.0f,
-			0.0f, -0.5f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
+        std::array<ClipmapLevelGPU, VSM_NUM_CLIPMAPS> clipmapsGpu = {};
+        XMFLOAT3 cameraLS;
+        XMStoreFloat3(&cameraLS, XMVector3TransformCoord(XMLoadFloat3(&camera->GetPosition()), ligthView));
+        
+		const XMMATRIX uvTransform(
+            0.5f, 0.0f,	0.0f, 0.0f,
+			0.0f,-0.5f,	0.0f, 0.0f,
+			0.0f, 0.0f,	1.0f, 0.0f,
 			0.5f, 0.5f, 0.0f, 1.0f);
+        
+		for (uint32 i = 0; i < VSM_NUM_CLIPMAPS; ++i)
+        {
+            const float radius = std::exp2(float(VSM_FIRST_CLIPMAP_LEVEL + i + 1));
+            const float halfSize = 2.0f * radius;
+            const XMINT2 snap(int(std::round(cameraLS.x / radius)), int(std::round(cameraLS.y / radius)));
+            const float centerX = snap.x * radius;
+            const float centerY = snap.y * radius;
 
-		XMStoreFloat4x4(&passData.LightViewProj, XMMatrixTranspose(ligthView* ligthProj* T));
-		XMStoreFloat4x4(&passData.LightViewProjNDC, XMMatrixTranspose(ligthView* ligthProj));
+            ligthProj = XMMatrixOrthographicOffCenterLH(
+				centerX - halfSize, // l
+				centerX + halfSize, // r
+                centerY - halfSize, // b
+				centerY + halfSize, // t
+				500.0f,				// f
+				-500.0f);			// n
+
+            auto& level = clipmapsGpu[i];
+            level.AbsoluteLevel = VSM_FIRST_CLIPMAP_LEVEL + i;
+            level.WindowOriginPage = XMINT2(snap.x * 32, -snap.y * 32);
+            level.PageOffset = m_Frame == 0 ? 
+				XMINT2(0, 0) :
+                XMINT2(-32 * (snap.x - m_PrevSnap[i].x), 32 * (snap.y - m_PrevSnap[i].y));
+
+            XMStoreFloat4x4(&level.WorldToShadowUV, XMMatrixTranspose(ligthView * ligthProj * uvTransform));
+            XMStoreFloat4x4(&level.WorldToShadowClip, XMMatrixTranspose(ligthView * ligthProj));
+            m_PrevSnap[i] = snap;
+        }
+		
+        UINT clipmapBytes = sizeof(clipmapsGpu);
+        m_ClipmapBuffer->LoadData(context, clipmapsGpu.data(), &clipmapBytes);
+        passData.CameraWorldPos = camera->GetPosition();
+        const float projectionScaleX = camera->GetProjectionMatrix()._11;
+        passData.ResolutionLodBias = std::max(0.0f, std::log2(0.5f / projectionScaleX * float(VSM_VIRTUAL_SIZE) / float(m_ScreenSize.x)));
 
 		if (m_Frame == 0)
 			m_PrevLightDir = light->Direction;
@@ -563,6 +573,7 @@ namespace EduEngine
 		auto* ctx = context->GetCommandCtx();
 		auto* cmd = ctx->GetCmdList();
 
+		ctx->TransitionResource(m_ClipmapBuffer.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PhysMeta.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PageRequest.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PageTable.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -581,7 +592,7 @@ namespace EduEngine
 		{
 			UINT groupCount = static_cast<UINT>(ceil(VSM_PAGES_XY / 8.0f));
 			m_ClearPso.PSO.BeginPSOAndCommitResources(context, m_ClearPso.Binder.get());
-			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount, 1);
+			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount * VSM_NUM_CLIPMAPS, 1);
 		}
 
 		// CS_RemapPhysicalPages
@@ -633,7 +644,7 @@ namespace EduEngine
 		{
 			UINT groupCount = static_cast<UINT>(ceil(VSM_PAGES_XY / 8.0f));
 			m_AllocatePso.PSO.BeginPSOAndCommitResources(context, m_AllocatePso.Binder.get());
-			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount, 1);
+			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, groupCount * VSM_NUM_CLIPMAPS, 1);
 		}
 
 		ctx->InsertUAVBarrier(m_PageLists[m_CurListIdx].get(), true);

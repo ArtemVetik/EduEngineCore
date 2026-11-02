@@ -10,6 +10,9 @@
 #define VSM_VIRTUAL_SIZE	(VSM_PAGE_SIZE * VSM_PAGES_XY)
 #define VSM_POOL_SIZE		64
 #define VSM_MAX_PHYS_PAGES	(VSM_POOL_SIZE * VSM_POOL_SIZE)
+#define VSM_NUM_CLIPMAPS 12
+#define VSM_FIRST_CLIPMAP_LEVEL 0
+
 #define VSM_MAX_PAGE_AGE	1000
 
 #define VSM_STAT_REQUESTED_PAGES		0  // virtual pages requested this frame (unique)
@@ -23,3 +26,29 @@
 #define VSM_STAT_REQUESTED_LIST_FINAL	8  // invariant: must equal VSM_MAX_PHYS_PAGES
 #define VSM_STAT_LIST_DUPLICATES		9  // validation: slots seen twice in REQUESTED
 #define VSM_STAT_NUM					10
+
+
+#ifdef __cplusplus
+    #include <DirectXMath.h>
+    #include <cstdint>
+
+    using float4x4 = DirectX::XMFLOAT4X4;
+    using int2 = DirectX::XMINT2;
+    using uint = uint32_t;
+#endif
+
+struct ClipmapLevelGPU
+{
+    float4x4 WorldToShadowUV;
+    float4x4 WorldToShadowClip;
+
+    int2 PageOffset;
+    int AbsoluteLevel;
+    uint Invalidate;
+    int2 WindowOriginPage;
+    int2 Padding;
+};
+
+#ifdef __cplusplus
+static_assert(sizeof(ClipmapLevelGPU) == 160);
+#endif

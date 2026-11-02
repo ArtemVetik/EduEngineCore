@@ -15,12 +15,28 @@
 #define LIST_EMPTY      2 // invalid pages, appended to AVAILABLE after packing
 #define LIST_REQUESTED  3 // pages used this frame; becomes next frame's LRU order
 
+uint2 VSM_PageTableAddress(uint2 page, uint level)
+{
+    return page + uint2(0, level * VSM_PAGES_XY);
+}
+
+uint VSM_SelectClipmap(float3 worldPos, float3 cameraPos, float lodBias)
+{
+    float3 delta = worldPos - cameraPos;
+    
+    // log2(d^2) / 2 = log2(d)
+    int level = int(floor(0.5 * log2(max(dot(delta, delta), 1e-12)) + lodBias));
+    // Keep distant receivers on the coarsest level; its UV bounds define coverage.
+    return uint(clamp(level - VSM_FIRST_CLIPMAP_LEVEL, 0, VSM_NUM_CLIPMAPS - 1));
+}
+
 struct PhysMetaEntry
 {
     uint Flags;
     uint LastRequestedFrame;
     uint AllocFrame;
     uint2 PageAddr;
+    uint LevelIndex;
 };
 
 // Wave-aggregated InterlockedAdd: one atomic per wave, returns this lane's original value
@@ -83,6 +99,7 @@ struct VSMParams
     uint PageTable;
     uint PhysPool;
     float Bias;
+    uint LevelIndex;
 };
 
 struct VSMAddress
@@ -137,7 +154,7 @@ VSMSample VSM_Sample(VSMParams p, float3 worldPos)
         return s;
 
     RWTexture2D<uint> pageTable = ResourceDescriptorHeap[p.PageTable]; // TODO: pageTable now is UAV. Create SRV
-    s.Entry = pageTable[a.Page];
+    s.Entry = pageTable[VSM_PageTableAddress(a.Page, p.LevelIndex)];
     
     if (!(s.Entry & PT_MAPPED))
         return s;
