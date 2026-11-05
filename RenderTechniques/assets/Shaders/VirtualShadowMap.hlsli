@@ -8,6 +8,7 @@
 #define PT_MAPPED     (1u << 31)   // page has slot (from cache or new)
 #define PT_REQUESTED  (1u << 30)   // page is visible in this frame (Mark)
 #define PT_OVERFLOW   (1u << 29)   // page is needed, but there were no available slots
+#define PT_RENDER     (1u << 28)   // page is needed for rendering
 #define PT_SLOT_MASK  0xFFFFu
 
 #define LIST_LRU        0 // last frame's order, requested/empty entries replaced by -1
@@ -159,8 +160,8 @@ VSMSample VSM_Sample(VSMParams p, float3 worldPos)
     if (!(s.Entry & PT_MAPPED))
         return s;
 
-    Texture2D<float> pool = ResourceDescriptorHeap[p.PhysPool];
-    s.OccluderDepth = pool.Load(int3(VSM_SlotToPhysTexel(p, s.Entry & PT_SLOT_MASK, a.VirtualTexel), 0));
+    RWTexture2D<uint> pool = ResourceDescriptorHeap[p.PhysPool];
+    s.OccluderDepth = asfloat(pool.Load(VSM_SlotToPhysTexel(p, s.Entry & PT_SLOT_MASK, a.VirtualTexel)));
     s.Valid = true;
     
     return s;

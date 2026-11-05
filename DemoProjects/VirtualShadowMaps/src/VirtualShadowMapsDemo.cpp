@@ -120,7 +120,7 @@ namespace EduEngine
 		m_RenderObjects[0].World = XMMatrixScaling(5, 5, 5);
 
 		m_VSM = std::make_unique<VirtualShadowMap>(GetDevice(), GetMainContext());
-		m_VSM->BuildCommandSignature(GetDevice(), GetMainContext(), m_RenderObjects, 1);
+		m_VSM->BuildCommandSignature(GetDevice(), GetMainContext());
 
 		//
 		// Setup light

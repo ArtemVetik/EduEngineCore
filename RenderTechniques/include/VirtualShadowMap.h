@@ -25,10 +25,9 @@ namespace EduEngine
 		UINT PageTable;
 		UINT RenderList;
 		UINT RenderCount;
+		UINT UncachedBounds;
 		UINT SSDepthTexture;
-		UINT QuadDrawArgs;
-		UINT DrawArgs;
-		UINT DrawCount;
+		UINT ClearDispatchArgs;
 		UINT PhysPool;
 		UINT StatsBuffer;
 	};
@@ -52,7 +51,7 @@ namespace EduEngine
 		VirtualShadowMap(RenderDeviceD3D12* device, DeviceContext* context);
 
 		void SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, XMUINT2 screenSize);
-		void BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context, RenderObject* objects, uint32 objectsNum);
+		void BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context);
 		
 		void SetDebugMode(VSMDebugMode mode) { m_DebugMode = mode; }
 		VSMDebugMode GetDebugMode() const { return m_DebugMode; }
@@ -90,13 +89,11 @@ namespace EduEngine
 		CSPso m_PackPso;
 		CSPso m_AllocatePso;
 		CSPso m_FinalizePso;
-		CSPso m_DrawArgsPso;
+		CSPso m_DispatchArgsPso;
+		CSPso m_ClearSlotsPso;
 #if VSM_GENERATE_STATS
 		CSPso m_ValidatePso;
 #endif
-
-		PipelineState m_ClearSlotsPso;
-		std::shared_ptr<ShaderBinder> m_ClearSlotsBinder;
 
 		PipelineState m_GeometryPso;
 		std::shared_ptr<ShaderBinder> m_GeometryBinder;
@@ -115,13 +112,13 @@ namespace EduEngine
 		std::shared_ptr<BufferD3D12> m_PageLists[2];
 		std::shared_ptr<BufferD3D12> m_RenderList;
 		std::shared_ptr<BufferD3D12> m_RenderCount;
+		std::shared_ptr<BufferD3D12> m_UncachedBounds;
 #if VSM_GENERATE_STATS
 		std::shared_ptr<BufferD3D12> m_StatsBuffer;
 		std::unique_ptr<ReadBackBufferD3D12> m_StatsReadbackBuffer;
 #endif
 
-		std::shared_ptr<BufferD3D12> m_QuadDrawArgs;
-		std::shared_ptr<BufferD3D12> m_DrawArgs;
+		std::shared_ptr<BufferD3D12> m_ClearDispatchArgs;
 		std::shared_ptr<TextureD3D12> m_ShadowMask;
 		std::shared_ptr<TextureD3D12> m_DebugMask;
 		
@@ -129,8 +126,7 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_ObjBuffer;
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 
-		CommandSignatureD3D12 m_QuadDrawArgsSignature;
-		CommandSignatureD3D12 m_DrawArgsSignature;
+		CommandSignatureD3D12 m_ClearDispatchArgsSignature;
 
 		CbBuffers m_CbBuffers;
 		XMUINT2 m_ScreenSize;

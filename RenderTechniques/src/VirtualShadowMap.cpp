@@ -136,18 +136,16 @@ namespace EduEngine
 		struct RenderListEntry
 		{
 			UINT Slot;
-			XMUINT2 PageAddr;
-			UINT LevelIndex;
 		};
 
 		VSM::CreateBuffer(device, context, m_ClipmapBuffer, VSM_NUM_CLIPMAPS, sizeof(ClipmapLevelGPU), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_ClipmapBuffer");
 
-		VSM::CreateTexture(device, m_PhysPool, VSM_POOL_SIZE * VSM_PAGE_SIZE, VSM_POOL_SIZE * VSM_PAGE_SIZE, DXGI_FORMAT_R24G8_TYPELESS, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-			{ true, DXGI_FORMAT_D24_UNORM_S8_UINT },	 // clear
-			{ true, DXGI_FORMAT_R24_UNORM_X8_TYPELESS }, // srv
-			{ true, DXGI_FORMAT_D24_UNORM_S8_UINT },	 // dsv
-			{ false, DXGI_FORMAT_UNKNOWN },				 // uav
+		VSM::CreateTexture(device, m_PhysPool, VSM_POOL_SIZE * VSM_PAGE_SIZE, VSM_POOL_SIZE * VSM_PAGE_SIZE, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ false, DXGI_FORMAT_UNKNOWN },	// clear
+			{ false, DXGI_FORMAT_UNKNOWN },	// srv
+			{ false, DXGI_FORMAT_UNKNOWN },	// dsv
+			{ true, DXGI_FORMAT_R32_UINT },	// uav
 			L"m_PhysPool");
 
 		VSM::CreateBuffer(device, context, m_PhysMeta, VSM_MAX_PHYS_PAGES, sizeof(PhysMetaEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
@@ -179,6 +177,9 @@ namespace EduEngine
 		VSM::CreateBuffer(device, context, m_RenderCount, 1, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_RenderCount");
 
+		VSM::CreateBuffer(device, context, m_UncachedBounds, VSM_NUM_CLIPMAPS, sizeof(XMUINT4), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ true, DXGI_FORMAT_UNKNOWN }, L"m_UncachedBounds");
+
 #if VSM_GENERATE_STATS
 		VSM::CreateBuffer(device, context, m_StatsBuffer, VSM_STAT_NUM, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ true, DXGI_FORMAT_UNKNOWN }, L"m_StatsBuffer");
@@ -186,15 +187,14 @@ namespace EduEngine
 		m_StatsReadbackBuffer = std::make_unique<ReadBackBufferD3D12>(device, STATS_RING * VSM_STAT_NUM * sizeof(uint32), QueueId::Direct);
 #endif
 
-		context->GetCommandCtx()->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
 		m_CbBuffers.ClipmapBuffer = m_ClipmapBuffer->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PhysMeta = m_PhysMeta->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PageRequest = m_PageRequest->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PageTable = m_PageTable->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.RenderList = m_RenderList->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.RenderCount = m_RenderCount->GetUAVView()->GetGpuHeapIndex();
-		m_CbBuffers.PhysPool = m_PhysPool->GetSRVView()->GetGpuHeapIndex();
+		m_CbBuffers.UncachedBounds = m_UncachedBounds->GetUAVView()->GetGpuHeapIndex();
+		m_CbBuffers.PhysPool = m_PhysPool->GetUAVView()->GetGpuHeapIndex();
 #if VSM_GENERATE_STATS
 		m_CbBuffers.StatsBuffer = m_StatsBuffer->GetUAVView()->GetGpuHeapIndex();
 #endif
@@ -213,9 +213,9 @@ namespace EduEngine
 		shaderDesc.ResourceDesc = resDesc;
 		shaderDesc.ResourceNum = _countof(resDesc);
 		
-		auto vsClearSlots = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"VS_ClearSlots", L"vs_6_6", nullptr, shaderDesc);
 		auto vsGeometry = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"VS_Geometry", L"vs_6_6", nullptr, shaderDesc);
 		auto vsFSQuad = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\FSQuadVS.hlsl", L"VS", L"vs_6_6", nullptr, shaderDesc);
+		auto psGeometry = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"PS_Geometry", L"ps_6_6", nullptr, shaderDesc);
 		auto psDrawShadow = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"PS_DrawShadow", L"ps_6_6", nullptr, shaderDesc);
 		auto psDrawDebug = ShaderCache::Get().GetOrCreate(L"assets\\Shaders\\VirtualShadowMap.hlsl", L"PS_DrawDebug", L"ps_6_6", nullptr, shaderDesc);
 
@@ -243,7 +243,8 @@ namespace EduEngine
 		CreateCSPso(m_PackPso, L"CS_PackAvailablePages", L"m_PackPso", CS_BIND_PASS | CS_BIND_BUFFERS);
 		CreateCSPso(m_AllocatePso, L"CS_Allocate", L"m_AllocatePso", CS_BIND_PASS | CS_BIND_BUFFERS);
 		CreateCSPso(m_FinalizePso, L"CS_FinalizeLists", L"m_FinalizePso", CS_BIND_PASS | CS_BIND_BUFFERS);
-		CreateCSPso(m_DrawArgsPso, L"CS_DrawArgs", L"m_DrawArgsPso", CS_BIND_BUFFERS);
+		CreateCSPso(m_DispatchArgsPso, L"CS_DispatchArgs", L"m_DispatchArgsPso", CS_BIND_BUFFERS);
+		CreateCSPso(m_ClearSlotsPso, L"CS_ClearSlots", L"m_ClearSlotsPso", CS_BIND_BUFFERS);
 #if VSM_GENERATE_STATS
 		const wchar_t* defines[] = { L"VSM_GENERATE_STATS", L"1", NULL };
 		CreateCSPso(m_ValidatePso, L"CS_ValidateLists", L"m_ValidatePso", CS_BIND_PASS | CS_BIND_BUFFERS, defines);
@@ -258,39 +259,14 @@ namespace EduEngine
 		};
 
 		D3D12_DEPTH_STENCIL_DESC dss = {};
-		dss.DepthEnable = true;
-		dss.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-		dss.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-
-		// Clear Slots PSO
-		{
-			D3D12_RASTERIZER_DESC rast = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-			rast.CullMode = D3D12_CULL_MODE_NONE;
-
-			m_ClearSlotsPso.SetShader(vsClearSlots);
-			m_ClearSlotsPso.SetDepthStencilState(dss);
-			m_ClearSlotsPso.SetRasterizerState(rast);
-			m_ClearSlotsPso.SetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE, true);
-			m_ClearSlotsPso.Build(device);
-			m_ClearSlotsPso.SetName(L"m_ClearSlotsPso");
-
-			m_ClearSlotsBinder = m_ClearSlotsPso.CreateShaderBinder();
-			m_ClearSlotsBinder->BindResource(EDU_SHADER_TYPE_VERTEX, "cbBuffers", m_ConstantsBuffer);
-		}
-
-		dss.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+		dss.DepthEnable = false;
 		
 		// Geometry PSO
 		{
-			D3D12_RASTERIZER_DESC rast = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-			rast.DepthBias = -1;
-			rast.DepthBiasClamp = 0.0f;
-			rast.SlopeScaledDepthBias = -2.5f;
-
 			m_GeometryPso.SetInputLayout({ inputLayout, _countof(inputLayout) });
 			m_GeometryPso.SetDepthStencilState(dss);
-			m_GeometryPso.SetRasterizerState(rast); // TODO: verify rast state
 			m_GeometryPso.SetShader(vsGeometry);
+			m_GeometryPso.SetShader(psGeometry);
 			m_GeometryPso.Build(device);
 			m_GeometryPso.SetName(L"m_GeometryPso");
 
@@ -298,9 +274,8 @@ namespace EduEngine
 			m_GeometryBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbObject", m_ObjBuffer);
 			m_GeometryBinder->BindDynamicResource(EDU_SHADER_TYPE_VERTEX, "cbPass", m_PassBuffer);
 			m_GeometryBinder->BindResource(EDU_SHADER_TYPE_VERTEX, "cbBuffers", m_ConstantsBuffer);
+			m_GeometryBinder->BindResource(EDU_SHADER_TYPE_PIXEL, "cbBuffers", m_ConstantsBuffer);
 		}
-
-		dss.DepthEnable = false;
 
 		// Shadow Mask PSO
 		{
@@ -385,78 +360,36 @@ namespace EduEngine
 		context->GetCommandCtx()->TransitionResource(m_DebugMask.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
-	void VirtualShadowMap::BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context, RenderObject* objects, uint32 objectsNum)
+	void VirtualShadowMap::BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context)
 	{
-		std::vector<D3D12_DRAW_INDEXED_ARGUMENTS> drawArgsData;
-
-		// DrawArgs
+		// ClearDispatchArgs
 		{
-			for (uint32 obj = 0; obj < objectsNum; obj++)
-			{
-				for (uint32 mIdx = 0; mIdx < objects[obj].Mesh->GetMeshCount(); mIdx++)
-				{
-					D3D12_DRAW_INDEXED_ARGUMENTS arg = {};
-					arg.BaseVertexLocation = 0;
-					arg.StartIndexLocation = 0;
-					arg.StartInstanceLocation = 0;
-					arg.InstanceCount = 0;
-					arg.IndexCountPerInstance = objects[obj].Mesh->GetIndexCount(mIdx);
+			D3D12_DISPATCH_ARGUMENTS arg = {};
+			arg.ThreadGroupCountX = 1;
+			arg.ThreadGroupCountY = 1;
+			arg.ThreadGroupCountZ = 1;
 
-					drawArgsData.push_back(arg);
-				}
-			}
-
-			auto desc = CD3DX12_RESOURCE_DESC::Buffer(drawArgsData.size() * sizeof(drawArgsData[0]), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+			auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(D3D12_DISPATCH_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 			D3D12_UNORDERED_ACCESS_VIEW_DESC uav = {};
 			uav.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-			uav.Buffer.NumElements = drawArgsData.size() * sizeof(drawArgsData[0]) / sizeof(UINT);
+			uav.Buffer.NumElements = sizeof(D3D12_DISPATCH_ARGUMENTS) / sizeof(UINT);
 			uav.Buffer.StructureByteStride = sizeof(UINT);
 
-			m_DrawArgs = std::make_shared<BufferD3D12>(device, context, desc, drawArgsData.data(), QueueId::Direct);
-			m_DrawArgs->CreateUAV(&uav, false);
-			m_DrawArgs->SetName(L"m_DrawArgs");
+			m_ClearDispatchArgs = std::make_shared<BufferD3D12>(device, context, desc, &arg, QueueId::Direct);
+			m_ClearDispatchArgs->CreateUAV(&uav, false);
+			m_ClearDispatchArgs->SetName(L"m_ClearDispatchArgs");
 
-			D3D12_INDIRECT_ARGUMENT_DESC drawArgsDesc = {};
-			drawArgsDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+			D3D12_INDIRECT_ARGUMENT_DESC dispatchArgsDesc = {};
+			dispatchArgsDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
 
-			m_DrawArgsSignature.SetByteStride(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
-			m_DrawArgsSignature.SetArguments(1, &drawArgsDesc);
-			m_DrawArgsSignature.Build(device);
-			m_DrawArgsSignature.SetName(L"m_DrawArgsSignature");
+			m_ClearDispatchArgsSignature.SetByteStride(sizeof(D3D12_DISPATCH_ARGUMENTS));
+			m_ClearDispatchArgsSignature.SetArguments(1, &dispatchArgsDesc);
+			m_ClearDispatchArgsSignature.Build(device);
+			m_ClearDispatchArgsSignature.SetName(L"m_ClearDispatchArgsSignature");
 		}
 
-		// QuadDrawArgs
-		{
-			D3D12_DRAW_ARGUMENTS arg = {};
-			arg.VertexCountPerInstance = 4;
-			arg.InstanceCount = 0;
-			arg.StartVertexLocation = 0;
-			arg.StartInstanceLocation = 0;
-
-			auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(D3D12_DRAW_ARGUMENTS), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-			D3D12_UNORDERED_ACCESS_VIEW_DESC uav = {};
-			uav.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-			uav.Buffer.NumElements = sizeof(D3D12_DRAW_ARGUMENTS) / sizeof(UINT);
-			uav.Buffer.StructureByteStride = sizeof(UINT);
-
-			m_QuadDrawArgs = std::make_shared<BufferD3D12>(device, context, desc, &arg, QueueId::Direct);
-			m_QuadDrawArgs->CreateUAV(&uav, false);
-			m_QuadDrawArgs->SetName(L"m_QuadDrawArgs");
-
-			D3D12_INDIRECT_ARGUMENT_DESC drawArgsDesc = {};
-			drawArgsDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
-
-			m_QuadDrawArgsSignature.SetByteStride(sizeof(D3D12_DRAW_ARGUMENTS));
-			m_QuadDrawArgsSignature.SetArguments(1, &drawArgsDesc);
-			m_QuadDrawArgsSignature.Build(device);
-			m_QuadDrawArgsSignature.SetName(L"m_QuadDrawArgsSignature");
-		}
-
-		m_CbBuffers.QuadDrawArgs = m_QuadDrawArgs->GetUAVView()->GetGpuHeapIndex();
-		m_CbBuffers.DrawArgs = m_DrawArgs->GetUAVView()->GetGpuHeapIndex();
-		m_CbBuffers.DrawCount = drawArgsData.size();
+		m_CbBuffers.ClearDispatchArgs = m_ClearDispatchArgs->GetUAVView()->GetGpuHeapIndex();
 		m_ConstantsBuffer->LoadData(context, &m_CbBuffers);
 	}
 
@@ -567,13 +500,13 @@ namespace EduEngine
 	void VirtualShadowMap::Compute(DeviceContext* context, RenderObject* objects, uint32 objectsNum)
 	{
 		VERIFY_EXPR(m_ShadowMask != nullptr, "ShadowMask texture not created");
-		VERIFY_EXPR(m_DrawArgsSignature.GetD3D12Signature() != nullptr, "DrawArgsSignature not created");
-		VERIFY_EXPR(m_QuadDrawArgsSignature.GetD3D12Signature() != nullptr, "QuadDrawArgsSignature not created");
+		VERIFY_EXPR(m_ClearDispatchArgsSignature.GetD3D12Signature() != nullptr, "ClearDispatchArgsSignature not created");
 
 		auto* ctx = context->GetCommandCtx();
 		auto* cmd = ctx->GetCmdList();
 
 		ctx->TransitionResource(m_ClipmapBuffer.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PhysMeta.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PageRequest.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PageTable.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -581,8 +514,8 @@ namespace EduEngine
 		ctx->TransitionResource(m_PageLists[1].get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_RenderList.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_RenderCount.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		ctx->TransitionResource(m_DrawArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		ctx->TransitionResource(m_QuadDrawArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_UncachedBounds.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_ClearDispatchArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 #if VSM_GENERATE_STATS
 		ctx->TransitionResource(m_StatsBuffer.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 #endif
@@ -638,6 +571,7 @@ namespace EduEngine
 		ctx->InsertUAVBarrier(m_PageLists[m_CurListIdx].get());
 		ctx->InsertUAVBarrier(m_RenderCount.get());
 		ctx->InsertUAVBarrier(m_PhysMeta.get());
+		ctx->InsertUAVBarrier(m_UncachedBounds.get());
 		ctx->InsertUAVBarrier(m_PageTable.get(), true);
 
 		// CS_Allocate
@@ -668,39 +602,40 @@ namespace EduEngine
 		ctx->InsertUAVBarrier(m_RenderList.get());
 		ctx->InsertUAVBarrier(m_RenderCount.get(), true);
 
-		// DrawArgs
+		// DispatchArgs
 		{
-			UINT groupCount = static_cast<UINT>(ceil(m_CbBuffers.DrawCount / 32.0f));
-			m_DrawArgsPso.PSO.BeginPSOAndCommitResources(context, m_DrawArgsPso.Binder.get());
-			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCount, 1, 1);
+			m_DispatchArgsPso.PSO.BeginPSOAndCommitResources(context, m_DispatchArgsPso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(1, 1, 1);
 		}
 		
-		ctx->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		ctx->TransitionResource(m_QuadDrawArgs.get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-		ctx->TransitionResource(m_DrawArgs.get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		ctx->TransitionResource(m_ClearDispatchArgs.get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		ctx->FlushResourceBarriers();
-
-		D3D12_VIEWPORT vp = { 0, 0, VSM_POOL_SIZE * VSM_PAGE_SIZE, VSM_POOL_SIZE * VSM_PAGE_SIZE, 0, 1 };
-		D3D12_RECT sc = { 0, 0, vp.Width, vp.Height };
-		cmd->RSSetViewports(1, &vp);
-		cmd->RSSetScissorRects(1, &sc);
-		ctx->SetRenderTargets(0, nullptr, false, &m_PhysPool->GetDSVView()->GetCpuHandle());
 
 		// Clear Slots
 		{
-			m_ClearSlotsPso.BeginPSOAndCommitResources(context, m_ClearSlotsBinder.get());
+			m_ClearSlotsPso.PSO.BeginPSOAndCommitResources(context, m_ClearSlotsPso.Binder.get());
 
-			cmd->ExecuteIndirect(m_QuadDrawArgsSignature.GetD3D12Signature(),
+			cmd->ExecuteIndirect(m_ClearDispatchArgsSignature.GetD3D12Signature(),
 				1,
-				m_QuadDrawArgs->GetD3D12Resource(),
+				m_ClearDispatchArgs->GetD3D12Resource(),
 				0,
 				nullptr, 0);
 		}
 
+		ctx->InsertUAVBarrier(m_PageTable.get());
+		ctx->InsertUAVBarrier(m_UncachedBounds.get());
+		ctx->InsertUAVBarrier(m_PhysPool.get(), true);
+
 		// Draw Depth
 		{
+			D3D12_VIEWPORT vp = { 0, 0, VSM_VIRTUAL_SIZE, VSM_VIRTUAL_SIZE, 0, 1 };
+			D3D12_RECT sc = { 0, 0, VSM_VIRTUAL_SIZE, VSM_VIRTUAL_SIZE };
+			cmd->RSSetViewports(1, &vp);
+			cmd->RSSetScissorRects(1, &sc);
+
+			ctx->SetRenderTargets(0, nullptr, false, nullptr);
+
 			m_GeometryPso.BeginPSO(context);
-			uint32 drawIdx = 0;
 
 			for (uint32 obj = 0; obj < objectsNum; obj++)
 			{
@@ -718,19 +653,13 @@ namespace EduEngine
 					cmd->IASetIndexBuffer(&objects[obj].Mesh->GetIndexBuffer(mIdx)->GetView());
 					cmd->IASetVertexBuffers(0, 1, &objects[obj].Mesh->GetVertexBuffer(mIdx)->GetView());
 
-					cmd->ExecuteIndirect(m_DrawArgsSignature.GetD3D12Signature(),
-						1,
-						m_DrawArgs->GetD3D12Resource(),
-						drawIdx * sizeof(D3D12_DRAW_INDEXED_ARGUMENTS),
-						nullptr, 0);
-					++drawIdx;
+					cmd->DrawIndexedInstanced(objects[obj].Mesh->GetIndexCount(mIdx), VSM_NUM_CLIPMAPS, 0, 0, 0);
 				}
 			}
 		}
 
-		ctx->InsertUAVBarrier(m_PageTable.get());
-		ctx->TransitionResource(m_ShadowMask.get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-		ctx->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, true);
+		ctx->InsertUAVBarrier(m_PhysPool.get());
+		ctx->TransitionResource(m_ShadowMask.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, true);
 
 		// Draw ShadowMask
 		{
