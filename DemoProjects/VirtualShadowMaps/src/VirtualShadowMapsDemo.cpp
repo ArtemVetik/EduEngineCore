@@ -223,8 +223,9 @@ namespace EduEngine
 			}
 		}
 
-		for (uint32 i = 0; i < 2; i++)
-			ctx->TransitionResource(m_GBuffer->GetGBuffer(i), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		ctx->TransitionResource(m_GBuffer->GetGBuffer(0), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		ctx->TransitionResource(m_GBuffer->GetGBuffer(1),
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
 		ctx->TransitionResource(GetSwapChain()->GetDepthStencilTexture(), 
 			D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -359,21 +360,19 @@ namespace EduEngine
 			m_GBuffer->Resize(GetDevice(), GetMainContext(), screenSize.x, screenSize.y);
 		}
 
-		if (m_VSM)
+		if (m_GBuffer && m_VSM)
 		{
 			m_GpuSSDepth = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1));
 			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuSSDepth.GetCpuHandle(), GetSwapChain()->GetDepthStencilTexture()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-			m_VSM->SetSSDepth(GetDevice(), GetMainContext(), m_GpuSSDepth.GetGpuHeapIndex(), screenSize);
-		}
+			UINT normalTex = m_GBuffer->GetGBuffer(1)->GetSRVView()->GetGpuHeapIndex();
+			m_VSM->SetScreenSpaceInputs(GetDevice(), GetMainContext(), m_GpuSSDepth.GetGpuHeapIndex(), normalTex, screenSize);
 
-		if (m_GBuffer && m_VSM)
-		{
 			ConstantsData constData = {};
 			constData.ShadowMask = m_VSM->GetShadowMask()->GetSRVView()->GetGpuHeapIndex();
 			constData.DebugMask = m_VSM->GetDebugMask()->GetSRVView()->GetGpuHeapIndex();
 			constData.AlbedoTex = m_GBuffer->GetGBuffer(0)->GetSRVView()->GetGpuHeapIndex();
-			constData.NormalTex = m_GBuffer->GetGBuffer(1)->GetSRVView()->GetGpuHeapIndex();
+			constData.NormalTex = normalTex;
 			constData.AccumTex = m_GBuffer->GetAccumBuffer(0)->GetSRVView()->GetGpuHeapIndex();
 
 			m_ConstantsBuffer->LoadData(GetMainContext(), &constData);

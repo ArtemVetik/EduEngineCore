@@ -306,11 +306,12 @@ namespace EduEngine
 		}
 	}
 
-	void VirtualShadowMap::SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, XMUINT2 screenSize)
+	void VirtualShadowMap::SetScreenSpaceInputs(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, UINT ssNormalTex, XMUINT2 screenSize)
 	{
 		m_ScreenSize = screenSize;
 
 		m_CbBuffers.SSDepthTexture = ssDepthTex;
+		m_CbBuffers.SSNormalTexture = ssNormalTex;
 		m_ConstantsBuffer->LoadData(context, &m_CbBuffers);
 
 		D3D12_RESOURCE_DESC buffDesc = {};
@@ -459,6 +460,7 @@ namespace EduEngine
 
             auto& level = clipmapsGpu[i];
             level.AbsoluteLevel = VSM_FIRST_CLIPMAP_LEVEL + i;
+            level.WorldTexelSize = 2.0f * halfSize / VSM_VIRTUAL_SIZE;
             level.WindowOriginPage = XMINT2(snap.x * 32, -snap.y * 32);
             level.PageOffset = m_Frame == 0 ? 
 				XMINT2(0, 0) :

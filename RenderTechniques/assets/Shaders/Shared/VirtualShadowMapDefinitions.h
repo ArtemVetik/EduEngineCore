@@ -46,7 +46,8 @@ struct ClipmapLevelGPU
     int AbsoluteLevel;
     uint Invalidate;
     int2 WindowOriginPage;
-    int2 Padding;
+    float WorldTexelSize;
+    uint Padding;
 };
 
 #ifdef __cplusplus

@@ -42,6 +42,36 @@ cbuffer cbBuffers : register(b2)
     uint gClearDispatchArgs;
     uint gPhysPool;
     uint gStatsBuffer;
+    uint gSSNormalTexture;
+}
+
+bool VSM_GetReceiver(uint2 pixel, out VSMParams p, out float3 worldPos)
+{
+    p = (VSMParams)0;
+    worldPos = 0.0f;
+
+    Texture2D<float> depthTex = ResourceDescriptorHeap[gSSDepthTexture];
+    float depth = depthTex.Load(int3(pixel, 0));
+    if (depth <= 0.0f)
+        return false;
+
+    float2 screenUV = (float2(pixel) + 0.5f) / gScreenSize;
+    worldPos = ReconstructWorldPosFromDepth(depth, screenUV, gInvProj, gInvView).xyz;
+    p.LevelIndex = VSM_SelectClipmap(worldPos, gCameraWorldPos, gResolutionLodBias);
+
+    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    ClipmapLevelGPU clipmap = levels[p.LevelIndex];
+    p.LightViewProj = clipmap.WorldToShadowUV;
+    p.PageTable = gPageTable;
+    p.PhysPool = gPhysPool;
+    p.Bias = 1e-5f;
+
+    Texture2D<float4> normalTex = ResourceDescriptorHeap[gSSNormalTexture];
+    float3 normal = normalTex.Load(int3(pixel, 0)).xyz;
+    normal *= rsqrt(max(dot(normal, normal), 1e-8f));
+    const float normalBiasTexels = 0.75f;
+    worldPos += normal * (normalBiasTexels * clipmap.WorldTexelSize);
+    return true;
 }
 
 // ------------------------------
@@ -136,27 +166,17 @@ void CS_Mark(uint3 dtId : SV_DispatchThreadID)
     if (any(dtId.xy >= gScreenSize))
         return;
 
-    Texture2D<float> depthTex = ResourceDescriptorHeap[gSSDepthTexture];
-    float depth = depthTex.Load(int3(dtId.xy, 0));
+    VSMParams p;
+    float3 worldPos;
+    if (!VSM_GetReceiver(dtId.xy, p, worldPos))
+        return;
 
-    if (depth <= 0.0)
+    VSMAddress a = VSM_WorldToVirtual(p, worldPos);
+    if (!a.InWindow)
         return;
 
     RWTexture2D<uint> pageRequest = ResourceDescriptorHeap[gPageRequest];
-
-    float2 texUV = (dtId.xy + 0.5) / gScreenSize;
-    float4 worldPos = ReconstructWorldPosFromDepth(depth, texUV, gInvProj, gInvView);
-    uint level = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
-    if (level >= VSM_NUM_CLIPMAPS)
-        return;
-
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
-    float2 uv = mul(float4(worldPos.xyz, 1.0f), levels[level].WorldToShadowUV).xy;
-
-    if (any(uv < 0) || any(uv >= 1))
-        return;
-
-    pageRequest[VSM_PageTableAddress(uint2(uv * VSM_VIRTUAL_SIZE) >> VSM_LOG2_PAGE_SIZE, level)] = 1;
+    pageRequest[VSM_PageTableAddress(a.Page, p.LevelIndex)] = 1;
 }
 
 [numthreads(32, 1, 1)]
@@ -481,14 +501,6 @@ struct VertexOut // From FSQuadVS.hlsl
     float2 TexC : TEXCOORD;
 };
 
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-SamplerComparisonState gsamShadow : register(s6);
-
 void PS_Geometry(VSOut_G pin)
 {
     RWTexture2D<uint> physPool = ResourceDescriptorHeap[gPhysPool];
@@ -516,52 +528,22 @@ void PS_Geometry(VSOut_G pin)
 
 float PS_DrawShadow(VertexOut pin) : SV_Target
 {
-    Texture2D depthTex = ResourceDescriptorHeap[gSSDepthTexture];
-
-    float depth = depthTex.Sample(gsamPointClamp, pin.TexC).r;
-
-    if (depth <= 0.0)
-        return 1;
-
-    float4 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView);
-
     VSMParams p;
-    p.LevelIndex = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
+    float3 worldPos;
+    if (!VSM_GetReceiver(uint2(pin.PosH.xy), p, worldPos))
+        return 1.0f;
 
-    if (p.LevelIndex >= VSM_NUM_CLIPMAPS)
-        return 1;
-
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
-    p.LightViewProj = levels[p.LevelIndex].WorldToShadowUV;
-    p.PageTable = gPageTable;
-    p.PhysPool = gPhysPool;
-    p.Bias = 0.0001f;
-
-    return VSM_ShadowFactor(p, worldPos.xyz);
+    return VSM_ShadowFactor(p, worldPos);
 }
 
 float4 PS_DrawDebug(VertexOut pin) : SV_Target
 {
-    Texture2D depthTex = ResourceDescriptorHeap[gSSDepthTexture];
-
-    float depth = depthTex.Sample(gsamPointClamp, pin.TexC).r;
-
-    if (depth <= 0.0)
+    VSMParams p;
+    float3 worldPos;
+    if (!VSM_GetReceiver(uint2(pin.PosH.xy), p, worldPos))
         return 0;
 
-    float4 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView);
-
-    VSMParams p;
-    p.LevelIndex = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
-    if (p.LevelIndex >= VSM_NUM_CLIPMAPS)
-        return 1;
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
-    p.LightViewProj = levels[p.LevelIndex].WorldToShadowUV;
-    p.PageTable = gPageTable;
-    p.PhysPool = gPhysPool;
-    p.Bias = 0.0001f;
-
-    VSMAddress a = VSM_WorldToVirtual(p, worldPos.xyz);
+    VSMAddress a = VSM_WorldToVirtual(p, worldPos);
 
     if (!a.InWindow)
         return 0;
@@ -570,11 +552,12 @@ float4 PS_DrawDebug(VertexOut pin) : SV_Target
 
     if (gDebugMode == 1)
     {
+        RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
         color = float4(VSM_DebugPageGrid(p, a, levels[p.LevelIndex].WindowOriginPage), 1);
     }
     else if (gDebugMode == 2)
     {
-        VSMSample s = VSM_Sample(p, worldPos.xyz);
+        VSMSample s = VSM_Sample(p, worldPos);
         color = float4(VSM_DebugCacheState(s, gFrame, gPhysMeta), 1);
     }
 

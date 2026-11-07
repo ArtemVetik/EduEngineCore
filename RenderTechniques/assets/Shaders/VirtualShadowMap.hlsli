@@ -161,7 +161,7 @@ VSMSample VSM_Sample(VSMParams p, float3 worldPos)
         return s;
 
     RWTexture2D<uint> pool = ResourceDescriptorHeap[p.PhysPool];
-    s.OccluderDepth = asfloat(pool.Load(VSM_SlotToPhysTexel(p, s.Entry & PT_SLOT_MASK, a.VirtualTexel)));
+    s.OccluderDepth = asfloat(pool[VSM_SlotToPhysTexel(p, s.Entry & PT_SLOT_MASK, a.VirtualTexel)]);
     s.Valid = true;
     
     return s;

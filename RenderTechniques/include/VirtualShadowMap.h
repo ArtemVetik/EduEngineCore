@@ -30,6 +30,7 @@ namespace EduEngine
 		UINT ClearDispatchArgs;
 		UINT PhysPool;
 		UINT StatsBuffer;
+		UINT SSNormalTexture;
 	};
 
 	enum class VSMDebugMode : uint32 // TODO: Move to PSOEntry
@@ -50,7 +51,7 @@ namespace EduEngine
 	public:
 		VirtualShadowMap(RenderDeviceD3D12* device, DeviceContext* context);
 
-		void SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, XMUINT2 screenSize);
+		void SetScreenSpaceInputs(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, UINT ssNormalTex, XMUINT2 screenSize);
 		void BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context);
 		
 		void SetDebugMode(VSMDebugMode mode) { m_DebugMode = mode; }
