@@ -27,6 +27,7 @@ namespace EduEngine
 		UINT RenderCount;
 		UINT UncachedBounds;
 		UINT SSDepthTexture;
+		UINT NormalTexture;
 		UINT ClearDispatchArgs;
 		UINT PhysPool;
 		UINT StatsBuffer;
@@ -45,16 +46,27 @@ namespace EduEngine
 		"None", "PageGrid", "CacheState", "ClipmapLevel"
 	};
 
+	// World-space distances assume that one scene unit is one meter.
+	struct VSMBiasSettings
+	{
+		float NormalBias = 0.5f;
+		float MinNormalOffsetWorld = 0.0002f;
+		float MaxSlopeOffsetWorld = 1.0f;
+		float ScreenRayLength = 0.015f;
+	};
+
 	class VirtualShadowMap
 	{
 	public:
 		VirtualShadowMap(RenderDeviceD3D12* device, DeviceContext* context);
 
-		void SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, XMUINT2 screenSize);
+		void SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, UINT normalMapTex, XMUINT2 screenSize);
 		void BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context);
 		
 		void SetDebugMode(VSMDebugMode mode) { m_DebugMode = mode; }
 		VSMDebugMode GetDebugMode() const { return m_DebugMode; }
+		void SetBiasSettings(const VSMBiasSettings& settings) { m_BiasSettings = settings; }
+		const VSMBiasSettings& GetBiasSettings() const { return m_BiasSettings; }
 
 #if VSM_GENERATE_STATS
 		const std::array<uint32, VSM_STAT_NUM>& GetStats() const { return m_StatsData; }
@@ -136,6 +148,7 @@ namespace EduEngine
 		UINT m_CurListIdx;
 		UINT m_PrevListIdx;
 		VSMDebugMode m_DebugMode;
+		VSMBiasSettings m_BiasSettings;
 #if VSM_GENERATE_STATS
 		std::array<uint32, VSM_STAT_NUM> m_StatsData = {};
 #endif

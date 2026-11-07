@@ -40,15 +40,17 @@
 struct ClipmapLevelGPU
 {
     float4x4 WorldToShadowUV;
+    float4x4 WorldToShadowUVNormal;
     float4x4 WorldToShadowClip;
 
     int2 PageOffset;
     int AbsoluteLevel;
     uint Invalidate;
     int2 WindowOriginPage;
-    int2 Padding;
+    float ShadowDepthScale; // abs(lightProjection._33): world distance -> reverse-Z depth
+    uint Padding;
 };
 
 #ifdef __cplusplus
-static_assert(sizeof(ClipmapLevelGPU) == 160);
+static_assert(sizeof(ClipmapLevelGPU) == 224);
 #endif

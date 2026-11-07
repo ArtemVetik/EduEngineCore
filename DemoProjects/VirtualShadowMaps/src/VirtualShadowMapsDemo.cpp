@@ -224,7 +224,8 @@ namespace EduEngine
 		}
 
 		for (uint32 i = 0; i < 2; i++)
-			ctx->TransitionResource(m_GBuffer->GetGBuffer(i), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			ctx->TransitionResource(m_GBuffer->GetGBuffer(i),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 		ctx->TransitionResource(GetSwapChain()->GetDepthStencilTexture(), 
 			D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -293,6 +294,22 @@ namespace EduEngine
 		ImGui::ColorEdit3("Color", &m_Light.Color.x);
 		ImGui::SliderFloat("Strength", &m_Light.Strength, 0.0f, 10.0f, "%.2f");
 		ImGui::SliderFloat("Ambient", &m_AmbientStrength, 0.0f, 1.0f, "%.2f");
+
+		ImGui::SeparatorText("VSM Bias");
+		{
+			auto bias = m_VSM->GetBiasSettings();
+			bool changed = ImGui::SliderFloat("Normal bias", &bias.NormalBias, 0.0f, 2.0f, "%.3f");
+			changed |= ImGui::SliderFloat("Min normal offset (m)", &bias.MinNormalOffsetWorld, 0.0f, 0.005f, "%.5f");
+			changed |= ImGui::SliderFloat("Max slope offset (m)", &bias.MaxSlopeOffsetWorld, 0.0f, 2.0f, "%.3f");
+			changed |= ImGui::SliderFloat("Screen ray length", &bias.ScreenRayLength, 0.0f, 0.05f, "%.4f");
+			if (ImGui::Button("Reset bias"))
+			{
+				bias = VSMBiasSettings{};
+				changed = true;
+			}
+			if (changed)
+				m_VSM->SetBiasSettings(bias);
+		}
 
 		ImGui::SeparatorText("VSM Debug");
 		{
@@ -364,7 +381,7 @@ namespace EduEngine
 			m_GpuSSDepth = std::move(GetDevice()->AllocateGPUDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1));
 			GetDevice()->GetD3D12Device()->CopyDescriptorsSimple(1, m_GpuSSDepth.GetCpuHandle(), GetSwapChain()->GetDepthStencilTexture()->GetSRVView()->GetCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-			m_VSM->SetSSDepth(GetDevice(), GetMainContext(), m_GpuSSDepth.GetGpuHeapIndex(), screenSize);
+			m_VSM->SetSSDepth(GetDevice(), GetMainContext(), m_GpuSSDepth.GetGpuHeapIndex(), m_GBuffer->GetGBuffer(1)->GetSRVView()->GetGpuHeapIndex(), screenSize);
 		}
 
 		if (m_GBuffer && m_VSM)

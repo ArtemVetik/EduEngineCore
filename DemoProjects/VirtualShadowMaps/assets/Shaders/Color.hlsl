@@ -73,7 +73,7 @@ PSOut PS_Geometry(VertexOut vOut)
 {
     PSOut output;
     output.Albedo = vOut.Color;
-    output.NormalW = float4(vOut.NormalW, 0);
+    output.NormalW = float4(normalize(vOut.NormalW), 0);
     
     return output;
 }

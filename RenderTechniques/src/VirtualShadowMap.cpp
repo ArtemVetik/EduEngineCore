@@ -2,6 +2,7 @@
 
 #include <ShaderCache.h>
 #include <SimpleMath.h>
+#include <cstddef>
 
 using namespace DirectX;
 
@@ -306,11 +307,12 @@ namespace EduEngine
 		}
 	}
 
-	void VirtualShadowMap::SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, XMUINT2 screenSize)
+	void VirtualShadowMap::SetSSDepth(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, UINT normalMapTex, XMUINT2 screenSize)
 	{
 		m_ScreenSize = screenSize;
 
 		m_CbBuffers.SSDepthTexture = ssDepthTex;
+		m_CbBuffers.NormalTexture = normalMapTex;
 		m_ConstantsBuffer->LoadData(context, &m_CbBuffers);
 
 		D3D12_RESOURCE_DESC buffDesc = {};
@@ -398,23 +400,33 @@ namespace EduEngine
 		struct PassData
 		{
 			XMFLOAT4X4 InvView;
+			XMFLOAT4X4 Proj;
 			XMFLOAT4X4 InvProj;
+			XMFLOAT4X4 ViewProj;
 			XMFLOAT3 CameraWorldPos;
 			float ResolutionLodBias;
 			XMUINT2 ScreenSize;
 			UINT Frame;
 			UINT InvalidateAll;
+			XMFLOAT3 LightDir;
 			UINT CurList;
 			UINT PrevList;
 			UINT HasHistory;
 			UINT DebugMode;
+			float NormalBias;
+			float MinNormalOffsetWorld;
+			float MaxSlopeOffsetWorld;
+			float ScreenRayLength;
+			float Padding;
 		} passData = {};
 
 		XMMATRIX ligthView;
 		XMMATRIX ligthProj;
 
 		XMStoreFloat4x4(&passData.InvView, XMMatrixTranspose(XMMatrixInverse(nullptr, XMLoadFloat4x4(&camera->GetViewMatrix()))));
+		XMStoreFloat4x4(&passData.Proj, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetProjectionMatrix())));
 		XMStoreFloat4x4(&passData.InvProj, XMMatrixTranspose(XMMatrixInverse(nullptr, XMLoadFloat4x4(&camera->GetProjectionMatrix()))));
+		XMStoreFloat4x4(&passData.ViewProj, XMMatrixTranspose(XMLoadFloat4x4(&camera->GetViewMatrix()) * XMLoadFloat4x4(&camera->GetProjectionMatrix())));
 
 		// View
 		{
@@ -458,14 +470,19 @@ namespace EduEngine
 				-500.0f);			// n
 
             auto& level = clipmapsGpu[i];
+			level.ShadowDepthScale = std::abs(XMVectorGetZ(ligthProj.r[2]));
             level.AbsoluteLevel = VSM_FIRST_CLIPMAP_LEVEL + i;
             level.WindowOriginPage = XMINT2(snap.x * 32, -snap.y * 32);
             level.PageOffset = m_Frame == 0 ? 
 				XMINT2(0, 0) :
                 XMINT2(-32 * (snap.x - m_PrevSnap[i].x), 32 * (snap.y - m_PrevSnap[i].y));
 
-            XMStoreFloat4x4(&level.WorldToShadowUV, XMMatrixTranspose(ligthView * ligthProj * uvTransform));
-            XMStoreFloat4x4(&level.WorldToShadowClip, XMMatrixTranspose(ligthView * ligthProj));
+			XMMATRIX worldToShadow = ligthView * ligthProj;
+			XMMATRIX worldToShadowUV = worldToShadow * uvTransform;
+
+            XMStoreFloat4x4(&level.WorldToShadowUV, XMMatrixTranspose(worldToShadowUV));
+            XMStoreFloat4x4(&level.WorldToShadowUVNormal, XMMatrixTranspose(XMMatrixInverse(nullptr, XMMatrixTranspose(worldToShadowUV))));
+            XMStoreFloat4x4(&level.WorldToShadowClip, XMMatrixTranspose(worldToShadow));
             m_PrevSnap[i] = snap;
         }
 		
@@ -486,10 +503,15 @@ namespace EduEngine
 		passData.ScreenSize = m_ScreenSize;
 		passData.Frame = m_Frame;
 		passData.InvalidateAll = (m_Frame == 0) || lightRotChanged;
+		passData.LightDir = light->Direction;
 		passData.CurList = m_PageLists[m_CurListIdx]->GetUAVView()->GetGpuHeapIndex();
 		passData.PrevList = m_PageLists[m_PrevListIdx]->GetUAVView()->GetGpuHeapIndex();
 		passData.HasHistory = m_Frame > 0;
 		passData.DebugMode = (UINT)m_DebugMode;
+		passData.NormalBias = std::max(0.0f, m_BiasSettings.NormalBias);
+		passData.MinNormalOffsetWorld = std::max(0.0f, m_BiasSettings.MinNormalOffsetWorld);
+		passData.MaxSlopeOffsetWorld = std::max(0.0f, m_BiasSettings.MaxSlopeOffsetWorld);
+		passData.ScreenRayLength = std::max(0.0f, m_BiasSettings.ScreenRayLength);
 
 		m_PassBuffer->LoadData(context, passData);
 

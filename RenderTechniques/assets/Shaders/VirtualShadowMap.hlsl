@@ -17,16 +17,24 @@ cbuffer cbObject : register(b0)
 cbuffer cbPass : register(b1)
 {
     float4x4 gInvView;
+    float4x4 gProj;
     float4x4 gInvProj;
+    float4x4 gViewProj;
     float3 gCameraWorldPos;
     float gResolutionLodBias;
     uint2 gScreenSize;
     uint gFrame;
     uint gInvalidateAll;
+    float3 gLightDir;
     uint gCurList;  // UAV heap undex
     uint gPrevList; // UAV heap undex
     uint gHasHistory;
     uint gDebugMode;
+    float gNormalBias;
+    float gMinNormalOffsetWorld;
+    float gMaxSlopeOffsetWorld;
+    float gScreenRayLength;
+    float gPassPadding;
 }
 
 cbuffer cbBuffers : register(b2)
@@ -39,9 +47,101 @@ cbuffer cbBuffers : register(b2)
     uint gRenderCount;
     uint gUncachedBounds;
     uint gSSDepthTexture;
+    uint gNormalTexture;
     uint gClearDispatchArgs;
     uint gPhysPool;
     uint gStatsBuffer;
+}
+
+float3 VSM_LoadWorldNormal(uint2 pixel)
+{
+    Texture2D<float4> normalTex = ResourceDescriptorHeap[gNormalTexture];
+    float3 normal = normalTex.Load(int3(pixel, 0)).xyz;
+    return normal * rsqrt(max(dot(normal, normal), 1e-12f));
+}
+
+float3 VSM_OffsetReceiver(float3 worldPos, float3 normal)
+{
+    float distanceToCamera = length(worldPos - gCameraWorldPos);
+    float offset = max(gMinNormalOffsetWorld, (gNormalBias / 1000.0f) * distanceToCamera / gProj[0][0]);
+    return worldPos + normal * offset;
+}
+
+VSMParams VSM_GetParams(float3 lookupPos)
+{
+    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    
+    VSMParams p;
+    p.LevelIndex = VSM_SelectClipmap(lookupPos, gCameraWorldPos, gResolutionLodBias);
+    p.WorldToShadowUV = levels[p.LevelIndex].WorldToShadowUV;
+    p.WorldToShadowUVNormal = levels[p.LevelIndex].WorldToShadowUVNormal;
+    p.ShadowDepthScale = levels[p.LevelIndex].ShadowDepthScale;
+    p.PageTable = gPageTable;
+    p.PhysPool = gPhysPool;
+    return p;
+}
+
+float VSM_ScreenRayDither(uint2 pixel)
+{
+    // Stable spatial dither: the demo has no temporal accumulation to filter animated noise.
+    uint hash = pixel.x * 1664525u + pixel.y * 1013904223u;
+    hash ^= hash >> 16;
+    hash *= 2246822519u;
+    hash ^= hash >> 13;
+    return float(hash & 0xFFFFu) / 65536.0f;
+}
+
+bool VSM_InScreen(float3 uvz)
+{
+    return all(uvz.xy >= 0.0f) && all(uvz.xy < 1.0f) && uvz.z >= 0.0f && uvz.z <= 1.0f;
+}
+
+float VSM_ScreenRayCast(float3 rayOrigin, float3 rayDirection, float rayLength, float dither)
+{
+    if (rayLength <= 0.0f)
+        return 0.0f;
+
+    float4 startClip = mul(float4(rayOrigin, 1.0f), gViewProj);
+    float4 endClip = startClip + mul(float4(rayDirection * rayLength, 0.0f), gViewProj);
+    if (startClip.w <= 1e-6f || endClip.w <= 1e-6f)
+        return 0.0f;
+
+    float3 startNDC = startClip.xyz / startClip.w;
+    float3 endNDC = endClip.xyz / endClip.w;
+    float3 startUVz = float3(startNDC.xy * float2(0.5f, -0.5f) + 0.5f, startNDC.z);
+    float3 stepUVz = float3((endNDC.xy - startNDC.xy) * float2(0.5f, -0.5f), endNDC.z - startNDC.z);
+    if (!VSM_InScreen(startUVz))
+        return 0.0f;
+
+    Texture2D<float> depthTex = ResourceDescriptorHeap[gSSDepthTexture];
+    float startDepth = depthTex.Load(int3(uint2(startUVz.xy * gScreenSize), 0));
+    const float step = 1.0f / 4.0f;
+    float sampleTime = (dither + 0.5f) * step;
+    float lastSafeTime = 0.0f;
+
+    [unroll]
+    for (uint i = 0; i < 4; ++i)
+    {
+        float3 sampleUVz = startUVz + stepUVz * sampleTime;
+        // Do not extend the bias through unobserved geometry outside the view.
+        if (!VSM_InScreen(sampleUVz))
+            return rayLength * lastSafeTime;
+
+        float sampleDepth = depthTex.Load(int3(uint2(sampleUVz.xy * gScreenSize), 0));
+        if (sampleDepth != startDepth && sampleUVz.z < sampleDepth) // reverse-Z
+            return rayLength * max(0.0f, sampleTime - 1.5f * step);
+
+        lastSafeTime = min(sampleTime, 1.0f);
+        sampleTime += step;
+    }
+    return rayLength;
+}
+
+float VSM_GetRayStartDistance(float3 worldPos, float3 lookupPos, uint2 pixel)
+{
+    float viewDepth = max(0.0f, dot(worldPos - gCameraWorldPos, gInvView[2].xyz));
+    float rayLength = gScreenRayLength * viewDepth / gProj[1][1];
+    return VSM_ScreenRayCast(lookupPos, normalize(-gLightDir), rayLength, VSM_ScreenRayDither(pixel));
 }
 
 // ------------------------------
@@ -145,18 +245,15 @@ void CS_Mark(uint3 dtId : SV_DispatchThreadID)
     RWTexture2D<uint> pageRequest = ResourceDescriptorHeap[gPageRequest];
 
     float2 texUV = (dtId.xy + 0.5) / gScreenSize;
-    float4 worldPos = ReconstructWorldPosFromDepth(depth, texUV, gInvProj, gInvView);
-    uint level = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
-    if (level >= VSM_NUM_CLIPMAPS)
+    float3 worldPos = ReconstructWorldPosFromDepth(depth, texUV, gInvProj, gInvView).xyz;
+    float3 lookupPos = VSM_OffsetReceiver(worldPos, VSM_LoadWorldNormal(dtId.xy));
+    VSMParams p = VSM_GetParams(lookupPos);
+    VSMAddress address = VSM_WorldToVirtual(p, lookupPos);
+    if (!address.InWindow)
         return;
 
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
-    float2 uv = mul(float4(worldPos.xyz, 1.0f), levels[level].WorldToShadowUV).xy;
-
-    if (any(uv < 0) || any(uv >= 1))
-        return;
-
-    pageRequest[VSM_PageTableAddress(uint2(uv * VSM_VIRTUAL_SIZE) >> VSM_LOG2_PAGE_SIZE, level)] = 1;
+    // The directional screen ray changes only comparison depth, not this virtual address.
+    pageRequest[VSM_PageTableAddress(address.Page, p.LevelIndex)] = 1;
 }
 
 [numthreads(32, 1, 1)]
@@ -516,28 +613,19 @@ void PS_Geometry(VSOut_G pin)
 
 float PS_DrawShadow(VertexOut pin) : SV_Target
 {
-    Texture2D depthTex = ResourceDescriptorHeap[gSSDepthTexture];
-
-    float depth = depthTex.Sample(gsamPointClamp, pin.TexC).r;
-
+    uint2 pixel = uint2(pin.PosH.xy);
+    Texture2D<float> depthTex = ResourceDescriptorHeap[gSSDepthTexture];
+    float depth = depthTex.Load(int3(pixel, 0));
     if (depth <= 0.0)
         return 1;
 
-    float4 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView);
-
-    VSMParams p;
-    p.LevelIndex = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
-
-    if (p.LevelIndex >= VSM_NUM_CLIPMAPS)
-        return 1;
-
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
-    p.LightViewProj = levels[p.LevelIndex].WorldToShadowUV;
-    p.PageTable = gPageTable;
-    p.PhysPool = gPhysPool;
-    p.Bias = 0.0001f;
-
-    return VSM_ShadowFactor(p, worldPos.xyz);
+    float2 uv = (float2(pixel) + 0.5f) / gScreenSize;
+    float3 worldPos = ReconstructWorldPosFromDepth(depth, uv, gInvProj, gInvView).xyz;
+    float3 normal = VSM_LoadWorldNormal(pixel);
+    float3 lookupPos = VSM_OffsetReceiver(worldPos, normal);
+    VSMParams p = VSM_GetParams(lookupPos);
+    float rayStartDistance = VSM_GetRayStartDistance(worldPos, lookupPos, pixel);
+    return VSM_ShadowFactor(p, lookupPos, normal, rayStartDistance, gMaxSlopeOffsetWorld);
 }
 
 float4 PS_DrawDebug(VertexOut pin) : SV_Target
@@ -549,19 +637,12 @@ float4 PS_DrawDebug(VertexOut pin) : SV_Target
     if (depth <= 0.0)
         return 0;
 
-    float4 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView);
+    float3 worldPos = ReconstructWorldPosFromDepth(depth, pin.TexC, gInvProj, gInvView).xyz;
+    float3 lookupPos = VSM_OffsetReceiver(worldPos, VSM_LoadWorldNormal(uint2(pin.PosH.xy)));
+    VSMParams p = VSM_GetParams(lookupPos);
 
-    VSMParams p;
-    p.LevelIndex = VSM_SelectClipmap(worldPos.xyz, gCameraWorldPos, gResolutionLodBias);
-    if (p.LevelIndex >= VSM_NUM_CLIPMAPS)
-        return 1;
     RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
-    p.LightViewProj = levels[p.LevelIndex].WorldToShadowUV;
-    p.PageTable = gPageTable;
-    p.PhysPool = gPhysPool;
-    p.Bias = 0.0001f;
-
-    VSMAddress a = VSM_WorldToVirtual(p, worldPos.xyz);
+    VSMAddress a = VSM_WorldToVirtual(p, lookupPos);
 
     if (!a.InWindow)
         return 0;
@@ -574,7 +655,7 @@ float4 PS_DrawDebug(VertexOut pin) : SV_Target
     }
     else if (gDebugMode == 2)
     {
-        VSMSample s = VSM_Sample(p, worldPos.xyz);
+        VSMSample s = VSM_Sample(p, lookupPos);
         color = float4(VSM_DebugCacheState(s, gFrame, gPhysMeta), 1);
     }
 
