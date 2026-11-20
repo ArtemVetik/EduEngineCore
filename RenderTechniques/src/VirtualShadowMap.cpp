@@ -85,6 +85,7 @@ namespace EduEngine
 			DXGI_FORMAT format,
 			D3D12_RESOURCE_FLAGS flags,
 			ResView uav,
+			ResView srv,
 			const wchar_t* name)
 		{
 			D3D12_RESOURCE_DESC buffDesc = {};
@@ -108,10 +109,20 @@ namespace EduEngine
 			uavDesc.Buffer.StructureByteStride = byteStride;
 			uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+			srvDesc.Buffer.FirstElement = 0;
+			srvDesc.Buffer.NumElements = numElements;
+			srvDesc.Buffer.StructureByteStride = byteStride;
+			srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+
 			buffer = std::make_shared<BufferD3D12>(device, context, buffDesc, QueueId::Direct);
 
 			if (uav.Use)
 				buffer->CreateUAV(&uavDesc, false);
+			if (srv.Use)
+				buffer->CreateSRV(&srvDesc, false);
 
 			buffer->SetName(name);
 		}
@@ -122,7 +133,7 @@ namespace EduEngine
 		m_DebugMode(VSMDebugMode::None)
 	{
 		VSM::CreateBuffer(device, context, m_ConstantsBuffer, 1, sizeof(CbBuffers), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE,
-			{ false, DXGI_FORMAT_UNKNOWN }, L"m_ConstantsBuffer");
+			{ false, DXGI_FORMAT_UNKNOWN }, {}, L"m_ConstantsBuffer");
 
 		struct PhysMetaEntry
 		{
@@ -138,8 +149,8 @@ namespace EduEngine
 			UINT Slot;
 		};
 
-		VSM::CreateBuffer(device, context, m_ClipmapBuffer, VSM_NUM_CLIPMAPS, sizeof(ClipmapLevelGPU), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_ClipmapBuffer");
+		VSM::CreateBuffer(device, context, m_ClipmapBuffer, VSM_NUM_CLIPMAPS, sizeof(ClipmapLevelGPU), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE,
+			{ }, { true, DXGI_FORMAT_UNKNOWN }, L"m_ClipmapBuffer");
 
 		VSM::CreateTexture(device, m_PhysPool, VSM_POOL_SIZE * VSM_PAGE_SIZE, VSM_POOL_SIZE * VSM_PAGE_SIZE, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ false, DXGI_FORMAT_UNKNOWN },	// clear
@@ -149,7 +160,7 @@ namespace EduEngine
 			L"m_PhysPool");
 
 		VSM::CreateBuffer(device, context, m_PhysMeta, VSM_MAX_PHYS_PAGES, sizeof(PhysMetaEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PhysMeta");
+			{ true, DXGI_FORMAT_UNKNOWN }, {}, L"m_PhysMeta");
 
 		VSM::CreateTexture(device, m_PageRequest, VSM_PAGES_XY, VSM_PAGES_XY * VSM_NUM_CLIPMAPS, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			{ false, DXGI_FORMAT_UNKNOWN },	// clear
@@ -166,28 +177,28 @@ namespace EduEngine
 			L"m_PageTable");
 
 		VSM::CreateBuffer(device, context, m_PageLists[0], 4 * (VSM_MAX_PHYS_PAGES + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PageLists[0]");
+			{ true, DXGI_FORMAT_UNKNOWN }, {}, L"m_PageLists[0]");
 
 		VSM::CreateBuffer(device, context, m_PageLists[1], 4 * (VSM_MAX_PHYS_PAGES + 1), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_PageLists[1]");
+			{ true, DXGI_FORMAT_UNKNOWN }, {}, L"m_PageLists[1]");
 
 		VSM::CreateBuffer(device, context, m_RenderList, VSM_MAX_PHYS_PAGES, sizeof(RenderListEntry), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_RenderList");
+			{ true, DXGI_FORMAT_UNKNOWN }, {}, L"m_RenderList");
 
 		VSM::CreateBuffer(device, context, m_RenderCount, 1, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_RenderCount");
+			{ true, DXGI_FORMAT_UNKNOWN }, {}, L"m_RenderCount");
 
 		VSM::CreateBuffer(device, context, m_UncachedBounds, VSM_NUM_CLIPMAPS, sizeof(XMUINT4), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_UncachedBounds");
+			{ true, DXGI_FORMAT_UNKNOWN }, {}, L"m_UncachedBounds");
 
 #if VSM_GENERATE_STATS
 		VSM::CreateBuffer(device, context, m_StatsBuffer, VSM_STAT_NUM, sizeof(uint32), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			{ true, DXGI_FORMAT_UNKNOWN }, L"m_StatsBuffer");
+			{ true, DXGI_FORMAT_UNKNOWN }, {}, L"m_StatsBuffer");
 
 		m_StatsReadbackBuffer = std::make_unique<ReadBackBufferD3D12>(device, STATS_RING * VSM_STAT_NUM * sizeof(uint32), QueueId::Direct);
 #endif
 
-		m_CbBuffers.ClipmapBuffer = m_ClipmapBuffer->GetUAVView()->GetGpuHeapIndex();
+		m_CbBuffers.ClipmapBuffer = m_ClipmapBuffer->GetSRVView()->GetGpuHeapIndex();
 		m_CbBuffers.PhysMeta = m_PhysMeta->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PageRequest = m_PageRequest->GetUAVView()->GetGpuHeapIndex();
 		m_CbBuffers.PageTable = m_PageTable->GetUAVView()->GetGpuHeapIndex();
@@ -245,6 +256,9 @@ namespace EduEngine
 		CreateCSPso(m_FinalizePso, L"CS_FinalizeLists", L"m_FinalizePso", CS_BIND_PASS | CS_BIND_BUFFERS);
 		CreateCSPso(m_DispatchArgsPso, L"CS_DispatchArgs", L"m_DispatchArgsPso", CS_BIND_BUFFERS);
 		CreateCSPso(m_ClearSlotsPso, L"CS_ClearSlots", L"m_ClearSlotsPso", CS_BIND_BUFFERS);
+		CreateCSPso(m_CullClearPso, L"CS_CullClear", L"m_CullClearPso", CS_BIND_BUFFERS);
+		CreateCSPso(m_CullMeshesPso, L"CS_CullMeshes", L"m_CullMeshesPso", CS_BIND_BUFFERS);
+		CreateCSPso(m_DrawArgsPso, L"CS_DrawArgs", L"m_DrawArgsPso", CS_BIND_BUFFERS);
 #if VSM_GENERATE_STATS
 		const wchar_t* defines[] = { L"VSM_GENERATE_STATS", L"1", NULL };
 		CreateCSPso(m_ValidatePso, L"CS_ValidateLists", L"m_ValidatePso", CS_BIND_PASS | CS_BIND_BUFFERS, defines);
@@ -394,6 +408,83 @@ namespace EduEngine
 		m_ConstantsBuffer->LoadData(context, &m_CbBuffers);
 	}
 
+	void VirtualShadowMap::UpdateMeshes(RenderDeviceD3D12* device, DeviceContext* context, RenderObject* objects, uint32 objectsNum)
+	{
+		m_Objects = objects;
+		m_ObjectsNum = objectsNum;
+
+		std::vector<D3D12_DRAW_INDEXED_ARGUMENTS> drawArgsData;
+		std::vector<VSMBoundingBox> boundingBoxes;
+		std::vector<XMFLOAT4X4> meshWorldMatrices;
+
+		drawArgsData.reserve(objectsNum * 2);
+		boundingBoxes.reserve(objectsNum * 2);
+		meshWorldMatrices.reserve(objectsNum * 2);
+
+		for (uint32 i = 0; i < objectsNum; i++)
+		{
+			uint n = objects[i].Mesh->GetMeshCount();
+
+			XMFLOAT4X4 worldMatrix;
+			XMStoreFloat4x4(&worldMatrix, XMMatrixTranspose(objects[i].World));
+			meshWorldMatrices.push_back(worldMatrix);
+
+			for (uint j = 0; j < n; j++)
+			{
+				drawArgsData.push_back({});
+				auto& drawArg = drawArgsData.back();
+
+				drawArg.IndexCountPerInstance = objects[i].Mesh->GetIndexCount(j);
+				drawArg.InstanceCount = 0;
+				drawArg.StartIndexLocation = 0;
+				drawArg.BaseVertexLocation = 0;
+				drawArg.StartInstanceLocation = 0;
+
+				boundingBoxes.push_back({});
+				auto& boundingBox = boundingBoxes.back();
+
+				aiVector3D min, max;
+				objects[i].Mesh->GetBoundingBox(min, max, j);
+				boundingBox.Min = { min.x, min.y, min.z };
+				boundingBox.Max = { max.x, max.y, max.z };
+				boundingBox.ObjectIndex = i;
+			}
+		}
+
+		m_MeshesCount = boundingBoxes.size();
+
+		D3D12_INDIRECT_ARGUMENT_DESC drawArgsDesc = {};
+		drawArgsDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+		m_DrawArgsSignature.SetByteStride(sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
+		m_DrawArgsSignature.SetArguments(1, &drawArgsDesc);
+		m_DrawArgsSignature.Build(device);
+		m_DrawArgsSignature.SetName(L"m_DrawArgsSignature");
+
+		VSM::CreateBuffer(device, context, m_DrawArgs, m_MeshesCount * sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) / sizeof(UINT), sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ true, DXGI_FORMAT_UNKNOWN }, { false, DXGI_FORMAT_UNKNOWN }, L"m_DrawArgs");
+
+		VSM::CreateBuffer(device, context, m_BoundingBoxes, m_MeshesCount, sizeof(VSMBoundingBox), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE,
+			{ false, DXGI_FORMAT_UNKNOWN }, { true, DXGI_FORMAT_UNKNOWN }, L"m_BoundingBoxes");
+
+		VSM::CreateBuffer(device, context, m_MeshWorldMatrix, objectsNum, sizeof(XMFLOAT4X4), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_NONE,
+			{ false, DXGI_FORMAT_UNKNOWN }, { true, DXGI_FORMAT_UNKNOWN }, L"m_MeshWorldMatrix");
+
+		VSM::CreateBuffer(device, context, m_MeshRenderFlags, m_MeshesCount, sizeof(UINT), DXGI_FORMAT_UNKNOWN, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			{ true, DXGI_FORMAT_UNKNOWN }, { false, DXGI_FORMAT_UNKNOWN }, L"m_MeshRenderFlags");
+
+		m_DrawArgs->LoadData(context, drawArgsData.data());
+		m_BoundingBoxes->LoadData(context, boundingBoxes.data());
+		m_MeshWorldMatrix->LoadData(context, meshWorldMatrices.data());
+
+		m_CbBuffers.BoundingBoxes = m_BoundingBoxes->GetSRVView()->GetGpuHeapIndex();
+		m_CbBuffers.MeshWorldMatrix = m_MeshWorldMatrix->GetSRVView()->GetGpuHeapIndex();
+		m_CbBuffers.MeshRenderFlags = m_MeshRenderFlags->GetUAVView()->GetGpuHeapIndex();
+		m_CbBuffers.NumMeshes = m_MeshesCount;
+		m_CbBuffers.DrawArgs = m_DrawArgs->GetUAVView()->GetGpuHeapIndex();
+		m_ConstantsBuffer->LoadData(context, &m_CbBuffers);
+	}
+
 	void VirtualShadowMap::Update(DeviceContext* context, Camera* camera, Light* light)
 	{
 		struct PassData
@@ -472,7 +563,7 @@ namespace EduEngine
         }
 		
         UINT clipmapBytes = sizeof(clipmapsGpu);
-        m_ClipmapBuffer->LoadData(context, clipmapsGpu.data(), &clipmapBytes);
+        m_ClipmapBuffer->LoadData(context, clipmapsGpu.data(), &clipmapBytes); // TODO: use dynamic upload buffer instead
         passData.CameraWorldPos = camera->GetPosition();
         const float projectionScaleX = camera->GetProjectionMatrix()._11;
         passData.ResolutionLodBias = std::max(0.0f, std::log2(0.5f / projectionScaleX * float(VSM_VIRTUAL_SIZE) / float(m_ScreenSize.x)));
@@ -499,7 +590,7 @@ namespace EduEngine
 		m_Frame++;
 	}
 
-	void VirtualShadowMap::Compute(DeviceContext* context, RenderObject* objects, uint32 objectsNum)
+	void VirtualShadowMap::Compute(DeviceContext* context)
 	{
 		VERIFY_EXPR(m_ShadowMask != nullptr, "ShadowMask texture not created");
 		VERIFY_EXPR(m_ClearDispatchArgsSignature.GetD3D12Signature() != nullptr, "ClearDispatchArgsSignature not created");
@@ -507,7 +598,6 @@ namespace EduEngine
 		auto* ctx = context->GetCommandCtx();
 		auto* cmd = ctx->GetCmdList();
 
-		ctx->TransitionResource(m_ClipmapBuffer.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PhysPool.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PhysMeta.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_PageRequest.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -517,7 +607,9 @@ namespace EduEngine
 		ctx->TransitionResource(m_RenderList.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_RenderCount.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_UncachedBounds.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_MeshRenderFlags.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		ctx->TransitionResource(m_ClearDispatchArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		ctx->TransitionResource(m_DrawArgs.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 #if VSM_GENERATE_STATS
 		ctx->TransitionResource(m_StatsBuffer.get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 #endif
@@ -624,8 +716,36 @@ namespace EduEngine
 				nullptr, 0);
 		}
 
-		ctx->InsertUAVBarrier(m_PageTable.get());
+		// Cull Clear
+		{
+			UINT groupCountX = static_cast<UINT>(ceil(m_MeshesCount / 32.0f));
+			m_CullClearPso.PSO.BeginPSOAndCommitResources(context, m_CullClearPso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCountX, 1, 1);
+		}
+
 		ctx->InsertUAVBarrier(m_UncachedBounds.get());
+		ctx->InsertUAVBarrier(m_MeshRenderFlags.get());
+		ctx->InsertUAVBarrier(m_DrawArgs.get(), true);
+
+		// Cull Meshes
+		{
+			UINT groupCountX = static_cast<UINT>(ceil(m_MeshesCount / 32.0f));
+			m_CullMeshesPso.PSO.BeginPSOAndCommitResources(context, m_CullMeshesPso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCountX, VSM_NUM_CLIPMAPS, 1);
+		}
+
+		ctx->InsertUAVBarrier(m_MeshRenderFlags.get(), true);
+
+		// Draw Args
+		{
+			UINT groupCountX = static_cast<UINT>(ceil(m_MeshesCount / 32.0f));
+			m_DrawArgsPso.PSO.BeginPSOAndCommitResources(context, m_DrawArgsPso.Binder.get());
+			context->GetCommandCtx()->GetCmdList()->Dispatch(groupCountX, 1, 1);
+		}
+
+		ctx->TransitionResource(m_DrawArgs.get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		ctx->InsertUAVBarrier(m_MeshRenderFlags.get());
+		ctx->InsertUAVBarrier(m_PageTable.get());
 		ctx->InsertUAVBarrier(m_PhysPool.get(), true);
 
 		// Draw Depth
@@ -639,23 +759,33 @@ namespace EduEngine
 
 			m_GeometryPso.BeginPSO(context);
 
-			for (uint32 obj = 0; obj < objectsNum; obj++)
+			uint meshIdx = 0;
+			for (uint32 obj = 0; obj < m_ObjectsNum; obj++)
 			{
 				struct ObjData
 				{
 					XMFLOAT4X4 World;
+					UINT MeshIdx;
 				} objData;
 
-				XMStoreFloat4x4(&objData.World, XMMatrixTranspose(objects[obj].World));
-				m_ObjBuffer->LoadData(context, objData);
-
-				for (uint32 mIdx = 0; mIdx < objects[obj].Mesh->GetMeshCount(); mIdx++)
+				XMStoreFloat4x4(&objData.World, XMMatrixTranspose(m_Objects[obj].World));
+				
+				for (uint32 mIdx = 0; mIdx < m_Objects[obj].Mesh->GetMeshCount(); mIdx++)
 				{
+					objData.MeshIdx = meshIdx;
+					m_ObjBuffer->LoadData(context, objData);
+					
 					m_GeometryPso.CommitResources(context, m_GeometryBinder.get());
-					cmd->IASetIndexBuffer(&objects[obj].Mesh->GetIndexBuffer(mIdx)->GetView());
-					cmd->IASetVertexBuffers(0, 1, &objects[obj].Mesh->GetVertexBuffer(mIdx)->GetView());
+					cmd->IASetIndexBuffer(&m_Objects[obj].Mesh->GetIndexBuffer(mIdx)->GetView());
+					cmd->IASetVertexBuffers(0, 1, &m_Objects[obj].Mesh->GetVertexBuffer(mIdx)->GetView());
 
-					cmd->DrawIndexedInstanced(objects[obj].Mesh->GetIndexCount(mIdx), VSM_NUM_CLIPMAPS, 0, 0, 0);
+					cmd->ExecuteIndirect(m_DrawArgsSignature.GetD3D12Signature(),
+						1,
+						m_DrawArgs->GetD3D12Resource(),
+						meshIdx * sizeof(D3D12_DRAW_INDEXED_ARGUMENTS),
+						nullptr, 0);
+
+					meshIdx++;
 				}
 			}
 		}

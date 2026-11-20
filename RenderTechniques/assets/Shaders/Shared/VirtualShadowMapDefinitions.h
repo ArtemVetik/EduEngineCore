@@ -33,6 +33,7 @@
     #include <cstdint>
 
     using float4x4 = DirectX::XMFLOAT4X4;
+	using float3 = DirectX::XMFLOAT3;
     using int2 = DirectX::XMINT2;
     using uint = uint32_t;
 #endif
@@ -48,6 +49,13 @@ struct ClipmapLevelGPU
     int2 WindowOriginPage;
     float WorldTexelSize;
     uint Padding;
+};
+
+struct VSMBoundingBox
+{
+    float3 Min;
+	uint ObjectIndex;
+    float3 Max;
 };
 
 #ifdef __cplusplus

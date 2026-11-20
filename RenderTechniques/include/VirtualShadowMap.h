@@ -31,6 +31,11 @@ namespace EduEngine
 		UINT PhysPool;
 		UINT StatsBuffer;
 		UINT SSNormalTexture;
+		UINT BoundingBoxes;
+		UINT MeshWorldMatrix;
+		UINT MeshRenderFlags;
+		UINT NumMeshes;
+		UINT DrawArgs;
 	};
 
 	enum class VSMDebugMode : uint32 // TODO: Move to PSOEntry
@@ -53,6 +58,7 @@ namespace EduEngine
 
 		void SetScreenSpaceInputs(RenderDeviceD3D12* device, DeviceContext* context, UINT ssDepthTex, UINT ssNormalTex, XMUINT2 screenSize);
 		void BuildCommandSignature(RenderDeviceD3D12* device, DeviceContext* context);
+		void UpdateMeshes(RenderDeviceD3D12* device, DeviceContext* context, RenderObject* objects, uint32 objectsNum);
 		
 		void SetDebugMode(VSMDebugMode mode) { m_DebugMode = mode; }
 		VSMDebugMode GetDebugMode() const { return m_DebugMode; }
@@ -62,7 +68,7 @@ namespace EduEngine
 #endif
 
 		void Update(DeviceContext* context, Camera* camera, Light* light);
-		void Compute(DeviceContext* context, RenderObject* objects, uint32 objectsNum);
+		void Compute(DeviceContext* context);
 
 		TextureD3D12* GetShadowMask() const { return m_ShadowMask.get(); }
 		TextureD3D12* GetDebugMask() const { return m_DebugMask.get(); }
@@ -92,6 +98,9 @@ namespace EduEngine
 		CSPso m_FinalizePso;
 		CSPso m_DispatchArgsPso;
 		CSPso m_ClearSlotsPso;
+		CSPso m_CullClearPso;
+		CSPso m_CullMeshesPso;
+		CSPso m_DrawArgsPso;
 #if VSM_GENERATE_STATS
 		CSPso m_ValidatePso;
 #endif
@@ -114,12 +123,16 @@ namespace EduEngine
 		std::shared_ptr<BufferD3D12> m_RenderList;
 		std::shared_ptr<BufferD3D12> m_RenderCount;
 		std::shared_ptr<BufferD3D12> m_UncachedBounds;
+		std::shared_ptr<BufferD3D12> m_BoundingBoxes;
+		std::shared_ptr<BufferD3D12> m_MeshWorldMatrix;
+		std::shared_ptr<BufferD3D12> m_MeshRenderFlags;
 #if VSM_GENERATE_STATS
 		std::shared_ptr<BufferD3D12> m_StatsBuffer;
 		std::unique_ptr<ReadBackBufferD3D12> m_StatsReadbackBuffer;
 #endif
 
 		std::shared_ptr<BufferD3D12> m_ClearDispatchArgs;
+		std::shared_ptr<BufferD3D12> m_DrawArgs;
 		std::shared_ptr<TextureD3D12> m_ShadowMask;
 		std::shared_ptr<TextureD3D12> m_DebugMask;
 		
@@ -128,7 +141,12 @@ namespace EduEngine
 		std::shared_ptr<DynamicUploadBuffer> m_PassBuffer;
 
 		CommandSignatureD3D12 m_ClearDispatchArgsSignature;
+		CommandSignatureD3D12 m_DrawArgsSignature;
 
+		RenderObject* m_Objects;
+		uint32 m_ObjectsNum;
+
+		UINT m_MeshesCount;
 		CbBuffers m_CbBuffers;
 		XMUINT2 m_ScreenSize;
 		std::array<XMINT2, VSM_NUM_CLIPMAPS> m_PrevSnap = {};

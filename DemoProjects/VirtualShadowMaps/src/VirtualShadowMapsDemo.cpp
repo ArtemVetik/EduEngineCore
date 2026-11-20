@@ -25,8 +25,9 @@ namespace EduEngine
 		//
 		MeshLoadDesc meshDesc = {};
 		meshDesc.VertexInput = MESH_LOAD_VERTEX_INPUT_POSITION | MESH_LOAD_VERTEX_INPUT_NORMAL | MESH_LOAD_VERTEX_INPUT_COLOR;
+		meshDesc.Flags = MESH_LOAD_FLAG_GEN_BOUNDING_BOX;
 
-		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), "assets\\Models\\vsm_test_scene.glb");
+		m_Mesh = std::make_shared<Mesh>(GetDevice(), GetMainContext(), "assets\\Models\\vsm_test_scene_split.glb");
 		m_Mesh->Load(meshDesc);
 
 		//
@@ -121,6 +122,7 @@ namespace EduEngine
 
 		m_VSM = std::make_unique<VirtualShadowMap>(GetDevice(), GetMainContext());
 		m_VSM->BuildCommandSignature(GetDevice(), GetMainContext());
+		m_VSM->UpdateMeshes(GetDevice(), GetMainContext(), m_RenderObjects, 1);
 
 		//
 		// Setup light
@@ -129,6 +131,8 @@ namespace EduEngine
 		m_Light.Strength = 1.0f;
 		UpdateLightDirection();
 
+		GetCamera()->Setup({ 0, 50, -150 }, { 0, 0, 1 }, { 1, 0, 0 }, { 0, 1, 0 });
+		
 		OnResize();
 	}
 
@@ -232,7 +236,7 @@ namespace EduEngine
 		
 		ctx->FlushResourceBarriers();
 
-		m_VSM->Compute(GetMainContext(), m_RenderObjects, 1);
+		m_VSM->Compute(GetMainContext());
 
 		ctx->SetViewports(&GetViewport(), 1);
 		ctx->SetScissorRects(&GetScissorRect(), 1);

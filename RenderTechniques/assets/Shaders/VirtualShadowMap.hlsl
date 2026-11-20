@@ -12,6 +12,7 @@ struct RenderListEntry
 cbuffer cbObject : register(b0)
 {
     float4x4 gWorld;
+    uint gMeshIdx;
 }
 
 cbuffer cbPass : register(b1)
@@ -43,6 +44,11 @@ cbuffer cbBuffers : register(b2)
     uint gPhysPool;
     uint gStatsBuffer;
     uint gSSNormalTexture;
+    uint gBoundingBoxes;
+    uint gMeshWorldMatrix;
+    uint gMeshRenderFlags;
+    uint gNumMeshes;
+    uint gDrawArgs;
 }
 
 bool VSM_GetReceiver(uint2 pixel, out VSMParams p, out float3 worldPos)
@@ -59,7 +65,7 @@ bool VSM_GetReceiver(uint2 pixel, out VSMParams p, out float3 worldPos)
     worldPos = ReconstructWorldPosFromDepth(depth, screenUV, gInvProj, gInvView).xyz;
     p.LevelIndex = VSM_SelectClipmap(worldPos, gCameraWorldPos, gResolutionLodBias);
 
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    StructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
     ClipmapLevelGPU clipmap = levels[p.LevelIndex];
     p.LightViewProj = clipmap.WorldToShadowUV;
     p.PageTable = gPageTable;
@@ -145,7 +151,7 @@ void CS_RemapPhysicalPages(uint3 dtId : SV_DispatchThreadID)
     if (!(m.Flags & PM_ALLOCATED))
         return;
 
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    StructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
     if (gInvalidateAll || m.LevelIndex >= VSM_NUM_CLIPMAPS)
     {
         physMeta[slot].Flags = 0;
@@ -447,6 +453,102 @@ void CS_ClearSlots(uint3 gId : SV_GroupID, uint3 gtId : SV_GroupThreadID)
     physPool[base + uint2(16, 16)]  = 0u;
 }
 
+[numthreads(32, 1, 1)]
+void CS_CullClear(uint3 dtId : SV_DispatchThreadID)
+{
+    if (dtId.x >= gNumMeshes)
+        return;
+    
+    RWStructuredBuffer<uint> meshRenderFlags = ResourceDescriptorHeap[gMeshRenderFlags];
+    meshRenderFlags[dtId.x] = 0;
+}
+
+[numthreads(32, 1, 1)]
+void CS_CullMeshes(uint3 dtId : SV_DispatchThreadID)
+{
+    if (dtId.x >= gNumMeshes)
+        return;
+    
+    StructuredBuffer<VSMBoundingBox> boundingBoxes = ResourceDescriptorHeap[gBoundingBoxes];
+    StructuredBuffer<float4x4> meshWorldMatrix = ResourceDescriptorHeap[gMeshWorldMatrix];
+    StructuredBuffer<ClipmapLevelGPU> clipmapBuffer = ResourceDescriptorHeap[gClipmapBuffer];
+    
+    VSMBoundingBox boundingBox = boundingBoxes[dtId.x];
+    ClipmapLevelGPU clipmap = clipmapBuffer[dtId.y];
+    
+    // Works only for orthogonal light projection
+    
+    float3 center = (boundingBox.Min + boundingBox.Max) * 0.5f;
+    float3 extents = (boundingBox.Max - boundingBox.Min) * 0.5f;
+    
+    float4x4 world = meshWorldMatrix[boundingBox.ObjectIndex];
+    float4x4 localToClip = mul(world, clipmap.WorldToShadowClip);
+    
+    float2 centerNDC = mul(float4(center, 1), localToClip).xy;
+    
+    float2 extentsNDC =
+            abs(localToClip[0].xy) * extents.x +
+            abs(localToClip[1].xy) * extents.y +
+            abs(localToClip[2].xy) * extents.z;
+    
+    float2 centerUV = centerNDC * float2(0.5f, -0.5f) + 0.5f;
+    float2 extentsUV = extentsNDC * 0.5f;
+    
+    float2 uvMin = centerUV - extentsUV;
+    float2 uvMax = centerUV + extentsUV;
+    
+    // Expand the culling bounds by one virtual texel to account for
+    // floating-point differences between culling and rasterization at page boundaries.
+    // Culling computes p * (World * Shadow), while the vertex shader computes
+    // (p * World) * Shadow. The two can round differently in floating point.
+    // Pad by one virtual texel to keep borderline meshes from being culled.
+#if 0
+     float paddingUV = 1.0f / VSM_VIRTUAL_SIZE;
+     uvMin -= paddingUV;
+     uvMax += paddingUV;
+#endif
+    
+    if (any(uvMax < 0) || any(uvMin > 1))
+        return;
+    
+    uvMin = saturate(uvMin);
+    uvMax = saturate(uvMax);
+    
+    // bounding box covering pages
+    uint4 bounds;
+    bounds.xy = uint2(uvMin * VSM_VIRTUAL_SIZE) >> VSM_LOG2_PAGE_SIZE;
+    bounds.zw = uint2(uvMax * VSM_VIRTUAL_SIZE) >> VSM_LOG2_PAGE_SIZE;
+    
+    RWStructuredBuffer<uint4> uncachedBounds = ResourceDescriptorHeap[gUncachedBounds];
+    
+    // xy = max(min(bounds))
+    // zw = min(max(bounds))
+    uint4 intersects;
+    intersects.xy = max(bounds.xy, uncachedBounds[dtId.y].xy);
+    intersects.zw = min(bounds.zw + 1, uncachedBounds[dtId.y].zw);
+    
+    if (any(intersects.xy >= intersects.zw))
+        return;
+    
+    // TODO: check all pages
+    // ...
+    
+    RWStructuredBuffer<uint> meshRenderFlags = ResourceDescriptorHeap[gMeshRenderFlags];
+    InterlockedOr(meshRenderFlags[dtId.x], 1u << dtId.y); // TODO: Consider using wave intrinsics to avoid atomic operations if possible
+}
+
+[numthreads(32, 1, 1)]
+void CS_DrawArgs(uint3 dtId : SV_DispatchThreadID)
+{
+    if (dtId.x >= gNumMeshes)
+        return;
+    
+    RWStructuredBuffer<uint> drawArgs = ResourceDescriptorHeap[gDrawArgs];
+    RWStructuredBuffer<uint> meshRenderFlags = ResourceDescriptorHeap[gMeshRenderFlags];
+    
+    drawArgs[dtId.x * 5 + 1] = countbits(meshRenderFlags[dtId.x]);
+}
+
 // -------------------- VS --------------------
 
 struct VertexIn
@@ -466,17 +568,30 @@ struct VSOut_G
 
 VSOut_G VS_Geometry(VertexIn vIn, uint inst : SV_InstanceID)
 {
-    RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+    RWStructuredBuffer<uint> meshRenderFlags = ResourceDescriptorHeap[gMeshRenderFlags];
+    uint renderFlag = meshRenderFlags[gMeshIdx];
+    
+    uint level = 0;
+    
+    // TODO: avoid the loop using separate buffer and accessing the level like:
+    // visibleLevels[gMeshIdx * VSM_NUM_CLIPMAPS + inst]
+    for (int i = 0; i < inst + 1; i++)
+    {
+        level = firstbitlow(renderFlag);
+        renderFlag = renderFlag & ~(1u << level);
+    }
+    
+    StructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
     RWStructuredBuffer<uint4> uncachedBounds = ResourceDescriptorHeap[gUncachedBounds];
 
-    float4 p = mul(mul(float4(vIn.PosL, 1), gWorld), levels[inst].WorldToShadowClip);
+    float4 p = mul(mul(float4(vIn.PosL, 1), gWorld), levels[level].WorldToShadowClip);
 
     // ndc = p.xy / p.w
     // uv = ndc * 0.5 + 0.5 = p.xy * 0.5 / p.w + 0.5 = (p.xy * 0.5 + 0.5 * p.w) / p.w
     float2 virtualPixelH = (p.xy * float2(0.5, -0.5) + 0.5 * p.w) * VSM_VIRTUAL_SIZE;
 
-    float2 minPixel = float2(uncachedBounds[inst].xy) * VSM_PAGE_SIZE;
-    float2 maxPixel = float2(uncachedBounds[inst].zw) * VSM_PAGE_SIZE;
+    float2 minPixel = float2(uncachedBounds[level].xy) * VSM_PAGE_SIZE;
+    float2 maxPixel = float2(uncachedBounds[level].zw) * VSM_PAGE_SIZE;
 
     VSOut_G o;
 
@@ -488,7 +603,7 @@ VSOut_G VS_Geometry(VertexIn vIn, uint inst : SV_InstanceID)
         maxPixel * p.w - virtualPixelH);
 
     o.Pos = p;
-    o.Level = inst;
+    o.Level = level;
 
     return o;
 }
@@ -552,7 +667,7 @@ float4 PS_DrawDebug(VertexOut pin) : SV_Target
 
     if (gDebugMode == 1)
     {
-        RWStructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
+        StructuredBuffer<ClipmapLevelGPU> levels = ResourceDescriptorHeap[gClipmapBuffer];
         color = float4(VSM_DebugPageGrid(p, a, levels[p.LevelIndex].WindowOriginPage), 1);
     }
     else if (gDebugMode == 2)
